@@ -1,0 +1,174 @@
+Motif analysis
+TUESDAY, 1/21/2020
+
+awk -F "\t" 'BEGIN{OFS="\t"}{print $1,$2-250,$3+250,$4,$5,$6}' lowMock1_q30_free.bed > DvM_LM30free_500bp.bed
+
+awk -F "\t" 'BEGIN{OFS="\t"}{print $1,$2-50,$3+50,$4,$5,$6}' lowMock1_q30_free.bed > DvM_LM30free_100bp.bed
+
+awk -F "\t" 'BEGIN{OFS="\t"}{print $1,$2-250,$3+250,$4,$5,$6}' lowMock1_q30_summit.bed > DvM_LM30bound_500bp.bed
+
+awk -F "\t" 'BEGIN{OFS="\t"}{print $1,$2-50,$3+50,$4,$5,$6}' lowMock1_q30_summit.bed > DvM_LM30bound_100bp.bed
+●
+get target fasta files
+○
+create fasta output directory
+mkdir fasta
+○
+I had to index the fasta file
+faidx ./Araport11/TAIR10_Chr.all.fasta > ./Araport11/TAIR10_Chr.all.faidx
+○
+Then I got the target fasta files
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30free_500bp.bed -fo fasta/DvM_LM30free_500bp.bed.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30free_100bp.bed -fo fasta/DvM_LM30free_100bp.bed.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30bound_500bp.bed -fo fasta/DvM_LM30bound_500bp.bed.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30bound_100bp.bed -fo fasta/DvM_LM30bound_100bp.bed.fasta
+●
+get background bed files
+○
+use custom script to find sequences that are about equa-distant to TSS sites as the target sequence
+Rscript motif_background_bed.R .fasta/DvM_LM30free_500bp.bed.fasta Araport11_nucleus_protein_coding_genes.201606.bed DvM_LM30free_500bp.shuffled.bed
+
+Rscript motif_background_bed.R .fasta/DvM_LM30free_500bp.bed.fasta Araport11_nucleus_protein_coding_genes.201606.bed DvM_LM30free_500bp.shuffled.bed
+○
+sort the shuffled files
+sort -k1,1 -k2,2n DvM_LM30free_500bp.shuffled.bed | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' > DvM_LM30free_500bp.shuffled.bed.tmp
+mv DvM_LM30free_500bp.shuffled.bed.tmp DvM_LM30free_500bp.shuffled.bed
+
+sort -k1,1 -k2,2n DvM_LM30bound_500bp.shuffled.bed | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' > DvM_LM30bound_500bp.shuffled.bed.tmp
+mv DvM_LM30bound_500bp.shuffled.bed.tmp DvM_LM30bound_500bp.shuffled.bed
+●
+get background fasta files
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30bound_100bp.Shuffled.bed -fo fasta/DvM_LM30bound_100bp.Shuffled.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30bound_500bp.Shuffled.bed -fo fasta/DvM_LM30bound_500bp.Shuffled.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30free_100bp.Shuffled.bed -fo fasta/DvM_LM30free_100bp.Shuffled.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed DvM_LM30free_500bp.Shuffled.bed -fo fasta/DvM_LM30free_500bp.Shuffled.fasta
+
+●
+run homer motif analysis
+○
+create homer log and output directories
+mkdir homer_results
+mkdir homer_results/TFL1_WTnSeg_ChIP4_250pmSummits_IN_TFL1_specific_genes_ChIP4_ChIP5
+mkdir homer_results/FD_WT_ChIP4_250pmSummits_IN_FD_specific_genes_ChIP4_ChIP5
+mkdir ~/Projects/TFL1/ChIPseq/V5/log_files/homer_output
+○
+set path to weblogo installation
+PATH=${PATH}:~/bin/homer/bin/:/Users/sklasfeld/bin/weblogo
+○
+run motif analysis using homer
+nohup findMotifs.pl fasta/DvM_LM30free_500bp.bed.fasta fasta ./homer_analysis/DvM500F  -fasta fasta/DvM_LM30free_500bp.Shuffled.fasta & 
+
+nohup findMotifs.pl fasta/DvM_LM30bound_500bp.bed.fasta fasta ./homer_analysis/DvM500B -fasta fasta/DvM_LM30bound_500bp.Shuffled.fasta &
+
+nohup findMotifs.pl fasta/DvM_LM30free_100bp.bed.fasta fasta ./homer_analysis/DvM100free -fasta fasta/DvM_LM30free_100bp.Shuffled.fasta &
+
+nohup findMotifs.pl fasta/DvM_LM30bound_100bp.bed.fasta fasta ./homer_analysis/DvM100bound -fasta fasta/DvM_LM30bound_100bp.Shuffled.fasta & 
+●
+Run motif analysis using homer but do not contain the background files: 
+nohup findMotifs.pl fasta/DvM_LM30free_500bp.bed.fasta fasta ./homer_analysis_nobgc/DvM500F & 
+
+nohup findMotifs.pl fasta/DvM_LM30bound_500bp.bed.fasta fasta ./homer_analysis_nobgc/DvM500B &
+
+nohup findMotifs.pl fasta/DvM_LM30free_100bp.bed.fasta fasta ./homer_analysis_nobgc/DvM100free &
+
+nohup findMotifs.pl fasta/DvM_LM30bound_100bp.bed.fasta fasta ./homer_analysis_nobgc/DvM100bound & 
+
+mv knownResults.html DvM100B_knownResults.html
+mv homerResults.html DvM100B_homerResults.html
+●
+run meme-chip motif analysis
+○
+create meme-chip log and output directories
+mkdir memeChIP_results
+mkdir memeChIP_results/TFL1_WTnSeg_ChIP4_250pmSummits_IN_TFL1_specific_genes_ChIP4_ChIP5
+mkdir memeChIP_results/FD_WT_ChIP4_250pmSummits_IN_FD_specific_genes_ChIP4_ChIP5
+mkdir ~/Projects/TFL1/ChIPseq/V5/log_files/memeChIP_out
+○
+run motif analysis using meme-chip
+qsub -V -b y -N tfl1_meme -cwd -o ~/Projects/TFL1/ChIPseq/V5/log_files/memeChIP_out/memeChIP_8_21_2019_1.log -e ~/Projects/TFL1/ChIPseq/V5/log_files/memeChIP_out/memeChIP_8_21_2019_1.log meme-chip -oc memeChIP_results/TFL1_WTnSeg_ChIP4_250pmSummits_IN_TFL1_specific_genes_ChIP4_ChIP5 -db /home/wagner-lab/sklasfeld/Downloads/motif_databases/ARABD/ArabidopsisDAPv1.meme -neg fasta/TFL1_WTnSeg_ChIP4_250pmSummits_IN_TFL1_specific_genes_ChIP4_ChIP5.Shuffled.fasta fasta/TFL1_WTnSeg_ChIP4_250pmSummits_IN_TFL1_specific_genes_ChIP4_ChIP5.fasta
+
+qsub -V -b y -N fd_meme -cwd -o ~/Projects/TFL1/ChIPseq/V5/log_files/memeChIP_out/memeChIP_8_21_2019_2.log -e ~/Projects/TFL1/ChIPseq/V5/log_files/memeChIP_out/memeChIP_8_21_2019_2.log meme-chip -oc memeChIP_results/FD_WT_ChIP4_250pmSummits_IN_FD_specific_genes_ChIP4_ChIP5 -db /home/wagner-lab/sklasfeld/Downloads/motif_databases/ARABD/ArabidopsisDAPv1.meme -neg fasta/FD_WT_ChIP4_250pmSummits_IN_FD_specific_genes_ChIP4_ChIP5.Shuffled.fasta fasta/FD_WT_ChIP4_250pmSummits_IN_FD_specific_genes_ChIP4_ChIP5.fasta
+MONDAY, 2/3/2020×
+bedtools intersect -v -a ettin_OG_qval10_summit.bed -b MNaseIH_final_q100.bed > ettin_summit_free.bed
+bedtools intersect -wa -a ettin_OG_qval10_summit.bed -b MNaseIH_final_q100.bed > ettin_summit_bound.bed
+bedtools intersect -wa -b ettin_OG_qval10_summit.bed -a MNaseIH_final_q100.bed > MNase_ettin_bound.bed
+
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q100.bed > infloLFY_summit_bound.bed
+bedtools intersect -wa -b 35SLFYParcyFinal_summits.bed -a MNaseIH_final_q100.bed > MNase_infloLFY_bound.bed
+
+
+bedtools intersect -v -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q100.bed > infloLFY_summit_free.bed
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q100.bed > infloLFY_summit_bound.bed
+
+awk -F "\t" 'BEGIN{OFS="\t"}{print $1,$2-250,$3+250,$4,$5,$6}' infloLFY_summit_free.bed > infloLFY_500bp_free.bed
+awk -F "\t" 'BEGIN{OFS="\t"}{print $1,$2-50,$3+50,$4,$5,$6}' infloLFY_summit_free.bed > infloLFY_100bp_free.bed
+
+●
+get target fasta files
+○
+create fasta output directory
+mkdir fasta
+○
+I had to index the fasta file
+faidx ./Araport11/TAIR10_Chr.all.fasta > ./Araport11/TAIR10_Chr.all.faidx
+○
+Then I got the target fasta files
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed infloLFY_500bp_bound.bed -fo fasta/infloLFY_500bp_bound.bed.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed infloLFY_100bp_bound.bed -fo fasta/infloLFY_100bp_bound.bed.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed infloLFY_500bp_free.bed -fo fasta/infloLFY_500bp_free.bed.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed ettin_100bp_free.bed -fo fasta/ettin_100bp_free.bed.fasta
+TUESDAY, 2/4/2020×
+bedtools intersect -wa -a ettin_OG_qval10_summit.bed -b MNaseIH_final_q100.bed > ettin_summit_bound.bed
+bedtools intersect -wa -b ettin_OG_qval10_summit.bed -a MNaseIH_final_q100.bed > MNase_ettin_bound.bed
+
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q100.bed > infloLFY_summit_bound.bed
+bedtools intersect -wa -b 35SLFYParcyFinal_summits.bed -a MNaseIH_final_q100.bed > MNase_infloLFY_bound.bed
+SUNDAY, 2/9/2020×
+○
+sort the shuffled files
+sort -k1,1 -k2,2n ettin_100bp_free.shuffled.bed | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' > ettin_100bp_free.shuffled.bed.tmp
+mv ettin_100bp_free.shuffled.bed.tmp ettin_100bp_free.shuffled.bed 
+
+sort -k1,1 -k2,2n ettin_500bp_free.shuffled.bed | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' > ettin_500bp_free.shuffled.bed.tmp
+mv ettin_500bp_free.shuffled.bed.tmp ettin_500bp_free.shuffled.bed
+
+●
+get background fasta files
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed infloLFY_100bp_bound.shuffled.bed -fo fasta/infloLFY_100bp_bound.shuffled.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed infloLFY_500bp_bound.shuffled.bed -fo fasta/infloLFY_500bp_bound.shuffled.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed infloLFY_100bp_free.shuffled.bed -fo fasta/infloLFY_100bp_free.shuffled.fasta
+
+bedtools getfasta -name -fi ../Araport11/TAIR10_Chr.all.fasta -bed infloLFY_500bp_free.shuffled.bed -fo fasta/infloLFY_500bp_free.shuffled.fasta
+
+Run motif analysis for homer -- this is for ettin:
+nohup findMotifs.pl fasta/ettin_100bp_bound.bed.fasta fasta ./homer_analysis/ettin100B  -fasta fasta/ettin_100bp_bound.shuffled.fasta & 
+
+nohup findMotifs.pl fasta/ettin_500bp_bound.bed.fasta fasta ./homer_analysis/ettin500B  -fasta fasta/ettin_500bp_bound.shuffled.fasta & 
+
+nohup findMotifs.pl fasta/ettin_100bp_free.bed.fasta fasta ./homer_analysis/ettin100F  -fasta fasta/ettin_100bp_free.shuffled.fasta & 
+
+nohup findMotifs.pl fasta/ettin_500bp_free.bed.fasta fasta ./homer_analysis/ettin500F  -fasta fasta/ettin_500bp_free.shuffled.fasta & 
+
+This is for LFY:
+nohup findMotifs.pl fasta/infloLFY_100bp_bound.bed.fasta fasta ./homer_analysis/infloLFY100B  -fasta fasta/infloLFY_100bp_bound.shuffled.fasta & 
+
+nohup findMotifs.pl fasta/infloLFY_500bp_bound.bed.fasta fasta ./homer_analysis/infloLFY500B  -fasta fasta/infloLFY_500bp_bound.shuffled.fasta & 
+
+nohup findMotifs.pl fasta/infloLFY_100bp_free.bed.fasta fasta ./homer_analysis/infloLFY100F  -fasta fasta/infloLFY_100bp_free.shuffled.fasta & 
+
+nohup findMotifs.pl fasta/infloLFY_500bp_free.bed.fasta fasta ./homer_analysis/infloLFY500F  -fasta fasta/infloLFY_500bp_free.shuffled.fasta & 
+
+
+ 
+SPLIT WORKSPACE
