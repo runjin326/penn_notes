@@ -1,0 +1,540 @@
+Analysis of publicly availalbe histone modification files
+
+WEDNESDAY, 4/24/2019
+fastq-dump SRR8643561
+fastq-dump SRR8643565
+
+H3k27me3 Col-0 C14
+C14_2 truseq 12
+C14_1 truseq 6
+
+nohup ~/Downloads/FastQC/fastqc -o ../FASTQC K27me3_C14_1.fastq &
+nohup ~/Downloads/FastQC/fastqc -o ../FASTQC K27me3_C14_2.fastq &
+
+nohup ~/Downloads/FastQC/fastqc -o ../FASTQC Col_C0_H3_1.fastq &
+nohup ~/Downloads/FastQC/fastqc -o ../FASTQC Col_C0_H3_2.fastq &
+nohup ~/Downloads/FastQC/fastqc -o ../FASTQC Col_C14_H3_1.fastq &
+nohup ~/Downloads/FastQC/fastqc -o ../FASTQC Col_C14_H3_2.fastq &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/Col_C14_H3K4me1_1.sam fastq_files/Col_C14_H3K4me1_1.fastq 2> log_files/bowtie2_logs/bowtie_log_Col_C14_H3K4me1_1.log &
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/Col_C14_H3K4me1_2.sam fastq_files/Col_C14_H3K4me1_2.fastq 2> log_files/bowtie2_logs/bowtie_log_Col_C14_H3K4me1_2.log &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/Col_C14_H3K4me2_1.sam fastq_files/Col_C14_H3K4me2_1.fastq 2> log_files/bowtie2_logs/bowtie_log_Col_C14_H3K4me2_1.log &
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/Col_C14_H3K4me2_2.sam fastq_files/Col_C14_H3K4me2_2.fastq 2> log_files/bowtie2_logs/bowtie_log_Col_C14_H3K4me2_2.log &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/Col_C14_H3K4me3_1.sam fastq_files/Col_C14_H3K4me3_1.fastq 2> log_files/bowtie2_logs/bowtie_log_Col_C14_H3K4me3_1.log &
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/Col_C14_H3K4me3_2.sam fastq_files/Col_C14_H3K4me3_2.fastq 2> log_files/bowtie2_logs/bowtie_log_Col_C14_H3K4me3_2.log &
+A
+B
+C
+D
+E
+F
+1
+Samples	Start	No mapped	Mapped once	Mapped multiple	Mapped total
+2
+K27me3_C14_1	16505985	2660415 (16.12%)	10879478 (65.91%)	2966092 (17.97%)	83.88% 
+3
+K27me3_C14_2	14319809	4078828 (28.48%)	8019291 (56.00%)	2221690 (15.51%)	71.52%
+4
+Col_C0_H3_1	27582188	608944 (2.21%)	18202385 (65.99%) 	8770859 (31.80%)	97.79%
+5
+Col_C0_H3_2	24632918	880834 (3.58%)	16216935 (65.83%)	7535149 (30.59%)	96.42%
+6
+Col_C14_H3_1	29176133	416201 (1.43%) 	19044154 (65.27%)	9715778 (33.30%)	98.57%
+7
+Col_C14_H3_2	19862114	480708 (2.42%)	13027958 (65.59%)	6353448 (31.99%)	97.58% 
+8
+Col_C0_H3K4me1_1	30223203	2847692 (9.42%)	22246946 (73.61%)	5128565 (16.97%)	90.58%
+9
+Col_C0_H3K4me1_2	21155272	2556692 (12.09%)	14277784 (67.49%)	4320796 (20.42%)	87.91% 
+10
+Col_C0_H3K4me2_1	29349376	6878340 (23.44%)	18706709 (63.74%)	3764327 (12.83%) 	76.56%
+11
+Col_C0_H3K4me2_2	21804470	2165456 (9.93%)	16188788 (74.25%)	3450226 (15.82%)	90.07%
+12
+Col_C0_H3K4me3_1	27939110	1752607 (6.27%)	21306824 (76.26%)	4879679 (17.47%)	93.73%
+13
+Col_C0_H3K4me3_2	22430222	2657482 (11.85%)	15108394 (67.36%)	4664346 (20.79%)	88.15%
+14
+Col_C14_H3K4me1_1	28501567	659168 (2.31%)	24739751 (86.80%)	3102648 (10.89%)	97.69%
+15
+Col_C14_H3K4me1_2	20870010	1070363 (5.13%)	17447283 (83.60%)	2352364 (11.27%)	94.87%
+16
+Col_C14_H3K4me2_1	31059573	1192457 (3.84%)	27301074 (87.90%)	2566042 (8.26%)	96.16%
+17
+Col_C14_H3K4me2_2	23914076	2484469 (10.39%)	19418111 (81.20%)	2011496 (8.41%)	89.61%
+18
+Col_C14_H3K4me3_1	31659393	873065 (2.76%)	27934788 (88.24%)	2851540 (9.01%)	97.24%
+19
+Col_C14_H3K4me3_2	23197814	813299 (3.51%)	19921624 (85.88%)	2462891 (10.62%)	96.49%
+Table1
+
+
+
+●
+Steps for filtering reads
+●
+create_filtering_C14.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/CIM_LDL3/
+NTHREADS=2 ## number of threads
+miniQ=30.bigwig
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX_C14.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1796: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd home/runjin/CIM_LDL3/mapped 
+source ../scripts/create_filtering_C14.sh > ../scripts/filtering_C14.sh
+chmod 755 ../scripts/filtering_C14.sh
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+nohup ../scripts/filtering_C14.sh > ../log_files/filtering_C14.log 2>&1 &
+
+mv DRR168272.fastq Col_C14_H3K4me3_1.fastq
+mv DRR168288.fastq Col_C14_H3K4me3_2.fastq
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 Col_C14_H3K4me2_1.bam
+samtools view -c -F 4 Col_C14_H3K4me2_2.bam
+samtools view -c -F 4 Col_C14_H3K4me3_1.bam
+samtools view -c -F 4 Col_C14_H3K4me3_2.bam
+●
+Get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c Col_C0_H3K4me2_1.filter.bam
+samtools view -c Col_C0_H3K4me2_2.filter.bam 
+samtools view -c Col_C14_H3K4me1_1.filter.bam
+samtools view -c Col_C14_H3K4me1_2.filter.bam 
+A
+B
+C
+1
+Start	Get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+2
+K27me3_C14_1	13845570	11548909
+3
+K27me3_C14_2	10240981	8585909
+4
+Col_C0_H3_1	26973244	20184350
+5
+Col_C0_H3_2	23752084	17997673
+6
+Col_C14_H3_1	28759932	21300356
+7
+Col_C14_H3_2	19381406	14511863
+8
+Col_C0_H3K4me1_1	27375511	23712037
+9
+Col_C0_H3K4me1_2	18598580	15191657
+10
+Col_C0_H3K4me2_1	22471036	19792184
+11
+Col_C0_H3K4me2_2	19639014	17140256
+12
+Col_C0_H3K4me3_1	26186503	22583689
+13
+Col_C0_H3K4me3_2	19772740	15935172
+14
+Col_C14_H3K4me1_1	27842399	25941136
+15
+Col_C14_H3K4me1_2	19799647	18314535
+16
+Col_C14_H3K4me2_1	29867116	19792184
+17
+Col_C14_H3K4me2_2	21429607	17140256
+18
+Col_C14_H3K4me3_1	30786328	22583689
+19
+Col_C14_H3K4me3_2	22384515	15935172
+Table2
+
+
+
+nohup computeMatrix reference-point -S LFY1HrMock_pooled_greenscreen1.bigwig LFY1HrDex_pooled_greenscreen1.bigwig -R DexvsMock_1summit_qval10.narrowPeak --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o DvM_GS_1summit.tab.gz &
+
+plotHeatmap --matrixFile DvM_GS_1summit.tab.gz --colorMap Reds --outFileName DvM_GS_1summit_heatmap.png 
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LFY_q30_LMfree.bed > LFY_q30_LMfree_nochr.bed
+
+nohup computeMatrix reference-point -S ./LFY_ChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R ./bed_regions/LFY_q30_HDbound_nochr.bed ./bed_regions/LFY_q30_HDfree_nochr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFY_q30_HD_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./LFY_ChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R ./bed_regions/LFY_q30_LDbound_nochr.bed ./bed_regions/LFY_q30_LDfree_nochr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFY_q30_LD_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./LFY_ChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R ./bed_regions/LFY_q30_LMbound_nochr.bed ./bed_regions/LFY_q30_LMfree_nochr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFY_q30_LM_ChIP.tab.gz &
+
+plotHeatmap --matrixFile ./matrix_files/LFY_q30_HD_ChIP.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFY_q30_HD_ChIP.png
+plotHeatmap --matrixFile ./matrix_files/LFY_q30_LD_ChIP.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFY_q30_LD_ChIP.png
+plotHeatmap --matrixFile ./matrix_files/LFY_q30_LM_ChIP.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFY_q30_LM_ChIP.png
+●
+Get bigiwg files for IGV visualization 
+●
+run ~/custom_scripts/bam2big_singleEnd.sh script on each bam file to get bigwigs and bedgraph files
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh mapped/"$0".filter.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX_2nd.list > scripts/bam2big_CIM2nd.sh
+
+K27me3_C14_1
+K27me3_C14_2
+Col_C0_H3_1
+Col_C0_H3_2
+
+chmod 755 ./scripts/bam2big_CIM2nd.sh
+nohup ./scripts/bam2big_CIM2nd.sh > log_files/bam2big_CIM2nd.log 2>&1 &
+●
+Generate pooled samples for LMI2 seedling and callus:
+nohup bedtools unionbedg -i Col_C14_H3K4me2_1.filteren.bg Col_C14_H3K4me2_2.filteren.bg > Col_C14_H3K4me2.unionbed &
+nohup bedtools unionbedg -i Col_C14_H3K4me3_1.filteren.bg Col_C14_H3K4me3_2.filteren.bg > Col_C14_H3K4me3.unionbed &
+nohup bedtools unionbedg -i Col_C14_H3K4me1_1.filteren.bg Col_C14_H3K4me1_2.filteren.bg > Col_C14_H3K4me1.unionbed &
+○
+get average of each row in the unionbedg (scripts/avg_unionbg.sh) - and make bigwig files for that 
+awk 'BEGIN{OFS="\t"; print "track name=\42 col H3K4me2 root \42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' Col_C0_H3K4me2.unionbed > Col_C0_H3K4me2.bedgraph
+bedGraphToBigWig Col_C0_H3K4me2.bedgraph ~/Araport11/TAIR10_chr_count.txt Col_C0_H3K4me2.pooled.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 col H3K4me3 root \42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' Col_C0_H3K4me3.unionbed > Col_C0_H3K4me3.bedgraph
+nohup bedGraphToBigWig Col_C0_H3K4me3.bedgraph ~/Araport11/TAIR10_chr_count.txt Col_C0_H3K4me3.pooled.bigwig &
+
+nohup awk 'BEGIN{OFS="\t"; print "track name=\42 col C14 H3K4me1 \42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' Col_C14_H3K4me1.unionbed > Col_C14_H3K4me1.bedgraph &
+nohup bedGraphToBigWig Col_C14_H3K4me1.bedgraph ~/Araport11/TAIR10_chr_count.txt Col_C14_H3K4me1.pooled.bigwig &
+
+nohup awk 'BEGIN{OFS="\t"; print "track name=\42 col C14 H3K4me2 \42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' Col_C14_H3K4me2.unionbed > Col_C14_H3K4me2.bedgraph &
+nohup bedGraphToBigWig Col_C14_H3K4me2.bedgraph ~/Araport11/TAIR10_chr_count.txt Col_C14_H3K4me2.pooled.bigwig &
+
+nohup awk 'BEGIN{OFS="\t"; print "track name=\42 col C14 H3K4me3 \42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' Col_C14_H3K4me3.unionbed > Col_C14_H3K4me3.bedgraph &
+nohup bedGraphToBigWig Col_C14_H3K4me3.bedgraph ~/Araport11/TAIR10_chr_count.txt Col_C14_H3K4me3.pooled.bigwig &
+
+mv Col_C0_H3K4me2_1.filteren.bg.bw Col_C0_H3K4me2_1.CP10M.bigwig
+mv Col_C0_H3K4me2_2.filteren.bg.bw Col_C0_H3K4me2_2.CP10M.bigwig
+mv Col_C0_H3K4me3_1.filteren.bg.bw Col_C0_H3K4me3_1.CP10M.bigwig
+mv Col_C0_H3K4me3_2.filteren.bg.bw Col_C0_H3K4me3_2.CP10M.bigwig
+
+mv Col_C14_H3K4me2_1.filteren.bg.bw Col_C14_H3K4me2_1.CP10M.bigwig
+mv Col_C14_H3K4me2_2.filteren.bg.bw Col_C14_H3K4me2_2.CP10M.bigwig
+mv Col_C14_H3K4me3_1.filteren.bg.bw Col_C14_H3K4me3_1.CP10M.bigwig
+mv Col_C14_H3K4me3_2.filteren.bg.bw Col_C14_H3K4me3_2.CP10M.bigwig
+mv Col_C14_H3K4me1_1.filteren.bg.bw Col_C14_H3K4me1_1.CP10M.bigwig
+mv Col_C14_H3K4me1_2.filteren.bg.bw Col_C14_H3K4me1_2.CP10M.bigwig
+THURSDAY, 4/25/2019×
+nohup macs2 callpeak -t Col_C14_H3K4me1_1.filter.bam Col_C14_H3K4me1_2.filter.bam -f BAM -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam --keep-dup auto -g 101274395 --outdir MACS2 -n Col_C14_H3K4me1_narrow > ../log_files/macs2_C14_H3K4me1_narrow.log & 
+
+nohup macs2 callpeak -t Col_C14_H3K4me2_1.filter.bam Col_C14_H3K4me2_2.filter.bam -f BAM -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam  --keep-dup auto --broad -g 101274395 --outdir MACS2 -n Col_C14_H3K4me2_broad > ../log_files/macs2_C14_H3K4me2_broad.log & 
+
+#for H3k27me3 peak: the averge size is around 212-214bp 
+#for H3K4me2 peak: the average size is around 152bp
+A
+B
+C
+1
+H3K27me3	H3K4me2
+2
+DefaultWithDup	11176	25396
+3
+BroadwithDup	8226	23305
+Table3
+
+
+
+1.
+NAME_peaks.broadPeak
+is in BED6+3 format which is similar to narrowPeak file, except for missing the 10th column for annotating peak summits.
+2.
+NAME_peaks.gappedPeak
+is in BED12+3 format which contains both the broad region and narrow peaks. The 5th column is 10*-log10qvalue, to be more compatible to show grey levels on UCSC browser. Tht 7th is the start of the first narrow peak in the region, and the 8th column is the end. The 9th column should be RGB color key, however, we keep 0 here to use the default color, so change it if you want. The 10th column tells how many blocks including the starting 1bp and ending 1bp of broad regions. The 11th column shows the length of each blocks, and 12th for the starts of each blocks. 13th: fold-change, 14th: -log10pvalue, 15th: -log10qvalue. The file can be loaded directly to UCSC genome browser.
+python ~/Downloads/goTermHeatmap.py GOterm_LM30DE24hr_5e-3_hc30.png -i DE24hrLM30B.txt DE24hrLM30F.txt -l "callus 24hrDE B" "callus 24hrDE F" --tsv --headcrop 30 --neglog --title "GO terms for LFY genes with nucleosome occupancy" --dontLimitBySortLabel --sortByLabel "callus 24hrDE B" --fdr_min 0.005
+
+python ~/Downloads/goTermHeatmap.py GOterm_callus_hc60.png -i callus_bound.txt callus_free.txt -l "callus bound" "callus free" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 60 --sortByLabel "callus bound" --fdr_min 0.05
+
+
+python ~/Downloads/goTermHeatmap.py GOterm_Parcy_hc60.png -i Parcy_bound.txt Parcy_free.txt -l "Parcy bound" "Parcy free" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 60 --sortByLabel "Parcy bound" --dontLimitBySortLabel --fdr_min 0.05
+
+python ~/Downloads/goTermHeatmap.py GOterm_Parcy_5e-4.png -i Parcy_bound.txt Parcy_free.txt -l "Parcy bound" "Parcy free" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 60 --sortByLabel "Parcy bound" --dontLimitBySortLabel --fdr_min 0.0005
+
+python ~/Downloads/goTermHeatmap.py GOterm_callus_inflo_BvF_5e-4.png -i callus_bound.txt callus_free.txt callus_specfiic_B.txt callus_specific_F.txt CBIB.txt CBIF.txt CFIB.txt -l "callus B" "callus F" "callus specific B" "callus specific F" "callus B inflo B" "callus B inflo F" "callus F inflo B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "callus B" --fdr_min 0.0005
+
+python ~/Downloads/goTermHeatmap.py GOterm_callus_inflo_BvF_7e-5_hc30.png -i callus_bound.txt callus_free.txt callus_specfiic_B.txt CBIB.txt -l "callus B" "callus F" "callus specific B" "callus B inflo B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "callus B" --headcrop 30 --dontLimitBySortLabel --fdr_min 0.00007
+
+python ~/Downloads/goTermHeatmap.py GOterm_callus_inflo_B_1e-4_hc25.png -i callus_bound.txt callus_free.txt callus_specfiic_B.txt CBIB.txt -l "callus B" "callus F" "callus specific B" "callus B inflo B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "callus B" --headcrop 25 --dontLimitBySortLabel --fdr_min 0.0001
+
+6.9e-05
+
+python ~/Downloads/goTermHeatmap.py GOterm_callus_inflo_BvF_1e-6_hc50.png -i callus_bound.txt callus_free.txt callus_specfiic_B.txt callus_specific_F.txt CBIB.txt CBIF.txt CFIB.txt -l "callus B" "callus F" "callus specific B" "callus specific F" "callus B inflo B" "callus B inflo F" "callus F inflo B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "callus B" --headcrop 50 --dontLimitBySortLabel --fdr_min 0.00001
+
+python ~/Downloads/goTermHeatmap.py GOterm_callusB_K4K27.png -i noK4me2_callusB.txt K4me2_callusB.txt noK4me3_callusB.txt K4me3_callusB.txt noK27me3_callusB.txt K27me3_callusB.txt noK4me1_callusB.txt K4me1_callusB.txt -l "no K4me2 B" "K4me2 B" "no K4me3 B" "K4me3 B" "no K4me1 B" "K4me1 B" "no K27me3 B" "K27me3 B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "no K4me2 B" --fdr_min 0.05
+
+python ~/Downloads/goTermHeatmap.py GOterm_callusB_K4K27_hc5.png -i noK4me2_callusB.txt K4me2_callusB.txt noK4me1_callusB.txt K4me1_callusB.txt noK4me3_callusB.txt K4me3_callusB.txt noK27me3_callusB.txt K27me3_callusB.txt -l "no K4me2 B" "K4me2 B" "no K4me1 B" "K4me1 B" "no K4me3 B" "K4me3 B" "no K27me3 B" "K27me3 B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 5 --dontLimitBySortLabel --sortByLabel "no K4me2 B" --fdr_min 0.05
+
+python ~/Downloads/goTermHeatmap.py GOterm_callusB_K4K27.png -i K27me3_callusB.txt noK27me3_callusB.txt -l "K27me3 B" "no K27me3 B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 30 --dontLimitBySortLabel --sortByLabel "K27me3 B"  --fdr_min 0.0004
+
+MONDAY, 4/29/2019×
+#for H3k27me3 peak: the averge size is around 212-214bp 
+#for H3K4me2 peak: the average size is around 152bp
+●
+Start annotating new genes:
+awk '$1 != "ChrM" && $1 !="ChrC" {print $0}' C14_K27me3_qval10.broadPeak > C14_K27me3_qval10.modified.broadPeak
+cut -f1,2,3,4,5,6 C14_K27me3_qval10.modified.broadPeak > C14_K27me3_qval10.modified.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{f_region=$3-$2;if(f_region%2==0){summit=f_region/2}else{summit=f_region/2+0.5};printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.0d\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,summit}' C14_K27me3_qval10.modified.broadPeak  > C14_K27me3_qval10.final.broadPeak
+cut -f1,2,3,4,5,6 C14_H3K4me1_qval10.final.broadPeak > C14_H3K4me1_qval10.final.bed
+
+awk '$9>=10' K27me3_default_peaks.narrowPeak > C14_K27me3_qval10.narrowPeak
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6,$7,$8,(($3-$2)/2)}' C14_K27me3_qval10.modified.broadPeak > C14_K27me3_qval10.final.broadPeak
+
+awk '$1 != "ChrM" && $1 !="ChrC" {print $0}' Col_C14_H3K4me3_qval10.narrowPeak > C14_H3K4me3_qval10.modified.narrowPeak
+cut -f1,2,3,4,5,6 C14_H3K4me3_qval10.modified.narrowPeak > C14_H3K4me3_qval10.modified.bed
+
+awk '$9>=10' Col_C14_H3K4me3_peaks.narrowPeak > Col_C14_H3K4me3_qval10.narrowPeak
+awk '$1 != "ChrM" && $1 !="ChrC" {print $0}' C14_H3K4me1_qval10.broadPeak > C14_H3K4me2_qval10.modified.broadPeak
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6,$7,$8,(($3-$2)/2)}' C14_H3K4me2_qval10.modified.broadPeak > C14_H3K4me2_qval10.final.broadPeak
+cut -f1,2,3,4,5,6 C14_H3K4me2_qval10.final.broadPeak > C14_H3K4me2_qval10.final.bed
+
+awk '$9>=10' Col_C14_H3K4me1_ext_peaks.broadPeak > C14_H3K4me1_qval10.broadPeak
+
+awk '$1 != "ChrM" && $1 !="ChrC" {print $0}' C14_H3K4me1_qval10.broadPeak > C14_H3K4me1_qval10.modified.broadPeak
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6,$7,$8,(($3-$2)/2)}' C14_H3K4me1_qval10.modified.broadPeak > C14_H3K4me1_qval10.final.broadPeak
+cut -f1,2,3,4,5,6 C14_H3K4me1_qval10.final.broadPeak > C14_H3K4me1_qval10.final.bed
+
+#broad peak regions are call "final.bed" vs. narrow peak regions are call "modified.bed"
+
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation C14_K27me3_broad \
+        . \
+        ../bed_regions/C14_K27me3_qval10.final.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 0 -tts 0 \
+        -n  ../mapped/MACS2/C14_K27me3_qval10.final.broadPeak
+       
+nohup macs2 callpeak -t Col_C14_H3K4me1_1.filter.bam Col_C14_H3K4me1_2.filter.bam -f BAM -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam --keep-dup auto --nomodel --extsize 212 --broad -g 101274395 --outdir MACS2 -n Col_C14_H3K4me1_ext > ../log_files/macs2_C14_H3K4me1_ext.log & 
+TUESDAY, 5/7/2019×
+●
+Start annotating new k4me1 with narrow peak calling  -- using the regular method MACS2 cannot build model:
+nohup macs2 callpeak -t Col_C14_H3K4me1_1.filter.bam Col_C14_H3K4me1_2.filter.bam -f BAM -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam --keep-dup auto --nomodel --extsize 212 -g 101274395 --outdir MACS2 -n Col_C14_H3K4me1_narrow > ../log_files/macs2_C14_H3K4me1_narrow.log & 
+
+awk '$9>=10' Col_C14_H3K4me1_narrow_peaks.narrowPeak > C14_H3K4me1_qval10.narrowPeak
+
+awk '$1 != "ChrM" && $1 !="ChrC" {print $0}' C14_H3K4me1_qval10.narrowPeak > C14_H3K4me1_qval10.modified.narrowPeak
+cut -f1,2,3,4,5,6 C14_H3K4me1_qval10.modified.narrowPeak > C14_H3K4me1_qval10.modified.bed
+
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation C14_H3K4me1_narrow \
+        . \
+        ../bed_regions/C14_H3K4me1_qval10.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 0 -tts 0 \
+        -n  ../mapped/MACS2/C14_H3K4me1_qval10.modified.narrowPeak 
+
+python ~/Downloads/goTermHeatmap.py GOterm_callusB_K4K27_hc1.png -i noK4me1_narrow_callusB.txt K4me1_narrow_callusB.txt noK4me2_callusB.txt K4me2_callusB.txt noK4me3_callusB.txt K4me3_callusB.txt noK27me3_callusB.txt K27me3_callusB.txt -l "no K4me1 B" "K4me1 B" "no K4me2 B" "K4me2 B" "no K4me3 B" "K4me3 B" "no K27me3 B" "K27me3 B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 1 --dontLimitBySortLabel --sortByLabel "no K4me2 B" --fdr_min 0.05
+TUESDAY, 6/11/2019×
+●
+First: convert all the filter.bam files into bed files by using the following commands:
+bedtools bamtobed -i Col_C0_H3_1.filter.bam > Col_C0_H3_1.filter.bam.bed
+bedtools bamtobed -i Col_C0_H3_2.filter.bam > Col_C0_H3_2.filter.bam.bed
+
+bedtools bamtobed -i LFY1HrDexInput.filter.bam > LFY1HrDexInput.filter.bam.bed
+
+#or we can merge first 
+
+nohup samtools merge Col_C14_H3.filter.bam Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam &
+nohup samtools merge Col_C14_H3K4me1.filter.bam Col_C14_H3K4me1_1.filter.bam Col_C14_H3K4me1_2.filter.bam &
+nohup samtools merge Col_C14_H3K4me2.filter.bam Col_C14_H3K4me2_1.filter.bam Col_C14_H3K4me2_2.filter.bam &
+nohup samtools merge Col_C14_H3K4me3.filter.bam Col_C14_H3K4me3_1.filter.bam Col_C14_H3K4me3_2.filter.bam &
+nohup samtools merge Col_C14_H3K27me3.filter.bam K27me3_C14_1.filter.bam K27me3_C14_2.filter.bam &
+
+#convert to bed files for overlap with whole genome: 
+nohup bedtools bamtobed -i Col_C14_H3.filter.bam > Col_C14_H3.filter.bam.bed &
+nohup bedtools bamtobed -i Col_C14_H3K4me1.filter.bam > Col_C14_H3K4me1.filter.bam.bed &
+nohup bedtools bamtobed -i Col_C14_H3K4me2.filter.bam > Col_C14_H3K4me2.filter.bam.bed &
+nohup bedtools bamtobed -i Col_C14_H3K4me3.filter.bam > Col_C14_H3K4me3.filter.bam.bed &
+nohup bedtools bamtobed -i Col_C14_H3K27me3.filter.bam > Col_C14_H3K27me3.filter.bam.bed &
+
+nohup bedtools intersect -b Col_C14_H3.filter.bam.bed -a ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -bed -c > Col_C14_H3_ProteinCodingANDmiRNA_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me1.filter.bam.bed -a ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -bed -c > Col_C14_H3K4me1_ProteinCodingANDmiRNA_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me2.filter.bam.bed -a ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -bed -c > Col_C14_H3K4me2_ProteinCodingANDmiRNA_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me3.filter.bam.bed -a ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -bed -c > Col_C14_H3K4me3_ProteinCodingANDmiRNA_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K27me3.filter.bam.bed -a ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -bed -c > Col_C14_H3K27me3_ProteinCodingANDmiRNA_counts.bed &
+
+#generated lists of genes that are of specific properties:
+python ~/custom_scripts/findInColumn_py.py Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed LM30B_flower.list 4 > LM30B_flower_araport11.bed
+
+DE24LM30F.list
+DE24LM30B.list
+LM30F.list
+LM30B.list
+LM30B_flower.list
+
+#sample script:
+nohup bedtools intersect -b Col_C14_H3K4me2.filter.bam.bed -a ../useful_files/LM30B_flower_araport11.bed -bed -c > Col_C14_H3K4me2_LM30B_flower_counts.bed &
+
+A
+B
+1
+Callus_modification	Reads 
+2
+H3	35812219
+3
+H3K4me1	44255671
+4
+H3K4me2	48709501
+5
+H3K4me3	49361631
+6
+H3K27me3	20134818
+Table4
+
+
+
+colnames(test) <- c("A","B","C","D","E","F","G","H","I","J","K")
+TUESDAY, 6/25/2019×
+GOAL: generate violin plot with input files on different gene list:
+bedtools bamtobed -i LFY1HrDexInput.filter.bam > LFY1HrDexInput.filter.bam.bed
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' LFY1HrDexInput.filter.bam.bed > LFY1HrDexInput_chr.bam.bed
+
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -bed -c > LFY1HrDexInput_ProteinCodingANDmiRNA_counts.bed &
+
+#use lists that we previosuly generate and overlap that with input files:
+python ~/custom_scripts/findInColumn_py.py Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed LM30B_flower.list 4 > LM30B_flower_araport11.bed
+
+DE24LM30F.list
+DE24LM30B.list
+LM30F.list
+LM30B.list
+
+#sample script - count the number of input signals in each gene lists 
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/LM30B_araport11.bed -bed -c > Col_input_LM30B_counts.bed &
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/LM30F_araport11.bed -bed -c > Col_input_LM30F_counts.bed &
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30B_araport11.bed -bed -c > Col_input_DE24LM30B_counts.bed &
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_araport11.bed -bed -c > Col_input_DE24LM30F_counts.bed &
+
+#final names of the files being used:
+genic_3kb_araport11.bed
+up3kb_only_araport11.bed
+●
+Now generate files for the upstream only and the regulatory region - the bed files are already being sorted:
+nohup bedtools intersect -b Col_C14_H3.filter.bam.bed -a ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -bed -c > Col_C14_H3_all_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me1.filter.bam.bed -a ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -bed -c > Col_C14_H3K4me1_all_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me2.filter.bam.bed -a ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -bed -c > Col_C14_H3K4me2_all_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me3.filter.bam.bed -a ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -bed -c > Col_C14_H3K4me3_all_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K27me3.filter.bam.bed -a ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -bed -c > Col_C14_H3K27me3_all_genen3kb_counts.bed &
+nohup bedtools intersect -b ~/CIM_LDL3/LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -bed -c > LFY1HrDexInput_all_genen3kb_counts.bed &
+
+#generated lists of genes that are of specific properties:
+python ~/custom_scripts/findInColumn_py.py genic_3kb_araport11.bed LM30B.list 4 > LM30B_genen3kb_araport11.bed
+python ~/custom_scripts/findInColumn_py.py genic_3kb_araport11.bed LM30F.list 4 > LM30F_genen3kb_araport11.bed
+python ~/custom_scripts/findInColumn_py.py genic_3kb_araport11.bed DE24LM30B.list 4 > DE24LM30B_genen3kb_araport11.bed
+python ~/custom_scripts/findInColumn_py.py genic_3kb_araport11.bed DE24LM30F.list 4 > DE24LM30F_genen3kb_araport11.bed
+
+DE24LM30F.list
+DE24LM30B.list
+LM30F.list
+LM30B.list
+
+#for 3kb upstream of other gene lists -- counting the nubmer of reads:
+nohup bedtools intersect -b Col_C14_H3.filter.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -bed -c > H3_DE24LM30F_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me1.filter.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -bed -c > H3K4me1_DE24LM30F_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me2.filter.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -bed -c > H3K4me2_DE24LM30F_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K4me3.filter.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -bed -c > H3K4me3_DE24LM30F_genen3kb_counts.bed &
+nohup bedtools intersect -b Col_C14_H3K27me3.filter.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -bed -c > H3K27me3_DE24LM30F_genen3kb_counts.bed &
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -bed -c > LFY1HrDexInput_DE24LM30F_genen3kb_counts.bed &
+#the counts.bed files are then used for making R plots
+FRIDAY, 6/28/2019×
+Now try to use the DHS dataset to generate graph:
+nohup awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,"flowerDHS"NR,$4,"."}' flower_DHS.bedgraph > flower_DHS.bed &
+nohup awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,"leafDHS"NR,$4,"."}' leaf_DHS.bedgraph > leaf_DHS.bed &
+
+awk -F"\t" '$1 == "Chr4" { print $1"\t"$2"\t"$3"\t"$4 }' leaf_DHS.bedgraph > leaf_DHS_chr4.bedgraph
+awk -F"\t" '$1 == "Chr4" { print $1"\t"$2"\t"$3 }' flowersNotLeafsDHS.bed > flowersNotLeafsDHS_chr4.bed
+
+awk -F"\t" '$1 == "Chr4" { print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6 }' ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed > Araport11_GFF3_chr4_ProteinCodingANDmiRNAgenes.bed
+
+python3 ~/custom_scripts/chromo/run.py -d leaf_DHS_chr4.bedgraph -q Araport11_GFF3_chr4_ProteinCodingANDmiRNAgenes.bed -a leafDHS_ProteinCodingANDmiRNAgenes_chr4_signalmean.bed
+
+awk -F"\t" '$1 == "Chr4" { print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6 }' ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed > Araport11_GFF3_chr4_ProteinCodingANDmiRNAgenes.bed
+
+#make the flower specific DHS into per bp resolution: 
+bedtools intersect -a flower_DHSregion.bed -b flowersNotLeafsDHS.bed | cut -f1,2,3 > flowerspeicifcDHSregion.bed 
+
+#generate the list of genes that I am interested in looking at:
+cut -f2 flowerSpecificDHS_start.bed > flowerSpecificDHS_start.list
+
+cut -f 1,2 TAIR10_Chr.all.fasta.fai > TAIR10.chrom.sizes
+bedToBam -i flower_DHS.bed -g TAIR10.chrom.sizes > flower_DHS.bam
+bedToBam -i leaf_DHS.bed -g TAIR10.chrom.sizes > leaf_DHS.bam
+
+samtools view flower_DHS.bam
+
+bedtools bamtobed -i LFY1HrDexInput.filter.bam > LFY1HrDexInput.filter.bam.bed
+
+
+python ~/custom_scripts/findInColumn.py flower_DHS.bedgraph flowerSpecificDHS_start.list 2 > flowerSpecific_flower_signal.bedgraph 
+
+nohup bedtools intersect -b flower_DHS.bed -a ~/CIM_LDL3/useful_files/flowersNotLeafsDHS.bed -bed > flowerspecificDHS_signal.bed &
+nohup bedtools intersect -b leaf_DHS.bed -a ~/CIM_LDL3/useful_files/flowersNotLeafsDHS.bed -bed > flowerspecificDHS_leaf_signal.bed &
+
+mv flowerspecificDHS_signal.bed flowerspecificDHS_flower_signal.bed
+
+#use lists that we previosuly generate and overlap that with input files:
+python ~/custom_scripts/findInColumn_py.py Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed LM30B_flower.list 4 > LM30B_flower_araport11.bed
+
+DE24LM30F.list
+DE24LM30B.list
+LM30F.list
+LM30B.list
+
+#sample script - count the number of input signals in each gene lists 
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/LM30B_araport11.bed -bed -c > Col_input_LM30B_counts.bed &
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/LM30F_araport11.bed -bed -c > Col_input_LM30F_counts.bed &
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30B_araport11.bed -bed -c > Col_input_DE24LM30B_counts.bed &
+nohup bedtools intersect -b LFY1HrDexInput_chr.bam.bed -a ~/CIM_LDL3/useful_files/DE24LM30F_araport11.bed -bed -c > Col_input_DE24LM30F_counts.bed &
+
+python3 ~/custom_scripts/chromo/run.py -d leaf_DHS.bedgraph -q ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -a leafDHS_ProteinCodingANDmiRNAgenes_signalmean.be
+MONDAY, 7/1/2019×
+●
+Calculate signals for both LEAF and FLOWER DHS 
+LM30F_genen3kb_araport11.bed
+LM30B_genen3kb_araport11.bed
+DE24LM30F_genen3kb_araport11.bed
+DE24LM30B_genen3kb_araport11.bed 
+Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed 
+
+python3 ~/custom_scripts/chromo/run.py -d flower_DHS.bedgraph -q ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -a ./Rplot_tsv/flowerDHS_genen3kb_signalmean.tsv
+
+python3 ~/custom_scripts/chromo/run.py -d leaf_DHS.bedgraph -q ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -a ./Rplot_tsv/leafDHS_genen3kb_signalmean.tsv
+
+python3 ~/custom_scripts/chromo/run.py -d flower_DHS.bedgraph -q ~/CIM_LDL3/useful_files/LM30F_genen3kb_araport11.bed -a ./Rplot_tsv/flowerDHS_LM30F_genen3kb_signalmean.tsv
+
+python3 ~/custom_scripts/chromo/run.py -d flower_DHS_chr1.bedgraph -v -q ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -a test.tsv
+
+
+THURSDAY, 11/21/2019×
+--keep-dup auto --nomodel --extsize 200  --call-summits
+
+nohup macs2 callpeak -t Col_C14_H3K4me1_1.filter.bam Col_C14_H3K4me1_2.filter.bam -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam -f BAM --call-summits --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ../MACS2_histonemod -n H3K4me1vH3 > ~/LFY/log_files/macs2_H3K4me1vH3 &
+
+nohup macs2 callpeak -t Col_C14_H3K4me2_1.filter.bam Col_C14_H3K4me2_2.filter.bam -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam -f BAM --call-summits --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ../MACS2_histonemod -n H3K4me2vH3 > ~/LFY/log_files/macs2_H3K4me2vH3 &
+
+nohup macs2 callpeak -t Col_C14_H3K4me3_1.filter.bam Col_C14_H3K4me3_2.filter.bam -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam -f BAM --call-summits --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ../MACS2_histonemod -n H3K4me3vH3 > ~/LFY/log_files/macs2_H3K4me3vH3 &
+
+nohup macs2 callpeak -t K27me3_C14_1.filter.bam K27me3_C14_2.filter.bam -c Col_C14_H3_1.filter.bam Col_C14_H3_2.filter.bam -f BAM --call-summits --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ../MACS2_histonemod -n H3K27me3vH3 > ~/LFY/log_files/macs2_H3K27me3vH3 &
+
+awk '$9>=10' Col_C14_H3K4me1_ext_peaks.broadPeak > C14_H3K4me1_qval10.broadPeak
+
+awk '$9>=50' H3K4me3vH3_peaks.narrowPeak > H3K4me3vH3_qval50.narrowPeak
+awk '$9>=70' H3K4me3vH3_peaks.narrowPeak > H3K4me3vH3_qval70.narrowPeak
+awk '$9>=250' H3K4me3vH3_peaks.narrowPeak > H3K4me3vH3_qval250.narrowPeak
+awk '$9>=270' H3K4me3vH3_peaks.narrowPeak > H3K4me3vH3_qval270.narrowPeak
+SPLIT WORKSPACE
