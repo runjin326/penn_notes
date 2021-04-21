@@ -1,0 +1,2675 @@
+OTHER_MNase_TF
+Author RJ
+MONDAY, 2/11/2019
+wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/2.9.4/sratoolkit.2.9.4-ubuntu64.tar.gz
+
+tar xvfz sratoolkit.2.9.4-ubuntu64.tar.gz
+
+export PATH=$PATH:~/Downloads/sratoolkit.2.9.4-ubuntu64/bin
+
+fastq-dump SRS673854
+
+SRR1536143
+fastq-dump SRS673854 
+fastq-dump ERR1878080
+fastq-dump ERR1878081
+fastq-dump ERR1878082
+fastq-dump ERR1878086
+ 
+fastq-dump SRS673853
+p35S:LFY ChIP
+fastq-dump SRS794763
+fastq-dump SRS794764
+
+fastq-dump -I --split-files SRR1536143
+fastq-dump -I --split-files ERR1590154
+fastq-dump -I --split-files SRR1536143
+
+mv SRS673854.fastq ath_flower_MNase.fastq
+mv SRS673853.fastq ath_leaf_MNase.fastq
+mv ath_leaf_MNase.fastq /home/runjin/MNase_other/fastq
+
+
+nohup ./Downloads/FastQC/fastqc -o FASTQC/ fastq/ath_flower_MNase.fastq &
+nohup ~/Downloads/FastQC/fastqc -o ~/FASTQC ath_leaf_MNase.fastq &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/ath_flower_MNase.sam -U fastq/ath_flower_MNase.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie_log_ath_flower.log &
+
+132241255 reads; of these:
+  132241255 (100.00%) were unpaired; of these:
+    132157347 (99.94%) aligned 0 times
+    82646 (0.06%) aligned exactly 1 time
+    1262 (0.00%) aligned >1 times
+0.06% overall alignment rate
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/ath_leaf_MNase.sam fastq/ath_leaf_MNase.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie_log_ath_leaf.log &
+
+nohup ~/Downloads/FastQC/fastqc -o ~/FASTQC/ fastq/35SLFYA.fastq &
+nohup ~/Downloads/FastQC/fastqc -o ~/FASTQC/ fastq/35SLFYB.fastq &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/35SLFYA.sam fastq/35SLFYA.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie_log_LFYA.log &
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/35SLFYB.sam fastq/35SLFYB.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie_log_LFYB.log &
+
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_peak_"x,$5,"."; x++}' dpos/byGroup/LowMOCK/pooled/mapping_LowMOCK.Fnor.smooth.positions.xls > ~/PRE_Project/ChIPseq/LFY/annotations/mnase/lowMockDANPOS.bed
+
+basemount --unmount /home/runjin/BaseSpace_Mount
+A
+B
+C
+D
+E
+F
+1
+Start	Unmapped	Mapped	Alighed more than once	Overall alignment
+2
+35SLFYA	43790035	22319179 (50.97%)	18913150 (43.19%)	2557706 (5.84%)	49.03% 
+3
+35SLFYB	35634289	25702662 (72.13%)	7924754 (22.24%)	2006873 (5.63%)	27.87%
+Table1
+
+
+
+TUESDAY, 2/12/2019×
+●
+Steps for filtering reads
+●
+create_filtering.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/MNase_other/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd home/runjin/MNase_other/mapped 
+source ~/LFY/scripts/create_filtering.sh > ~/LFY/scripts/filtering.sh
+chmod 755 ~/LFY/scripts/filtering.sh
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+nohup ~/LFY/scripts/filtering.sh > ~/LFY/log_files/filtering.log 2>&1 &
+samtools view -@ 2 -h -F 1796 -q 30 35SLFYA.sam | samtools sort - -o 35SLFYA.filter.bam 
+samtools index 35SLFYA.filter.bamf
+java -jar /home/runjin/Downloads/picard/build/libs/picard.jar MarkDuplicates I=35SLFYA.filter.bam O=35SLFYA.dupmark.bam M=35SLFYA.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true
+samtools sort 35SLFYA.dupmark.bam > 35SLFYA.dupmark.sorted.bam
+samtools index 35SLFYA.dupmark.sorted.bam
+samtools view -@ 2 -F 1796 -b 35SLFYA.dupmark.bam > 35SLFYA.final.bam
+samtools index 35SLFYA.final.bam && rm 35SLFYA.dupmark.bam
+samtools view -@ 2 -h -F 1796 -q 30 35SLFYB.sam | samtools sort - -o 35SLFYB.filter.bam 
+samtools index 35SLFYB.filter.bam
+java -jar /home/runjin/Downloads/picard/build/libs/picard.jar MarkDuplicates I=35SLFYB.filter.bam O=35SLFYB.dupmark.bam M=35SLFYB.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true
+samtools sort 35SLFYB.dupmark.bam > 35SLFYB.dupmark.sorted.bam
+samtools index 35SLFYB.dupmark.sorted.bam
+samtools view -@ 2 -F 1796 -b 35SLFYB.dupmark.bam > 35SLFYB.final.bam
+samtools index 35SLFYB.final.bam && rm 35SLFYB.dupmark.bam
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 35SLFYA.sam 
+samtools view -c -F 4 35SLFYB.sam
+A
+B
+C
+D
+E
+F
+1
+Start 	get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30	get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates		
+2
+p35S:LFYA	21470856	19428284	6297890		
+3
+p35S:LFYB	9931627	8336774	4121293		
+Table2
+
+
+
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c 35SLFYA.filter.bam 
+samtools view -c 35SLFYB.filter.bam 
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 35SLFYA.final.bam
+samtools view -c -F 4 35SLFYB.final.bam
+●
+Get mad for not sorting 
+○
+So sort the sam files into bam files and index it 
+nohup samtools sort -@ 2 35SLFYB.sam -o 35SLFYB.bam &
+samtools index 35SLFYB.bam
+Steps for CP10M normalization of reads for IGV
+●
+run ~/custom_scripts/bam2big_singleEnd.sh script on each bam file to get bigwigs and bedgraph files
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh mapped/"$0".filter.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX.list > ~/LFY/scripts/bam2big.sh
+
+chmod 755 ~/LFY/scripts/bam2big.sh
+nohup ~/LFY/scripts/bam2big.sh > ~/LFY/log_files/bam2big.log 2>&1 &
+
+nohup macs2 callpeak -t 35SLFYB.filter.bam 35SLFYA.filter.bam -f BAM --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ../MACS2_greenscreen -n 35SLFY_Parcy > ~/LFY/log_files/macs2_input &
+bedtools intersect -wa -a SeedlingLFYTAIR10.chr.narrowPeak -b 35SLFY_Parcy_qval600.narrowPeak -u | wc -l
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' SeedlingLFYTAIR10.narrowPeak > SeedlingLFYTAIR10.chr.narrowPeak
+
+awk 'BEGIN{OFS="\t"}$9>=46535SLFY_Parcy_peaks.narrowPeak {print $1,$2,$3,$4,$7,$6}' 35SLFY_Parcy_peaks.narrowPeak > 35SLFY_Parcy_final.bed
+A
+B
+C
+D
+E
+F
+1
+All	qval200	qval400	qval600	DexvsMock_qval10 (total 1232)
+2
+DexvsMock_qval10 (total 1232)	1108	799	621	450	1232
+3
+Seedling (total 1725)	1616	1123	862	627	687
+4
+Inflorescence (total 1039)	704	521	442	360	308
+5
+4375	2318	1386	
+Table3
+
+
+
+●
+Try changing qval to make the peak number closer to what Parcy reported:
+A
+B
+C
+D
+E
+F
+G
+1
+qval	500	470	465	464	460	450
+2
+# of peaks 	1784	1920	1952	1956	1971	2024
+Table4
+
+
+
+●
+Decided to use qval465 and use bedtools intersect with different parameters to see overlap:
+bedtools intersect -wa -a 35SLFY_Parcy_final.bed -b highMock_DANPOS.bed -F 1 | sort -u | wc -l 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+1
+PARCY DATA	At least 1bp overlap 	- f 0.3	% LFY peaks that have at least 30% overlap with MNase peak	-f 0.5 	% LFY peaks that have at least 50% overlap with MNase peak	- F 0.5	% of LFY that contains half MNase peak 	- F 0.9	% of LFY that contains 90% MNase peak 	-F 1	% of LFY that contains a complete  MNase peak 
+2
+HighMock	1938	895	0.458504098	46	0.023565574	1932	0.989754098	1926	0.986680328	1913	0.980020492
+3
+LowMock	1863	818	0.419057377	46	0.023565574	1851	0.948258197	1822	0.933401639	1805	0.924692623
+4
+LowDex	1928	878	0.449795082	44	0.022540984	1919	0.983094262	1898	0.972336066	1886	0.966188525
+5
+LowBoth	1861	812	0.415983607	45	0.023053279	1843	0.944159836	1812	0.928278689	1795	0.919569672
+6
+AllThree	1859	810	0.414959016	45	0.023053279	1841	0.943135246	1809	0.926741803	1790	0.917008197
+7
+CALLUS	At least 1bp overlap 	- f 0.3	% LFY peaks that have at least 30% overlap with MNase peak	-f 0.5 	% LFY peaks that have at least 50% overlap with MNase peak	- F 0.5	% of LFY that contains half MNase peak 	- F 0.9	% of LFY that contains 90% MNase peak 	-F 1	% of LFY that contains a complete  MNase peak 
+8
+HighMock	1228	712	0.577922078	241	0.195616883	1220	0.99025974	1139	0.924512987	1085	0.880681818
+9
+LowMock	1112	560	0.454545455	192	0.155844156	1061	0.861201299	972	0.788961039	919	0.745941558
+10
+LowDex	1209	663	0.538149351	226	0.183441558	1180	0.957792208	1098	0.891233766	1047	0.849837662
+11
+LowBoth	1109	559	0.453733766	190	0.154220779	1059	0.859577922	970	0.787337662	919	0.745941558
+12
+AllThree	1107	558	0.452922078	189	0.153409091	1056	0.857142857	966	0.784090909	915	0.742694805
+13
+Table5
+
+
+
+●
+Redo the mapping
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/ath_flower_MNase.sam -U fastq/ath_flower_MNase.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie_log_ath_flower.log &
+WEDNESDAY, 2/13/2019×
+●
+For Parcy's stuff, I used single summit calling peaks 
+
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/ath_flower_MNase_1.fastq &
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/ath_flower_MNase_2.fastq &
+
+nohup bowtie2 --phred33 --no-unal -q -x /home/runjin/Araport11/TAIR10_bowtie2 -1 fastq/ath_flower_MNase_1.fastq -2 fastq/ath_flower_MNase_2.fastq -S mapped/ath_MNase.sam 2> ~/LFY/log_files/mapping/bowtie_paired_athMNase.log &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/ath_flower_MNase.sam --interleaved fastq/ath_flower_MNase.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie_log_ath_flower.log &
+
+awk '$5>=465' 35SLFY_Parcy_summits.bed > 35SLFY_Parcy_final_summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-99,$3+100,$4,$5,"."}' 35SLFY_Parcy_final_summits.bed > 35SLFY_Parcy_final_200bp.bed
+●
+If the paired version also doesn't work -- downloade the SRS file again and use the "interleaved" parameter
+bedtools intersect -wa -a 35SLFY_Parcy_final_200bp.bed -b highMock_DANPOS.bed -u | wc -l 
+A
+B
+C
+D
+E
+1
+All	% LFY peak overlap 1bp with MNase callus	75bp 	% LFY peak overlap 75bp with MNase callus
+2
+highMock	1921	0.9841188525	1814	0.9293032787
+3
+lowMock	1752	0.8975409836	1599	0.8191598361
+4
+lowDex	1891	0.96875	1748	0.8954918033
+5
+lowBoth	1741	0.8919057377	1587	0.8130122951
+6
+All3MNase	1729	0.8857581967	1573	0.8058401639
+Table6
+
+
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' 35SLFY_Parcy_final_200bp.chr.bed > 35SLFY_Parcy_final_200bp.bed
+
+findMotifsGenome.pl 35SLFY_Parcy_final_200bp.bed tair10 35SLFY_Single_Homer
+●
+Now try using +/-60bp  
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' DexvsMock_multi_qval10_summits.bed > DexvsMock_multi_qval10_120bp.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' DexvsMock_1summit_qval10_summits.bed > DexvsMock_1summit_qval10_120bp.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DexvsMock_1summit_qval10_120bp.bed > DexvsMock_1summit_qval10_120bp.chr.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DexvsMock_multi_qval10_120bp.bed > DexvsMock_multi_qval10_120bp.chr.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' 35SLFY_Parcy_final_summits.bed > 35SLFY_Parcy_final_120bp.bed
+
+●
+If the paired version also doesn't work -- downloade the SRS file again and use the "interleaved" parameter
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b highMock_DANPOS.bed -u -f 0.625 | wc -l 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+1
+PARCY_120bp	All	% LFY peak overlap 1bp with MNase callus	75bp 	% LFY peak overlap 75bp with MNase callus	LFY_single_120bp	All	% LFY peak overlap 1bp with MNase callus	75bp 	% LFY peak overlap 75bp with MNase callus	LFY_multi_120bp	All	% LFY peak overlap 1bp with MNase callus	75bp 	% LFY peak overlap 75bp with MNase callus
+2
+highMock	1896	0.9713114754	1383	0.7085040984	highMock	1163	0.9847586791	859	0.7273497036	highMock	1216	0.987012987	893	0.7248376623
+3
+lowMock	1696	0.868852459	1284	0.6577868852	lowMock	902	0.7637595258	670	0.567315834	lowMock	942	0.7646103896	692	0.5616883117
+4
+lowDex	1853	0.9492827869	1378	0.705942623	lowDex	1082	0.916172735	796	0.6740050804	lowDex	1127	0.9147727273	839	0.6810064935
+5
+lowBoth	1685	0.8632172131	1274	0.6526639344	lowBoth	899	0.7612193057	666	0.5639288738	lowBoth	939	0.7621753247	687	0.5576298701
+6
+All3MNase	1672	0.856557377	1260	0.6454918033	All3MNase	892	0.7552921253	661	0.5596951736	All3MNase	931	0.7556818182	682	0.5535714286
+Table7
+
+
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' 35SLFY_Parcy_final_120bp.chr.bed > 35SLFY_Parcy_final_120bp.bed
+nohup findMotifsGenome.pl 35SLFY_Parcy_final_120bp.bed tair10 35SLFY_single_120bpHomer &
+nohup findMotifsGenome.pl DexvsMock_1summit_qval10_120bp.bed tair10 LFY_single_120bpHomer &
+nohup findMotifsGenome.pl DexvsMock_multi_qval10_120bp.bed tair10 LFY_multi_120bpHomer &
+
+DexvsMock_1summit_qval10_120bp.bed
+DexvsMock_multi_qval10_120bp.bed
+35SLFY_Parcy_final_120bp.bed
+
+
+A
+B
+C
+D
+E
+F
+G
+H
+1
+Denovo enrichment_200bp	Parcy_single	Callus_single	Callus_multi	Denovo enrichment_120bp	Parcy_single	Callus_single	Callus_multi
+2
+pvalue	1E_529	1E_235	1E_209	pvalue	1E_543	1E_247	1E_226
+3
+% has	51.08%	44.62%	40.83%	% has	55.64%	40.14%	47%
+4
+% background	8.26%	8.64%	8.37%	% background	10.03%	6.22%	10.67%
+Table8
+
+
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+$10,$2+$10+1,$4,$5,"."}' plusIAA.narrowPeak > plusIAA.summit.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+$10,$2+$10+1,$4,$5,"."}' minusIAA.narrowPeak > minusIAA.summit.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+$10,$2+$10+1,$4,$5,"."}' plusIAA_minusNegCtrl.narrowPeak > plusIAA_minusNegCtrl.summit.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' plusIAA.summit.bed > plusIAA.120bp.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' minusIAA.summit.bed > minusIAA.120bp.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' plusIAA_minusNegCtrl.summit.bed > plusIAA_minusNegCtrl.120bp.bed
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' plusIAA.120bp.bed > plusIAA.120bp.bed.chr.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' minusIAA.120bp.bed > minusIAA.120bp.bed.chr.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' plusIAA_minusNegCtrl.120bp.bed > plusIAA_minusNegCtrl.120bp.bed.chr.bed
+bedtools intersect -wa -a plusIAA_minusNegCtrl.120bp.bed.chr.bed -b all3MNase_DANPOS.bed -u -f 0.625 | wc -l 
+A
+B
+C
+D
+E
+F
+G
+1
+# ettin peaks with 75bp overlap with MNase in minusIAA	%peaks (out of 1585 peaks)	# ettin peaks with 75bp overlap with MNase in plusIAA	%peaks (1926)	# ettin peaks with 75bp overlap with MNase in plus_minusNegCtrl	%peaks (2255)
+2
+highMock	585	0.3690851735	795	0.4127725857	1049	0.4651884701
+3
+lowMock	388	0.2447949527	492	0.2554517134	563	0.2496674058
+4
+lowDex	513	0.323659306	677	0.3515057113	857	0.3800443459
+5
+lowBoth	379	0.2391167192	482	0.2502596054	553	0.245232816
+6
+all3MNase	375	0.2365930599	475	0.2466251298	546	0.2421286031
+Table9
+
+
+
+cd ~/LFY/mapping_BS/
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos col_MNase_Chr2.wig --smooth_width 10 -o DANPOS2/ > ~/LFY/log_files/dpos_MNaseChr2.log 2>&1 &
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos col_MNase_Chr3.wig --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2/ > ~/LFY/log_files/dpos_MNaseChr3.log 2>&1 &
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos col_MNase_Chr4.wig --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2/ > ~/LFY/log_files/dpos_MNaseChr4.log 2>&1 &
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos col_MNase_Chr5.wig --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2/ > ~/LFY/log_files/dpos_MNaseChr5.log 2>&1 &
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+export PATH="/home/runjin/Downloads/bedops2.4.35/:$PATH"
+
+wig2bed <col_MNase_Chr1.wig> col_MNase_Chr1.wig.bed
+
+cat col_MNase_Chr1.wig.bed col_MNase_Chr2.wig.bed col_MNase_Chr3.wig.bed col_MNase_Chr4.wig.bed col_MNase_Chr5.wig.bed > col_MNase_IH.wig.bed
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos col_MNase_IH.wig.bed --smooth_width 10 -o DANPOS2/ &  
+●
+The ONLY way to get DANPOS to work:
+cd ~/Downloads/danpos-2.2.2
+unset R_HOME
+module load python/anaconda/2.7
+nano ~/.bashrc
+export PATH="/home/runjin/Downloads/samtools-0.1.18/:$PATH"
+THURSDAY, 2/14/2019×
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' col_MNase_IH.wig.bed > col_MNase_IH.bedgraph
+
+bedGraphToBigWig col_MNase_IH.bedgraph ~/Araport11/TAIR10_chr_count.txt col_MNase_IH.bigwig
+bigWigToWig col_MNase_IH.bigwig col_MNase_IH.wig
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos allMNase_IH.wig --span 1 -q 0 -o DANPOS2/ > ~/LFY/log_files/dpos_allMNase_IH.log 2>&1 &
+
+●
+Filter the mapped MNase data from Ath flower
+Scripts
+●
+～/LFY/scripts/create_filtering.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/MNase_other/mapped
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=170
+minFragLen=130
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=170
+minFragLen=130
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30 
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.sam | \
+		awk 'BEGIN{OFS=\"\t\"} \$0!~\"^@\" && \$9<=${maxFragLen} && \$9>=${minFragLen}{print} \$0~\"^@\"{print}' | \
+		samtools sort - -o ${SRX}.filter.bam """
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+Steps to filter reads for fragment length 130-170
+●
+Remove reads between 130-170 and then remove duplicates
+cd ~/MNase_other/mapped
+source ~/LFY/scripts/create_filtering.sh > ~/LFY/scripts/filtering.sh
+nohup ~/LFY/scripts/filtering.sh > ~/LFY/log_files/filtering.log 2>&1 &
+●
+Got the TFL1 peaks and generated the 120bp file using it: 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+$10,$2+$10+1,$4,$5,"."}' TFL1_WT.idr.optimal.narrowPeak > TFL1_WT.idr.summit.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' TFL1_WT.idr.summit.bed > TFL1_WT.idr.120bp.bed
+TFL1_WT.idr.120bp.bed
+A
+B
+C
+D
+1
+Start 	get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30	get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+2
+Ath_flower_MNase	257945948	62273875	62273875
+Table10
+
+
+
+●
+Figure out the filtering for the Ath-MNase: 
+samtools view -c -F 4 ath_MNase.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c ath_MNase.filter.bam 
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 ath_MNase.final.bam
+●
+Get mad for not sorting 
+○
+So sort the sam files into bam files and index it 
+nohup samtools sort -@ 2 ath_MNase.sam -o ath_MNase.bam &
+samtools index ath_MNase.bam
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ath_MNase.final.bam --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ./DANPOS2 > ~/LFY//log_files/dpos_MNase_ath.log 2>&1 &
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42ath MNase flower-1\42 useScore=1"} NR>1{x++;print $1,$2,$3,"ath_inflo_"x,$5,"."}' ath_MNase.final.smooth.positions.xls > ath_MNase_nuc.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42IH MNase flower-1\42 useScore=1"} NR>1{x++;print $1,$2,$3,"IH_inflo_"x,$5,"."}' allMNase_IH.smooth.positions.xls > IH_MNase_nuc.bed
+
+bedtools intersect -wa -b IH_MNase_nuc.bed -a DexvsMock_1summit_qval10_120bp.chr.bed -u -f 0.625 | wc -l 
+A
+B
+C
+D
+E
+F
+G
+H
+1
+75bp overlap	Callus_single (1181)	Callus_multi (1232)	Parcy_single (1952)	minusIAA (1585)	plusIAA (1926)	plus_minusNG (2255)	TFL1_gs3_NC3n4 (1523)
+2
+ath_inflo	887	933	1492	729	941	1150	1157
+3
+Percentage	0.7510584251	0.7573051948	0.7643442623	0.4599369085	0.4885773624	0.5099778271	0.7596848326
+4
+IH_inflo	845	889	1377	368	553	1017	1065
+5
+Percentage	0.7154953429	0.7215909091	0.7054303279	0.2321766562	0.2871235722	0.4509977827	0.6992777413
+Table11
+
+
+
+bedtools intersect -wa -b IH_MNase_nuc.bed -a TFL1_WT.idr.120bp.bed -u -f 0.75 | wc -l 
+A
+B
+C
+D
+E
+F
+G
+H
+1
+90bp overlap	Callus_single (1181)	Callus_multi (1232)	Parcy_single (1952)	minusIAA (1585)	plusIAA (1926)	plus_minusNG (2255)	TFL1_gs3_NC3n4 (1523)
+2
+ath_inflo	682	711	1188	529	658	801	914
+3
+Percentage	0.5774767146	0.5771103896	0.6086065574	0.3337539432	0.3416407061	0.355210643	0.6001313198
+4
+IH_inflo	659	675	1066	270	398	753	852
+5
+Percentage	0.5580016935	0.5478896104	0.5461065574	0.1703470032	0.2066458982	0.333924612	0.559422193
+Table12
+
+
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$23,$9}' LFY_DexvsMock_peakwise_ann.tsv > LFY_DexvsMock_peakwise_ann.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$9}' LFY_DexvsMock_genewise_ann.tsv > LFY_DexvsMock_genewise_ann.bed
+
+DvM_multi_120bp_75bp_lowBoth.bed
+LFY_DexvsMock_peakwise_ann.bed
+
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b lowBoth_DANPOS.bed -f 0.625 -u > DvM_multi_75bp_lowBoth.bed 
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.625 -u > DvM_multi_75bp_all3MNase.bed 
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b lowBoth_DANPOS.bed -f 0.75 -u > DvM_multi_90bp_lowBoth.bed 
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.75 -u > DvM_multi_90bp_all3MNase.bed 
+
+sed -e "s/DexvsMock_multi_peak/DexvsMock_peak/g" DvM_multi_75bp_lowBoth.bed| cut -f4 > DvM_multi_75bp_lowBoth.list
+sed -e "s/DexvsMock_multi_peak/DexvsMock_peak/g" DvM_multi_75bp_all3MNase.bed| cut -f4 > DvM_multi_75bp_all3MNase.list
+sed -e "s/DexvsMock_multi_peak/DexvsMock_peak/g" DvM_multi_90bp_lowBoth.bed| cut -f4 > DvM_multi_90bp_lowBoth.list
+sed -e "s/DexvsMock_multi_peak/DexvsMock_peak/g" DvM_multi_90bp_all3MNase.bed| cut -f4 > DvM_multi_90bp_all3MNase.list
+
+
+python ~/custom_scripts/findInColumn.py LFY_DexvsMock_peakwise_ann.bed DvM_multi_75bp_lowBoth.list 4 > DvM_multi_75bp_lowBoth.nuc.bed
+python ~/custom_scripts/findInColumn.py -v LFY_DexvsMock_peakwise_ann.bed DvM_multi_75bp_lowBoth.list 4 > DvM_multi_75bp_lowBoth.free.bed
+
+python ~/custom_scripts/findInColumn.py LFY_DexvsMock_peakwise_ann.bed DvM_multi_90bp_lowBoth.list 4 > DvM_multi_90bp_lowBoth.nuc.bed
+python ~/custom_scripts/findInColumn.py -v LFY_DexvsMock_peakwise_ann.bed DvM_multi_90bp_lowBoth.list 4 > DvM_multi_90bp_lowBoth.free.bed
+
+python ~/custom_scripts/findInColumn.py LFY_DexvsMock_peakwise_ann.bed DvM_multi_75bp_all3MNase.list 4 > DvM_multi_75bp_all3MNase.nuc.bed
+python ~/custom_scripts/findInColumn.py -v LFY_DexvsMock_peakwise_ann.bed DvM_multi_75bp_all3MNase.list 4 > DvM_multi_75bp_all3MNase.free.bed
+
+python ~/custom_scripts/findInColumn.py LFY_DexvsMock_peakwise_ann.bed DvM_multi_90bp_all3MNase.list 4 > DvM_multi_90bp_all3MNase.nuc.bed
+python ~/custom_scripts/findInColumn.py -v LFY_DexvsMock_peakwise_ann.bed DvM_multi_90bp_all3MNase.list 4 > DvM_multi_90bp_all3MNase.free.bed
+
+
+cut -f6 DvM_multi_75bp_all3MNase.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_75bp_all3MNase.nuc.txt
+cut -f6 DvM_multi_75bp_all3MNase.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_75bp_all3MNase.free.txt
+
+cut -f6 DvM_multi_90bp_all3MNase.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_90bp_all3MNase.nuc.txt
+cut -f6 DvM_multi_90bp_all3MNase.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_90bp_all3MNase.free.txt
+
+cut -f6 DvM_multi_75bp_lowBoth.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_75bp_lowBoth.nuc.txt
+cut -f6 DvM_multi_75bp_lowBoth.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_75bp_lowBoth.free.txt
+
+cut -f6 DvM_multi_90bp_lowBoth.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_90bp_lowBoth.nuc.txt
+cut -f6 DvM_multi_90bp_lowBoth.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_multi_90bp_lowBoth.free.txt
+
+cp ~/../wagner-lab/sklasfeld/custom_scripts/findInColumn.py ~/custom_scripts/
+●
+Sammy's path for annotation: 
+ls ~/../wagner-lab/sklasfeld/Projects/LFY/ChIPseq/annotations/rna_seq/callus/
+
+●
+Sammy's script for annotation:
+# DEAL WITH CHIP PEAKS
+awk '$1 != "Pt" && $1 !="Mt" {print "Chr"$0}' DexvsMock_1summit_qval10.narrowPeak > DexvsMock_1summit.modified.narrowPeak
+cut -f1,2,3,4,5,6 DexvsMock_1summit.modified.narrowPeak > DexvsMock_1summit.modified.bed
+
+mv DexvsMock_1summit.modified.bed ~/LFY/annotation
+
+# DEAL WITH RNA SEQ
+awk -v pT=0.01 -F"\t" 'NR==1{print} (NR>1 && $NF!="NA" && length($NF)>0){if($NF<=pT){print $0}}' ../rna_seq/callus/res_deseq2_normalShrink_dexVmock_t1hr.txt > ../rna_seq/callus/adjp0.01/dexVmock_t1hr.txt
+awk -v pT=0.01 -F"\t" 'NR==1{print} (NR>1 && $NF!="NA" && length($NF)>0){if($NF<=pT){print $0}}' ../rna_seq/callus/res_deseq2_normalShrink_dexVmock_t6hr.txt > ../rna_seq/callus/adjp0.01/dexVmock_t6hr.txt
+awk -v pT=0.01 -F"\t" 'NR==1{print} (NR>1 && $NF!="NA" && length($NF)>0){if($NF<=pT){print $0}}' ../rna_seq/callus/res_deseq2_normalShrink_dexVmock_t24hr.txt > ../rna_seq/callus/adjp0.01/dexVmock_t24hr.txt
+
+
+python ~/Downloads/ChIP_Annotation DvM_1summit_peaks \
+        . \
+        DexvsMock_1summit.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type \
+        -tss 3000 -tts 0 \
+        -n  DexvsMock_1summit.modified.narrowPeak \
+        -ps ../useful_files/SeedlingLFYTAIR10.bed \
+            ../useful_files/inflorescence/InflLFYTAIR10.bed \
+        -pn seedlings inflorescence
+        -rs ../useful_files/cara_final_de_list.tsv \
+        ../useful_files/dexVmock_t1hr.txt \
+        ../useful_files/dexVmock_t6hr.txt \
+        ../useful_files/dexVmock_t24hr.txt \
+        -mf ../useful_files/LFY1_T10_uniq.bed \
+        ../useful_files/LFY2_T10_uniq.bed \
+        ../useful_files/LFY_1and2_T10.bed\
+        -mn LFY1 LFY2 LFY1n2
+        -ms 60
+        -df ../useful_files/flowersNotLeafsDHS.bed \
+            ../useful_files/all_DHS.bed \
+        -dn flowerDNase allDNase
+        -nf ../MNase_bed_files/DvM_single_75bp_all3MNase.bed \
+            ../MNase_bed_files/DvM_single_75bp_highMock.bed \
+            ../MNase_bed_files/DvM_single_75bp_lowBoth.bed \
+            ../MNase_bed_files/DvM_single_75bp_lowDex.bed \
+            ../MNase_bed_files/DvM_single_75bp_lowMock.bed \
+            ../MNase_bed_files/DvM_single_90bp_all3MNase.bed \
+            ../MNase_bed_files/DvM_single_90bp_highMock.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowBoth.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowDex.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowMock.bed \
+        -nn 75bp_all3MNase 75bp_highMock 75bp_lowBoth 5bp_lowDex 75bp_lowMock 90bp_all3MNase 90bp_highMock 90bp_lowBoth 90bp_lowDex 90bp_lowMock
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ../useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+
+-ps ../useful_files/SeedlingLFYTAIR10.bed ../useful_files/inflorescence/InflLFYTAIR10.bed -pn seedlings inflorescence -rs rna_seq/seed_q.005 rna_seq/callus_p.0001 rna_seq/t1hr_kallisto-sleuth_V_STAR-edgeR_list.txt rna_seq/t6hr_kallisto-sleuth_V_STAR-edgeR_list.txt rna_seq/t24hr_kallisto-sleuth_V_STAR-edgeR_list.txt -rn RNA_seed RNA1_callus_0001 RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr -mf LFY_motif/LFY1_T10_uniq.bed LFY_motif/LFY2_T10_uniq.bed -mn LFY1 LFY2 -df dhs_sites/flowersNotLeafsDHS.bed -dn flowerDNase
+
+
+35SLFY_Parcy_peak
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.625 -u > DvM_multi_75bp_all3MNase.bed
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.75 -u > DvM_multi_90bp_all3MNase.bed
+
+/home/runjin/LFY/annotation/MNase_bed_files
+highMock_DANPOS.bed
+lowBoth_DANPOS.bed
+lowDex_DANPOS.bed
+lowMock_DANPOS.bed
+
+DvM_single_75bp_lowDex.bed
+DvM_single_90bp_lowDex.bed
+DvM_single_75bp_all3MNase.bed
+DvM_single_75bp_lowBoth.bed
+DvM_single_90bp_all3MNase.bed
+DvM_single_90bp_lowBoth.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$23,$9}' DvM_1summit_peaks_peakwise_ann.tsv > DvM_1summit_peaks_peakwise_ann.bed
+●
+Try to do the list with 1summit file:
+bedtools intersect -wa -a DexvsMock_1summit_qval10_120bp.chr.bed -b lowBoth_DANPOS.bed -f 0.75 -u > DvM_single_90bp_lowBoth.bed 
+bedtools intersect -wa -a DexvsMock_1summit_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.625 -u > DvM_single_75bp_all3MNase.bed 
+bedtools intersect -wa -a DexvsMock_1summit_qval10_120bp.chr.bed -b lowBoth_DANPOS.bed -f 0.625 -u > DvM_single_75bp_lowBoth.bed 
+bedtools intersect -wa -a DexvsMock_1summit_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.75 -u > DvM_single_90bp_all3MNase.bed 
+
+cut -f4 DvM_single_75bp_lowBoth.bed > DvM_single_75bp_lowBoth.list
+cut -f4 DvM_single_75bp_all3MNase.bed > DvM_single_75bp_all3MNase.list
+cut -f4 DvM_single_90bp_lowBoth.bed > DvM_single_90bp_lowBoth.list
+cut -f4 DvM_single_90bp_all3MNase.bed > DvM_single_90bp_all3MNase.list
+
+python ~/custom_scripts/findInColumn.py DvM_1summit_peaks_peakwise_ann.bed DvM_single_75bp_lowBoth.list 4 > DvM_single_75bp_lowBoth.nuc.bed
+python ~/custom_scripts/findInColumn.py -v DvM_1summit_peaks_peakwise_ann.bed DvM_single_75bp_lowBoth.list 4 > DvM_single_75bp_lowBoth.free.bed
+
+python ~/custom_scripts/findInColumn.py DvM_1summit_peaks_peakwise_ann.bed DvM_single_75bp_all3MNase.list 4 > DvM_single_75bp_all3MNase.nuc.bed
+python ~/custom_scripts/findInColumn.py -v DvM_1summit_peaks_peakwise_ann.bed DvM_single_75bp_all3MNase.list 4 > DvM_single_75bp_all3MNase.free.bed
+
+python ~/custom_scripts/findInColumn.py DvM_1summit_peaks_peakwise_ann.bed DvM_single_90bp_lowBoth.list 4 > DvM_single_90bp_lowBoth.nuc.bed
+python ~/custom_scripts/findInColumn.py -v DvM_1summit_peaks_peakwise_ann.bed DvM_single_90bp_lowBoth.list 4 > DvM_single_90bp_lowBoth.free.bed
+
+python ~/custom_scripts/findInColumn.py DvM_1summit_peaks_peakwise_ann.bed DvM_single_90bp_all3MNase.list 4 > DvM_single_90bp_all3MNase.nuc.bed
+python ~/custom_scripts/findInColumn.py -v DvM_1summit_peaks_peakwise_ann.bed DvM_single_90bp_all3MNase.list 4 > DvM_single_90bp_all3MNase.free.bed
+
+cut -f6 DvM_single_75bp_lowBoth.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_75bp_lowBoth.nuc.txt
+cut -f6 DvM_single_75bp_lowBoth.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_75bp_lowBoth.free.txt
+
+cut -f6 DvM_single_90bp_lowBoth.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_90bp_lowBoth.nuc.txt
+cut -f6 DvM_single_90bp_lowBoth.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_90bp_lowBoth.free.txt
+
+cut -f6 DvM_single_75bp_all3MNase.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_75bp_all3MNase.nuc.txt
+cut -f6 DvM_single_75bp_all3MNase.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_75bp_all3MNase.free.txt
+
+cut -f6 DvM_single_90bp_all3MNase.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_90bp_all3MNase.nuc.txt
+cut -f6 DvM_single_90bp_all3MNase.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_single_90bp_all3MNase.free.txt
+
+●
+Make the same annotation for Parcy stuff: note use different MNase files as well:
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$23,$9}' 35SLFY_Parcy_peakwise_ann.tsv > 35SLFY_Parcy_peakwise_ann.bed
+●
+Try to do the list with 1summit file:
+bedtools intersect -wa -a 35SLFY_Parcy_final_120bp.chr.bed -b ath_MNase_nuc.bed -f 0.625 -u > 35SLFY_Parcy_75bp_ath.bed 
+bedtools intersect -wa -a 35SLFY_Parcy_final_120bp.chr.bed -b IH_MNase_nuc.bed -f 0.625 -u > 35SLFY_Parcy_75bp_IH.bed 
+bedtools intersect -wa -a 35SLFY_Parcy_final_120bp.chr.bed -b ath_MNase_nuc.bed -f 0.75 -u > 35SLFY_Parcy_90bp_ath.bed 
+bedtools intersect -wa -a 35SLFY_Parcy_final_120bp.chr.bed -b IH_MNase_nuc.bed -f 0.75 -u > 35SLFY_Parcy_90bp_IH.bed 
+
+cut -f4 35SLFY_Parcy_75bp_ath.bed > 35SLFY_Parcy_75bp_ath.list
+cut -f4 35SLFY_Parcy_75bp_IH.bed > 35SLFY_Parcy_75bp_IH.list
+cut -f4 35SLFY_Parcy_90bp_ath.bed > 35SLFY_Parcy_90bp_ath.list
+cut -f4 35SLFY_Parcy_90bp_IH.bed > 35SLFY_Parcy_90bp_IH.list
+
+python ~/custom_scripts/findInColumn.py 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_75bp_ath.list 4 > 35SLFY_Parcy_75bp_ath.nuc.bed
+python ~/custom_scripts/findInColumn.py -v 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_75bp_ath.list 4 > 35SLFY_Parcy_75bp_ath.free.bed
+
+python ~/custom_scripts/findInColumn.py 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_75bp_IH.list 4 > 35SLFY_Parcy_75bp_IH.nuc.bed
+python ~/custom_scripts/findInColumn.py -v 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_75bp_IH.list 4 > 35SLFY_Parcy_75bp_IH.free.bed
+
+python ~/custom_scripts/findInColumn.py 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_90bp_ath.list 4 > 35SLFY_Parcy_90bp_ath.nuc.bed
+python ~/custom_scripts/findInColumn.py -v 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_90bp_ath.list 4 > 35SLFY_Parcy_90bp_ath.free.bed
+
+python ~/custom_scripts/findInColumn.py 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_90bp_IH.list 4 > 35SLFY_Parcy_90bp_IH.nuc.bed
+python ~/custom_scripts/findInColumn.py -v 35SLFY_Parcy_peakwise_ann.bed 35SLFY_Parcy_90bp_IH.list 4 > 35SLFY_Parcy_90bp_IH.free.bed
+
+cut -f6 35SLFY_Parcy_75bp_ath.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_75bp_ath.nuc.txt
+cut -f6 35SLFY_Parcy_75bp_ath.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_75bp_ath.free.txt
+
+cut -f6 35SLFY_Parcy_90bp_ath.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_90bp_ath.nuc.txt
+cut -f6 35SLFY_Parcy_90bp_ath.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_90bp_ath.free.txt
+
+cut -f6 35SLFY_Parcy_75bp_IH.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_75bp_IH.nuc.txt
+cut -f6 35SLFY_Parcy_75bp_IH.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_75bp_IH.free.txt
+
+cut -f6 35SLFY_Parcy_90bp_IH.nuc.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_90bp_IH.nuc.txt
+cut -f6 35SLFY_Parcy_90bp_IH.free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > 35SLFY_Parcy_90bp_IH.free.txt
+
+FRIDAY, 2/15/2019×
+A
+B
+C
+D
+E
+F
+G
+H
+1
+75bp	DvM_multi_lowBoth	DvM_multi_all3MNase	DvM_single_lowBoth	DvM_single_all3MNase	Parcy_single_ath	Parcy_single_IH	
+2
+Free	FDR: 0.78  |  Num: 38 	FDR: 0.87  |  Num: 38	FDR: 0.31  |  Num: 43	FDR: 0.35  |  Num: 43	FDR: 0.004  |  Num: 58 	FDR: 0.012  |  Num: 64	
+3
+Nuc	FDR: 0.007  |  Num: 65	FDR: 0.006  |  Num: 65 	FDR: 0.0085  |  Num: 65	FDR: 0.0069  |  Num: 65	FDR: 2.5e-05  |  Num: 155 	FDR: 0.0021  |  Num: 134 	
+4
+90bp	DvM_multi_lowBoth	DvM_multi_all3MNase	DvM_single_lowBoth	DvM_single_all3MNase	Parcy_single_ath	Parcy_single_IH	
+5
+Free	FDR: 0.75  |  Num: 45	FDR: 0.82  |  Num: 45 	FDR: 0.3  |  Num: 52	FDR: 0.34  |  Num: 52 	FDR: 0.24  |  Num: 72	FDR: 0.0004  |  Num: 99	
+6
+Nuc	FDR: 0.004  |  Num: 58 	FDR: 0.0033  |  Num: 58 	FDR: 0.011  |  Num: 55	FDR: 0.0094  |  Num: 55	FDR: 6.9e-05  |  Num: 126 	FDR: 0.03  |  Num: 100	
+Table13
+
+
+
+bedtools intersect -wa -b ~/LFY/mapping_SK/MACS2_gs_1summmit/DexvsMock_1summit_qval10.chr.narrowPeak -a TFL1_Seg.idr.optimal.narrowPeak -u | wc -l 
+117
+76
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DexvsMock_1summit_qval10.narrowPeak > DexvsMock_1summit_qval10.chr.narrowPeak
+wigToBigWig allMNase_IH.wig ~/Araport11/TAIR10_chr_count.txt allMNase_IH_inflo.bigwig
+wigToBigWig ath_MNase.final.smooth.wig ~/Araport11/TAIR10_chr_count.txt ath_MNase_publish_inflo.bigwig
+●
+Use the script to add MNase, DNase, motif, whether in seeding/inflorescence to it:
+# DEAL WITH CHIP PEAKS
+awk '$1 != "Pt" && $1 !="Mt" {print "Chr"$0}' DexvsMock_1summit_qval10.narrowPeak > DexvsMock_1summit.modified.narrowPeak
+cut -f1,2,3,4,5,6 DexvsMock_1summit.modified.narrowPeak > DexvsMock_1summit.modified.bed
+
+cp 35SLFY_Parcy_final.modified.bed ~/LFY/annotation
+
+# DEAL WITH RNA SEQ
+awk -v pT=0.01 -F"\t" 'NR==1{print} (NR>1 && $NF!="NA" && length($NF)>0){if($NF<=pT){print $0}}' ../rna_seq/callus/res_deseq2_normalShrink_dexVmock_t1hr.txt > ../rna_seq/callus/adjp0.01/dexVmock_t1hr.txt
+awk -v pT=0.01 -F"\t" 'NR==1{print} (NR>1 && $NF!="NA" && length($NF)>0){if($NF<=pT){print $0}}' ../rna_seq/callus/res_deseq2_normalShrink_dexVmock_t6hr.txt > ../rna_seq/callus/adjp0.01/dexVmock_t6hr.txt
+awk -v pT=0.01 -F"\t" 'NR==1{print} (NR>1 && $NF!="NA" && length($NF)>0){if($NF<=pT){print $0}}' ../rna_seq/callus/res_deseq2_normalShrink_dexVmock_t24hr.txt > ../rna_seq/callus/adjp0.01/dexVmock_t24hr.txt
+
+
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation DvM_1summit_peaks \
+        . \
+        DexvsMock_1summit.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  DexvsMock_1summit.modified.narrowPeak \
+        -ps ../useful_files/SeedlingLFYTAIR10.bed \
+            ../useful_files/InflLFYTAIR10.bed \
+        -pn seedlings inflorescence \
+        -rs ../useful_files/cara_final_de_list.tsv \
+        ../useful_files/dexVmock_t1hr.txt \
+        ../useful_files/dexVmock_t6hr.txt \
+        ../useful_files/dexVmock_t24hr.txt \
+        -mf ../useful_files/LFY1_T10_uniq.bed \
+        ../useful_files/LFY2_T10_uniq.bed \
+        ../useful_files/LFY_1and2_T10.chr.bed \
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -df ../useful_files/flowersNotLeafsDHS.bed \
+            ../useful_files/all_DHS_full.chr.bed \
+        -dn flowerDNase allDNase \
+        -nf ../MNase_bed_files/DvM_single_75bp_all3MNase.bed \
+            ../MNase_bed_files/DvM_single_75bp_highMock.bed \
+            ../MNase_bed_files/DvM_single_75bp_lowBoth.bed \
+            ../MNase_bed_files/DvM_single_75bp_lowDex.bed \
+            ../MNase_bed_files/DvM_single_75bp_lowMock.bed \
+            ../MNase_bed_files/DvM_single_90bp_all3MNase.bed \
+            ../MNase_bed_files/DvM_single_90bp_highMock.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowBoth.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowDex.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowMock.bed \
+        -nn 75bp_all3MNase 75bp_highMock 75bp_lowBoth 5bp_lowDex 75bp_lowMock 90bp_all3MNase 90bp_highMock 90bp_lowBoth 90bp_lowDex 90bp_lowMock \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ../useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' LFY_1and2_T10.bed > LFY_1and2_T10.chr.bed
+
+-ps ../useful_files/SeedlingLFYTAIR10.bed ../useful_files/inflorescence/InflLFYTAIR10.bed -pn seedlings inflorescence -rs rna_seq/seed_q.005 rna_seq/callus_p.0001 rna_seq/t1hr_kallisto-sleuth_V_STAR-edgeR_list.txt rna_seq/t6hr_kallisto-sleuth_V_STAR-edgeR_list.txt rna_seq/t24hr_kallisto-sleuth_V_STAR-edgeR_list.txt -rn RNA_seed RNA1_callus_0001 RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr -mf LFY_motif/LFY1_T10_uniq.bed LFY_motif/LFY2_T10_uniq.bed -mn LFY1 LFY2 -df dhs_sites/flowersNotLeafsDHS.bed -dn flowerDNase
+
+
+35SLFY_Parcy_peak
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.625 -u > DvM_multi_75bp_all3MNase.bed
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b all3MNase_DANPOS.bed -f 0.75 -u > DvM_multi_90bp_all3MNase.bed
+
+/home/runjin/LFY/annotation/MNase_bed_files
+highMock_DANPOS.bed
+lowBoth_DANPOS.bed
+lowDex_DANPOS.bed
+lowMock_DANPOS.bed
+
+DvM_single_75bp_lowDex.bed
+DvM_single_90bp_lowDex.bed
+DvM_single_75bp_all3MNase.bed
+DvM_single_75bp_lowBoth.bed
+DvM_single_90bp_all3MNase.bed
+DvM_single_90bp_lowBoth.bed
+
+●
+Use this for multi summit stuff:
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation DvM_multi_peaks \
+        . \
+        DexvsMock_multi.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  DexvsMock_multi.modified.narrowPeak \
+        -ps ../useful_files/SeedlingLFYTAIR10.bed \
+            ../useful_files/InflLFYTAIR10.bed \
+        -pn seedlings inflorescence \
+        -rs ../useful_files/cara_final_de_list.tsv \
+        ../useful_files/dexVmock_t1hr.txt \
+        ../useful_files/dexVmock_t6hr.txt \
+        ../useful_files/dexVmock_t24hr.txt \
+        -mf ../useful_files/LFY1_T10_uniq.bed \
+        ../useful_files/LFY2_T10_uniq.bed \
+        ../useful_files/LFY_1and2_T10.chr.bed\
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -df ../useful_files/flowersNotLeafsDHS.bed \
+            ../useful_files/all_DHS_full.chr.bed \
+        -dn flowerDNase allDNase \
+        -nf ../MNase_bed_files/DvM_multi_75bp_all3MNase.bed \
+            ../MNase_bed_files/DvM_multi_75bp_highMock.bed \
+            ../MNase_bed_files/DvM_multi_75bp_lowBoth.bed \
+            ../MNase_bed_files/DvM_multi_75bp_lowDex.bed \
+            ../MNase_bed_files/DvM_multi_75bp_lowMock.bed \
+            ../MNase_bed_files/DvM_multi_90bp_all3MNase.bed \
+            ../MNase_bed_files/DvM_multi_90bp_highMock.bed \
+            ../MNase_bed_files/DvM_multi_90bp_lowBoth.bed \
+            ../MNase_bed_files/DvM_multi_90bp_lowDex.bed \
+            ../MNase_bed_files/DvM_multi_90bp_lowMock.bed \
+        -nn 75bp_all3MNase 75bp_highMock 75bp_lowBoth 5bp_lowDex 75bp_lowMock 90bp_all3MNase 90bp_highMock 90bp_lowBoth 90bp_lowDex 90bp_lowMock \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ../useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' all_DHS_full.bed > all_DHS_full.chr.bed
+
+~/Araport11/TAIR10_chr_count.txt
+●
+Deal with bedgraph files into bigwig files:
+bedGraphToBigWig ETT_negCtrlen.bedgraph ~/Araport11/TAIR10_count.txt ETT_negCtrlen.bigwig
+bedGraphToBigWig ETT_noIAA.pooled.bedgraph ~/Araport11/TAIR10_count.txt ETT_noIAA.pooled.bigwig
+nohup computeMatrix reference-point -S ETT_negCtrlen.bigwig ETT_noIAA.pooled.bigwig -R minusIAA.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinChIPvsNC.tab.gz &
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' ETT_negCtrlen.bedgraph > ETT_negCtrlen.chr.bedgraph
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' ETT_noIAA.pooled.bedgraph > ETT_noIAA.pooled.chr.bedgraph
+
+bedGraphToBigWig ETT_negCtrlen.bedgraph ~/Araport11/TAIR10_count.txt ETT_negCtrlen.bigwig
+bedGraphToBigWig ETT_noIAA.pooled.chr.bedgraph ~/Araport11/TAIR10_count.txt ETT_noIAA.pooled.chr.bigwig
+
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R minusIAA.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinPeak.tab.gz &
+
+nohup computeMatrix reference-point -S ETT_negCtrlen.bigwig -R minusIAA.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinNCPeak.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/IanHanderson/allMNase_IH_inflo.bigwig -R minusIAA.chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinBedvsMNaseIH.tab.gz &
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK_MNase/bigwig/ath_MNase_publish_inflo.bigwig -R minusIAA.chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinBedvsMNaseAC.tab.gz &
+
+awk 'BEGIN{OFS="\t"}/e1/{gsub(/Chrtrack/, "track")};{print}' ETT_negCtrlen.chr.bedgraph | head
+> ETT_negCtrlen.chr.fix.bedgraph
+
+nohup computeMatrix reference-point -S ETT_negCtrlen.chr.bigwig ETT_noIAA.pooled.chr.bigwig ~/LFY/mapping_SK_MNase/bigwig/ath_MNase_publish_inflo.bigwig -R minusIAA.chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinChIPwInputvsMNaseIH.tab.gz &
+
+nohup computeMatrix reference-point -S ETT_negCtrlen.chr.bigwig ETT_noIAA.pooled.chr.bigwig ~/MNase_other/IanHanderson/allMNase_IH_inflo.bigwig -R minusIAA.chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinChIPwInputvsMNaseAC.tab.gz &
+
+plotHeatmap --matrixFile ChIPvsFnorMNase.tab.gz --outFileName ../../graphs/ChIPvsFnorMNase.png &
+
+nohup computeMatrix reference-point -S MNase-HM-100618.Fnor.smooth.bigwig MNase-LM-100618.Fnor.smooth.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsFnorMNase.tab.gz &
+Plot profile and heatmap using the file 
+nohup computeMatrix reference-point -S MNase-HM-100618.Fnor.smooth.bigwig MNase-LM-100618.Fnor.smooth.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 10 --sortRegions descend -o MNase-100618Fnor.mat.gz &
+
+nohup plotProfile --matrixFile MNase-100618Fnor.mat.gz --outFileName ../../graphs/MNaseFinalFnor_profile.png &
+nohup plotHeatmap --matrixFile MNase-100618Fnor.mat.gz --outFileName ../../graphs/MNaseFinalFnor_heatmap.png &
+SATURDAY, 2/16/2019×
+plotHeatmap --matrixFile EttinBedvsMNaseAC.tab.gz --colorMap YlGnBu --whatToShow 'heatmap and colorbar' --outFileName ~/LFY/graphs/EttinBedvsMNaseAC_heatmap.png 
+plotHeatmap --matrixFile EttinBedvsMNaseIH.tab.gz --colorMap YlGnBu --whatToShow 'heatmap and colorbar' --outFileName ~/LFY/graphs/EttinBedvsMNaseIH_heatmap.png 
+
+plotHeatmap --matrixFile EttinChIPvsNC.tab.gz --colorMap Purples --outFileName ~/LFY/graphs/EttinChIPvsNC_heatmap.png 
+
+plotHeatmap --matrixFile EttinPeak.tab.gz --colorMap Purples --outFileName ~/LFY/graphs/EttinChIP_heatmap.png 
+
+nohup computeMatrix reference-point -S 35SLFYA.bigwig 35SLFYB.bigwig -R 35SLFY_Parcy_final.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ParcyLFY_ChIP.tab.gz &
+
+plotHeatmap --matrixFile ParcyLFY_ChIP.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/ParcyLFYChIP_heatmap.png 
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/allMNase_IH_inflo.bigwig -R 35SLFY_Parcy_final.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ParcyLFYvsMNaseIH_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R 35SLFY_Parcy_final.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ParcyLFYvsMNaseAC_ChIP.tab.gz &
+
+plotHeatmap --matrixFile ParcyLFYvsMNaseAC_ChIP.tab.gz --colorMap YlGnBu --outFileName ~/LFY/graphs/ParcyLFYvsAC_heatmap.png 
+
+plotHeatmap --matrixFile ParcyLFYvsMNaseIH_ChIP.tab.gz --missingDataColor white --boxAroundHeatmaps FALSE --averageTypeSummaryPlot sum --colorMap Blues --outFileName ~/LFY/graphs/ParcyLFYvsIH_heatmap.png 
+
+nohup computeMatrix reference-point -S ETT1.filteren.bg.bw ETT2.filteren.bg.bw -R ETT_qval10.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o Ettin_ours_ChIP.tab.gz &
+
+plotHeatmap --matrixFile Ettin_ours_ChIP.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/Ettin_ours_ChIP_heatmap.png 
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/allMNase_IH_inflo.bigwig -R ETT_qval10.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinvsMNaseIH_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R ETT_qval10.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o EttinvsMNaseAC_ChIP.tab.gz &
+
+plotHeatmap --matrixFile EttinvsMNaseIH_ChIP.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/EttinvsMNaseIH_heatmap.png 
+
+plotHeatmap --matrixFile EttinvsMNaseAC_ChIP.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/EttinvsMNaseAC_heatmap.png 
+
+A
+B
+C
+D
+E
+1
+Ettin_ours (2450)	ath_MNase	% overlap	IH_MNase	% overlap
+2
+75bp	93	0.0379591837	39	0.0159183673
+3
+90bp	11	0.0044897959	30	0.012244898
+Table14
+
+
+
+●
+Try using the ~100peaks -- still has better overlap
+nohup computeMatrix reference-point -S ../MNase_IH_AC/allMNase_IH_inflo.bigwig -R ETT_qval15.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o Ettin15vsMNaseIH_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R ETT_qval15.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o Ettin15vsMNaseAC_ChIP.tab.gz &
+
+plotHeatmap --matrixFile Ettin15vsMNaseIH_ChIP.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/Ettinvs15MNaseIH_heatmap.png 
+
+plotHeatmap --matrixFile Ettin15vsMNaseAC_ChIP.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/Ettinvs15MNaseAC_heatmap.png 
+
+●
+Try the MP peaks:
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+$10-59,$2+$10+61,$4,$5,"."}' MP_filter.conservative.narrowPeak > MP_filter.120bp.bed
+
+bedtools intersect -wa -a MP_filter.120bp.bed -b ~/MNase_other/IanHanderson/DANPOS2/pooled/IH_MNase_nuc.bed -f 0.625 | wc -l 529 (1061 - )
+bedtools intersect -wa -a MP_filter.120bp.bed -b ~/MNase_other/IanHanderson/DANPOS2/pooled/IH_MNase_nuc.bed -f 0.75 | wc -l 409 (1061 - 38.55% ) vs. 54%
+
+bedtools intersect -wa -a MP_filter.120bp.bed -b ath_MNase_nuc.bed -f 0.625 | wc -l 621 (1061 - 58.5%)
+bedtools intersect -wa -a MP_filter.120bp.bed -b ath_MNase_nuc.bed -f 0.75 | wc -l 439 (1061 - 41.3% ) vs. 54%
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' plusIAA.120bp.bed > plusIAA.120bp.bed.chr.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+120,$2+240,$4,$5,"."}' ETT_qval15.bed > ETT_qval15.120bp.bed
+bedtools intersect -wa -a ETT_qval10.120bp.bed -b IH_MNase_nuc.bed -f 0.625 | wc -l 1529
+bedtools intersect -wa -a ETT_qval10.120bp.bed -b IH_MNase_nuc.bed -f 0.75 | wc -l 452
+bedtools intersect -wa -a ETT_qval10.120bp.bed -b ath_MNase_nuc.bed -f 0.625 | wc -l 683
+bedtools intersect -wa -a ETT_qval10.120bp.bed -b ath_MNase_nuc.bed -f 0.75 | wc -l 484
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+120,$2+240,$4,$5,"."}' ETT_qval10.bed > ETT_qval10.120bp.bed (2450)
+A
+B
+C
+D
+E
+1
+qval15	75bp		90bp	
+2
+IH_MNase	611	0.5626151013	452	0.4162062615
+3
+ath_MNase	683	0.6289134438	484	0.4456721915
+4
+qval10	75bp		90bp	
+5
+IH_MNase	1529	0.6240816327	1156	0.4718367347
+6
+ath_MNase	1589	0.6485714286	1168	0.4767346939
+Table15
+
+
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK_MNase/bigwig/ath_MNase_publish_inflo.bigwig -R minusIAA.chr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o EttinBedvsMNaseAC_1k.tab.gz &
+
+
+SUNDAY, 2/17/2019×
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LFY1_T10_uniq.bed > LFY1_T10_uniq.nochr.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' 35SLFYParcy_final_summits.bed > 35SLFYParcyFinal_summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+59,$3-60,$4,$5,"."}' ETT_qval15.120bp.bed > ETT_qval15.summit.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+59,$3-60,$4,$5,"."}' MP_filter.120bp.bed > MP_filter.summit.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+59,$3-60,$4,$5,"."}' DexvsMock_1summit_qval10_120bp.bed  > DexvsMock_1summit_qval10.summit.bed
+
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' minusIAA.summit.bed > minusIAA.summit.chr.bed
+bedtools intersect -wa -a minusIAA.summit.chr.bed -b ../35SLFYParcy/IH_MNase_nuc.bed -u | wc -l
+bedtools intersect -wa -a minusIAA.summit.chr.bed -b ../35SLFYParcy/ath_MNase_nuc.bed -u | wc -l
+
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b IH_MNase_nuc.bed -u | wc -l
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b ath_MNase_nuc.bed -u | wc -l
+
+bedtools intersect -wa -a TFL1_WT.idr.summit.bed -b ../35SLFYParcy/IH_MNase_nuc.bed -u | wc -l
+bedtools intersect -wa -a TFL1_WT.idr.summit.bed -b ../35SLFYParcy/ath_MNase_nuc.bed -u | wc -l
+
+bedtools intersect -wa -a MP_filter.summit.bed -b ../35SLFYParcy/IH_MNase_nuc.bed -u | wc -l
+bedtools intersect -wa -a MP_filter.summit.bed -b ../35SLFYParcy/ath_MNase_nuc.bed -u | wc -l
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DexvsMock_1summit_qval10.summit.bed > DexvsMock_qval10_summmit.chr.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowBoth_DANPOS.bed -u | wc -l (738)
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowMock_DANPOS.bed -u | wc -l (742)
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowDex_DANPOS.bed -u | wc -l (903)
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b highMock_DANPOS.bed -u | wc -l (974)
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b all3MNase_DANPOS.bed -u | wc -l (732)
+
+
+A
+B
+C
+1
+Callus LFY ChIP (1181)	% of LFY ChIP peaks
+2
+Overlap withinflorescence	274	0.2320067739
+3
+Overlap with seedling	617	0.5224386113
+4
+Primary motif	847	0.717188823
+5
+Primary + secondary motif	1096	0.9280270957
+Table16
+
+
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/allMNase_IH_inflo.bigwig -R MP_filter.conservative.bed --missingDataAsZero --skipZeros --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MPvsMNaseIH_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R MP_filter.conservative.bed --missingDataAsZero --skipZeros --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MPvsMNaseAC_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S MP_Input_pooled.bigwig MP_ChIP_pooled.bigwig -R MP_filter.conservative.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MPChIPvsInput_ChIP.tab.gz &
+
+plotHeatmap --matrixFile MPvsMNaseIH_ChIP.tab.gz --colorMap YlGnBu --missingDataColor white --whatToShow 'heatmap and colorbar' --outFileName ~/LFY/graphs/MPvsMNaseIH_ChIP_heatmap.png 
+
+plotHeatmap --matrixFile MPvsMNaseAC_ChIP.tab.gz --colorMap YlGnBu --missingDataColor white --whatToShow 'heatmap and colorbar' --outFileName ~/LFY/graphs/MPvsMNaseAC_ChIP_heatmap.png 
+
+plotHeatmap --matrixFile MPChIPvsInput_ChIP.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/MP_ours_ChIP_heatmap.png 
+nohup computeMatrix reference-point -S ../MNase_IH_AC/allMNase_IH_inflo.bigwig -R MP_filter.conservative.noMC.bed --missingDataAsZero --skipZeros --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MPvsMNaseIH_ChIP.noMC.tab.gz &
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R MP_filter.conservative.noMC.bed --missingDataAsZero --skipZeros --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MPvsMNaseAC_ChIP.noMC.tab.gz &
+
+nohup computeMatrix reference-point -S MP_Input_pooled.bigwig MP_ChIP_pooled.bigwig -R MP_filter.conservative.noMC.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MPChIPvsInput_ChIP.noMC.tab.gz &
+
+plotHeatmap --matrixFile MPvsMNaseIH_ChIP.noMC.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/MPvsMNaseIH_ChIP_all.noMC.png 
+
+plotHeatmap --matrixFile MPvsMNaseAC_ChIP.noMC.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/MPvsMNaseAC_ChIP_all.noMC.png 
+
+plotHeatmap --matrixFile MPChIPvsInput_ChIP.noMC.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/MP_ours_ChIP_heatmap.noMC.png 
+
+plotHeatmap --matrixFile EttinBedvsMNaseIH.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/EttinvsMNaseIH.noMC.png 
+
+nohup computeMatrix reference-point -S ../MNase_IH_AC/allMNase_IH_inflo.bigwig -R minusIAA.chr.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o EttinBedvsMNaseIH.tab.gz &
+
+plotHeatmap --matrixFile EttinBedvsMNaseIH.tab.gz --colorMap YlGnBu --missingDataColor white --whatToShow 'heatmap and colorbar' --outFileName ~/LFY/graphs/EttinvsMNaseIH.png 
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R Ettin_IHbound.bed Ettin_IHfree.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_IHsep.tab.gz &
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R Ettin_ACbound.bed Ettin_ACfree.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ACsep.tab.gz &
+
+nohup computeMatrix reference-point -S 35SLFYA.bigwig 35SLFYB.bigwig -R LFY_IHbound.bed LFY_IHfree.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFY_IHsep.tab.gz &
+
+plotHeatmap -m matrix.mat.gz \
+      -out ExampleHeatmap1.png \
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' ath_MNase_nuc.bed > ath_MNase_nuc_nochr.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' IH_MNase_nuc.bed > IH_MNase_nuc_nochr.bed
+
+bedtools intersect -v -a minusIAA.summit.bed -b ath_MNase_nuc_nochr.bed > Ettin_ACfree.bed
+bedtools intersect -v -a minusIAA.summit.bed -b IH_MNase_nuc_nochr.bed > Ettin_IHfree.bed
+bedtools intersect -wa -a minusIAA.summit.bed -b ath_MNase_nuc_nochr.bed -u > Ettin_ACbound.bed
+bedtools intersect -wa -a minusIAA.summit.bed -b IH_MNase_nuc_nochr.bed -u > Ettin_IHbound.bed
+
+plotHeatmap -m Ettin_ACsep.tab.gz --colorMap Purples -o ~/LFY/graphs/Ettin_ACsep_heatmap.png
+plotHeatmap -m Ettin_IHsep.tab.gz --colorMap Purples -o ~/LFY/graphs/Ettin_IHsep_heatmap.png
+
+plotHeatmap -m 35SLFY_IHsep.tab.gz --colorMap Purples -o ~/LFY/graphs/35SLFY_IHsep_heatmap.png
+plotHeatmap -m 35SLFY_ACsep.tab.gz --colorMap Purples -o ~/LFY/graphs/35SLFY_ACsep_heatmap.png
+
+bedtools intersect -v -a ETT_qval15.summit.bed -b ath_MNase_nuc.bed > Ettin_ours_ACfree.bed
+bedtools intersect -v -a ETT_qval15.summit.bed -b IH_MNase_nuc.bed > Ettin_ours_IHfree.bed
+bedtools intersect -wa -a ETT_qval15.summit.bed -b ath_MNase_nuc.bed -u > Ettin_ours_ACbound.bed
+bedtools intersect -wa -a ETT_qval15.summit.bed -b IH_MNase_nuc.bed -u > Ettin_ours_IHbound.bed
+
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R Ettin_IHbound.bed Ettin_IHfree.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_IHsep.tab.gz &
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R Ettin_ACbound.bed Ettin_ACfree.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ACsep.tab.gz &
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' Ettin_ACbound.bed > Ettin_ACbound.chr.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' Ettin_ACfree.bed > Ettin_ACfree.chr.bed
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/allMNase_IH_inflo.bigwig -R Ettin_ours_IHbound.bed Ettin_ours_IHfree.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ours_MNase_IHsep.tab.gz &
+
+plotHeatmap -m Ettin_ours_MNase_IHsep.tab.gz --colorMap Blues -o ~/LFY/graphs/Ettin_ours_MNase_IHsep_heatmap.png
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/allMNase_IH_inflo.bigwig -R Ettin_IHbound.chr.bed Ettin_IHfree.chr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_MNase_IHsep.tab.gz &
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R Ettin_IHbound.bed Ettin_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_IHsep.tab.gz &
+
+plotHeatmap -m Ettin_MNase_IHsep.tab.gz --colorMap Oranges -o ~/LFY/graphs/Ettin_MNase_IHsep_heatmap.png
+plotHeatmap -m Ettin_IHsep.tab.gz --colorMap Oranges -o ~/LFY/graphs/Ettin_IHsep_heatmap.png
+
+nohup computeMatrix reference-point -S ETT1.filteren.bg.bw ETT2.filteren.bg.bw -R Ettin_ours_IHbound.bed Ettin_ours_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ours_ChIP_IHsep.tab.gz &
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/allMNase_IH_inflo.bigwig -R Ettin_ours_IHbound.bed Ettin_ours_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ours_MNase_IHsep.tab.gz &
+
+plotHeatmap -m Ettin_ours_ChIP_IHsep.tab.gz --colorMap Blues --missingDataColor white -o ~/LFY/graphs/Ettin_ours_ChIP_IHsep_heatmap.png
+plotHeatmap -m Ettin_ours_MNase_IHsep.tab.gz --missingDataColor white -o ~/LFY/graphs/Ettin_ours_MNase_IHsep_heatmap.png
+
+bedtools intersect -v -a MP_filter.conservative.noMC.bed  -b ath_MNase_nuc.bed > MP_ours_ACfree.bed
+bedtools intersect -v -a MP_filter.conservative.noMC.bed  -b IH_MNase_nuc.bed > MP_ours_IHfree.bed
+bedtools intersect -wa -a MP_filter.conservative.noMC.bed  -b ath_MNase_nuc.bed -u > MP_ours_ACbound.bed
+bedtools intersect -wa -a MP_filter.conservative.noMC.bed  -b IH_MNase_nuc.bed -u > MP_ours_IHbound.bed
+
+nohup computeMatrix reference-point -S MP_ChIP_pooled.bigwig -R MP_ours_IHbound.bed MP_ours_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MP_ChIP_IHsep.tab.gz &
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/allMNase_IH_inflo.bigwig -R MP_ours_IHbound.bed MP_ours_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MP_MNase_IHsep.tab.gz &
+
+plotHeatmap -m MP_ChIP_IHsep.tab.gz --missingDataColor white --colorMap Greens -o ~/LFY/graphs/MP_ChIP_IHsep_heatmap.png
+plotHeatmap -m MP_MNase_IHsep.tab.gz --missingDataColor white --colorMap Greens -o ~/LFY/graphs/MP_MNase_IHsep_heatmap.png
+
+plotHeatmap -m Ettin_IHsep.tab.gz --colorMap Oranges -o ~/LFY/graphs/Ettin_IHsep_heatmap.png
+
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed  -b highMock_DANPOS.bed > callus_HM_free.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed  -b highMock_DANPOS.bed -u > callus_HM_bound.bed
+
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed  -b lowMock_DANPOS.bed > callus_LM_free.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed  -b lowMock_DANPOS.bed -u > callus_LM_bound.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' callus_LM_bound.bed > callus_LM_nochr.bound.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' callus_LM_free.bed > callus_LM_nochr.free.bed
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK/LFYChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R callus_LM_nochr.bound.bed callus_LM_nochr.free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o callus_LMsep.tab.gz &
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK_MNase/MNase_all/lowDex_MNase1.bigwig -R callus_LM_bound.bed callus_LM_free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o callus_MNase_LMsep.tab.gz &
+
+plotHeatmap -m callus_LMsep.tab.gz --colorMap Reds --missingDataColor white -o ~/LFY/graphs/callus_LMsep_heatmap.png
+
+plotHeatmap -m callus_MNase_LMsep.tab.gz --colorMap Reds --missingDataColor white -o ~/LFY/graphs/callus_MNase_LMsep_heatmap.png
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' callus_HM_bound.bed > callus_HM_nochr.bound.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' callus_HM_free.bed > callus_HM_nochr.free.bed
+
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed  -b lowDex_DANPOS.bed > callus_LD_free.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed  -b lowDex_DANPOS.bed -u > callus_LD_bound.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' callus_LD_bound.bed > callus_LD_nochr.bound.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' callus_LD_free.bed > callus_LD_nochr.free.bed
+
+plotHeatmap -m callus_HMsep.tab.gz --colorMap Reds -o ~/LFY/graphs/callus_HM_sep_heatmap.png
+
+nohup computeMatrix reference-point -S LFY1HrMock_pooled_greenscreen1.bigwig LFY1HrDex_pooled_greenscreen1.bigwig -R DexvsMock_qval10.narrowPeak --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o DvM_qval10_gs.tab.gz &
+
+plotHeatmap -m DvM_qval10_gs.tab.gz --colorMap Reds -o ~/LFY/graphs/DvM_qval10_gs_heatmap.png
+
+nohup computeMatrix reference-point -S LFY1HrMock_pooled_greenscreen1.bigwig LFY1HrDex_pooled_greenscreen1.bigwig -R DexvsMock_qval10.narrowPeak --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o DvM_qval10_gs.tab.gz &
+
+computeMatrix reference-point -S lowDex_MNase1.bigwig lowMock_MNase1.bigwig -R ~/LFY/mapping_SK/LFYChIP/MACS2_greenscreen/DexvsMock_qval10.chr.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 -bs 10 --sortRegions descend -o MNaseLowBothvsLFY.mat.gz
+
+plotHeatmap --matrixFile MNaseLowBothvsLFY.mat.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/callusMNaselowBoth_heatmap.png 
+●
+Use the new file to generate list for go term analysis 
+~/LFY/annotation/single_peak/DvM_1summit_peaks_peakwise_ann.bed
+cut -f4 callus_HM_free.bed > callus_HM_free.list
+cut -f4 callus_HM_bound.bed > callus_HM_bound.list
+
+python ~/custom_scripts/findInColumn.py ~/LFY/annotation/single_peak/DvM_1summit_peaks_peakwise_ann.bed callus_HM_free.list 4 > callus_HM_free.bed
+
+python ~/custom_scripts/findInColumn.py ~/LFY/annotation/single_peak/DvM_1summit_peaks_peakwise_ann.bed callus_HM_bound.list 4 > callus_HM_bound.bed
+
+cut -f6 callus_HM_free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > callus_HM_free.txt
+cut -f6 callus_HM_bound.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > callus_HM_bound.txt
+nohup computeMatrix reference-point -S 35SLFYA.bigwig 35SLFYB.bigwig -R 35SLFY_Parcy_final.narrowPeak --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ParcyLFY_ChIP_1k.tab.gz &
+
+nohup computeMatrix reference-point -S 35SLFYA.bigwig 35SLFYB.bigwig -R LFY_IHbound.bed LFY_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ParcyLFY_IHsep.tab.gz &
+
+plotHeatmap --matrixFile ParcyLFY_IHsep.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/ParcyLFY_IHsep_heatmap.png 
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/allMNase_IH_inflo.bigwig -R LFY_IHbound.bed LFY_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Parcy_MNase_IHsep.tab.gz &
+
+plotHeatmap --matrixFile Parcy_MNase_IHsep.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/Parcy_MNase_IHsep_heatmap.png 
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/allMNase_public_inflo.bigwig -R 35SLFY_Parcy_final.narrowPeak --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ParcyLFYvsAC_1k.tab.gz &
+
+plotHeatmap --matrixFile ParcyLFYvsIH_1k.tab.gz --colorMap YlGnBu --missingDataColor white --outFileName ~/LFY/graphs/cParcyLFYvsIH_1k_heatmap.png 
+
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R minusIAA.summit.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ChIP_1k.tab.gz &
+
+plotHeatmap --matrixFile Ettin_ChIP_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/Ettin_ChIP_1k_heatmap.png 
+
+
+python ~/Desktop/Wagner_Lab/scripts/goTermHeatmap.py goTerm_heatmap.pdf -i FIE_go_terms2.csv PIR_and_FIE_go_terms2.csv -l FIE PIR_and_FIE --neglog10
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK_MNase/MNase_all/lowDex_MNase1.bigwig -R callus_LD_bound.bed callus_LD_free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o callus_MNase_LDsep.tab.gz &
+
+plotHeatmap -m callus_MNase_LDsep.tab.gz --colorMap Reds --missingDataColor white -o ~/LFY/graphs/callus_MNase_LDsep.tab.gz
+
+
+MONDAY, 2/18/2019×
+read.table(file = 'DvM_1summit_peaks_peakwise_ann.tsv', sep = '\t', header = TRUE)
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."} Dex6hrVMock6hr_apeglmShrink.bed > Dex6hrVMock6hr_apelmShrink_6col.bed
+
+nohup computeMatrix reference-point -S 6hrDex.bigwig 6hrMock.bigwig -R ../DEseq2/Dex6hrVMock6hr_apeglmShrink.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ATACDvM_peaks.tab.gz &
+
+nohup computeMatrix reference-point -S 6hrDex.bigwig 6hrMock.bigwig -R ../mapping_SK/MACS2_gs_1summmit/DexvsMock_1summit_qval10.chr.narrowPeak --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ATACvsLFYChIP_peaks.tab.gz &
+
+plotHeatmap -m ATACvsLFYChIP_peaks.tab.gz --colorMap flag --missingDataColor white -o ~/LFY/graphs/ATACvsLFYChIP_peaks_heatmap.png
+Dex6hrVMock6hr_apeglmShrink.bed
+Possible values are: Accent, Accent_r, Blues, Blues_r, BrBG, BrBG_r, BuGn, BuGn_r, BuPu, BuPu_r, CMRmap, CMRmap_r, Dark2, Dark2_r, GnBu, GnBu_r, Greens, Greens_r, Greys, Greys_r, OrRd, OrRd_r, Oranges, Oranges_r, PRGn, PRGn_r, Paired, Paired_r, Pastel1, Pastel1_r, Pastel2, Pastel2_r, PiYG, PiYG_r, PuBu, PuBuGn, PuBuGn_r, PuBu_r, PuOr, PuOr_r, PuRd, PuRd_r, Purples, Purples_r, RdBu, RdBu_r, RdGy, RdGy_r, RdPu, RdPu_r, RdYlBu, RdYlBu_r, RdYlGn, RdYlGn_r, Reds, Reds_r, Set1, Set1_r, Set2, Set2_r, Set3, Set3_r, Spectral, Spectral_r, Wistia, Wistia_r, YlGn, YlGnBu, YlGnBu_r, YlGn_r, YlOrBr, YlOrBr_r, YlOrRd, YlOrRd_r, afmhot, afmhot_r, autumn, autumn_r, binary, binary_r, bone, bone_r, brg, brg_r, bwr, bwr_r, cividis, cividis_r, cool, cool_r, coolwarm, coolwarm_r, copper, copper_r, cubehelix, cubehelix_r, flag, flag_r, gist_earth, gist_earth_r, gist_gray, gist_gray_r, gist_heat, gist_heat_r, gist_ncar, gist_ncar_r, gist_rainbow, gist_rainbow_r, gist_stern, gist_stern_r, gist_yarg, gist_yarg_r, gnuplot, gnuplot2, gnuplot2_r, gnuplot_r, gray, gray_r, hot, hot_r, hsv, hsv_r, inferno, inferno_r, jet, jet_r, magma, magma_r, nipy_spectral, nipy_spectral_r, ocean, ocean_r, pink, pink_r, plasma, plasma_r, prism, prism_r, rainbow, rainbow_r, seismic, seismic_r, spring, spring_r, summer, summer_r, tab10, tab10_r, tab20, tab20_r, tab20b, tab20b_r, tab20c, tab20c_r, terrain, terrain_r, viridis, viridis_r, winter, winter_r
+TUESDAY, 2/19/2019×
+nohup computeMatrix reference-point -S ETT1.filteren.bg.bw ETT2.filteren.bg.bw -R Ettin_ours_ACbound.bed Ettin_ours_ACfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ours_ChIPIC_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ETT1.filteren.bg.bw ETT2.filteren.bg.bw -R Ettin_ours_IHbound.bed Ettin_ours_IHfree.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o Ettin_ours_ChIPIH_2k.tab.gz &
+
+~/MNase_other/MNase_IH_AC
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R Ettin_ours_ACbound.bed Ettin_ours_ACfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_ours_MNaseAC_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/allMNase_IH_inflo.bigwig -R Ettin_ours_IHbound.bed Ettin_ours_IHfree.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o Ettin_ours_MNaseIH_2k.tab.gz &
+
+plotHeatmap --matrixFile Ettin_ours_ChIPIC_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/Ettin_ours_ChIPIC_1k.png 
+plotHeatmap --matrixFile Ettin_ours_ChIPIH_2k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/Ettin_ours_ChIPIH_2k.png 
+plotHeatmap --matrixFile Ettin_ours_MNaseAC_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/Ettin_ours_MNaseAC_1k.png 
+plotHeatmap --matrixFile Ettin_ours_MNaseIH_2k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/Ettin_ours_MNaseIH_2k.png 
+nohup computeMatrix reference-point -S MP_ChIP_pooled.bigwig -R MP_ours_ACbound.bed MP_ours_ACfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MP_ours_ChIPIC_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R MP_ours_ACbound.bed MP_ours_ACfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MP_ours_MNaseAC_1k.tab.gz &
+
+plotHeatmap --matrixFile MP_ours_MNaseAC_1k.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/MP_ours_MNaseAC_1k.png 
+plotHeatmap --matrixFile MP_ours_ChIPIC_1k.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/MP_ours_ChIPIC_1k.png 
+WEDNESDAY, 2/20/2019×
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/ettinPubA.fastq &
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/ettinPubB.fastq &
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/ettinPubC.fastq &
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/ettin_NC.fastq &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S MNase_other/ettinPubA.sam fastq/ettinPubA.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie2_ettinA.log &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S MNase_other/ettinPubB.sam fastq/ettinPubB.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie2_ettinB.log &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S MNase_other/ettinPubC.sam fastq/ettinPubC.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie2_ettinC.log &
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S MNase_other/ettin_NC.sam fastq/ettin_NC.fastq 2> ~/LFY/log_files/bowtie2_logs/bowtie2_ettin_NC.log &
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/MNase_IH_1.fastq &
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/ fastq/MNase_IH_2.fastq &
+
+nohup bowtie2 --phred33 --no-unal -q -x /home/runjin/Araport11/TAIR10_bowtie2 -1 fastq/MNase_IH_1.fastq -2 fastq/MNase_IH_2.fastq -S MNase_other/MNase_IH.sam 2> ~/LFY/log_files/mapping/bowtie_paired_MNaseIH.log &
+A
+B
+C
+D
+E
+F
+1
+Start	Aligned once	Aligned more	Not aligned	Total aligned
+2
+EttinA	30193007	19324599 (64.00%)	8472331 (28.06%)	2396077 (7.94%)	92.06%
+3
+EttinB	23841081	15322157 (64.27%)	6433829 (26.99%)	2085095 (8.75%)	91.25%
+4
+EttinC	45327931	29555108 (65.20%)	12222870 (26.97%)	3549953 (7.83%)	92.17%
+5
+EttinNC	19392138	12337878 (63.62%)	5644442 (29.11%)	1409818 (7.27%) 	92.73%
+Table17
+
+
+
+●
+Steps for filtering reads
+●
+create_filtering_input.sh (for single-end reads)
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/MNase_other/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd home/runjin/MNase_other/ 
+source ~/LFY/scripts/create_filtering_input.sh > ~/LFY/scripts/filtering_single.sh
+chmod 755 ~/LFY/scripts/filtering_single.sh
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+nohup ~/LFY/scripts/filtering_single.sh > ~/LFY/log_files/filtering_single.log 2>&1 &
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 ettinPubA.sam 
+samtools view -c -F 4 ettinPubB.sam
+samtools view -c -F 4 ettinPubC.sam
+samtools view -c -F 4 ettin_NC.sam
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c ettinPubA.filter.bam
+samtools view -c ettinPubB.filter.bam
+samtools view -c ettinPubC.filter.bam
+samtools view -c ettin_NC.filter.bam
+
+samtools view -c -F 4 ettinPubA.final.bam
+samtools view -c -F 4 ettinPubB.final.bam
+samtools view -c -F 4 ettinPubC.final.bam
+samtools view -c -F 4 ettin_NC.final.bam
+
+samtools view -F 4 ettinPubA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -F 4 ettinPubB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -F 4 ettinPubC.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -F 4 ettin_NC.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+●
+Get mad for not sorting 
+○
+So sort the sam files into bam files and index it 
+A
+B
+C
+D
+E
+1
+Start signals 	get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30	get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates	
+2
+ettin_OG_A	27796930	20810646	8036731	
+3
+ettin_OG_B	21755986	16492424	6547936	
+4
+ettin_OG_C	41777978	31743752	13637446	
+5
+ettin_OG_NC	17982320	13502478	8127728	
+Table18
+
+
+
+nohup samtools sort -@ 2 ettinPubA.sam -o ettinPubA.bam &
+nohup samtools sort -@ 2 ettinPubB.sam -o ettinPubB.bam &
+nohup samtools sort -@ 2 ettinPubC.sam -o ettinPubC.bam &
+nohup samtools sort -@ 2 ettin_NC.sam -o ettin_NC.bam &
+
+samtools index ettinPubC.bam
+
+Steps for CP10M normalization of reads for IGV
+●
+run ~/custom_scripts/bam2big_singleEnd.sh script on each bam file to get bigwigs and bedgraph files
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh "$0".filter.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bam2big.sh
+
+chmod 755 ~/LFY/scripts/bam2big.sh
+nohup ~/LFY/scripts/bam2big.sh > ~/LFY/log_files/bam2big.log 2>&1 &
+
+nohup macs2 callpeak -t ettinPubA.filter.bam ettinPubB.filter.bam ettinPubC.filter.bam -c ettin_NC.filter.bam -f BAM --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ./MACS2_peaks -n ettin_OG > ~/LFY/log_files/macs2_ettin_OG &
+nohup macs2 callpeak -t ettinPubA.filter.bam ettinPubB.filter.bam ettinPubC.filter.bam -f BAM --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ./MACS2_peaks -n ettin_OG_noNC > ~/LFY/log_files/macs2_ettin_OG_noNC &
+awk '$9>=55' ettin_OG_noNC_peaks.narrowPeak | wc -l 
+A
+B
+C
+D
+1
+All peaks	qval10	Final peaks (qval50)
+2
+ettin_OGvsNC	4049	670	/
+3
+ettin_OGnoNC	22413	9190	1317
+Table19
+
+
+
+nohup bedtools unionbedg -i ettinPubA.filteren.bg ettinPubB.filteren.bg ettinPubC.filteren.bg > ettinPub.unionbed &
+awk 'BEGIN{OFS="\t"; print "track name=\42ettin OG\42 useScore=1"} NR>1{avg=($4+$5+$6)/3; print $1,$2,$3,avg}' ettinPub.unionbed > ettinPub.pooled.bedgraph
+bedGraphToBigWig ettinPub.pooled.bedgraph ~/Araport11/TAIR10_chr_count.txt ettinPub.pooled.bigwig
+●
+The mapping rate of IH:
+A
+B
+C
+D
+E
+F
+1
+Start	Non-mapped	Mapped once	Mapped more than once	Overall mapped
+2
+MNase_IH	45683416	528089 (1.16%)	26709883 (58.47%)	18445444 (40.38%)	99.33%
+Table20
+
+
+
+THURSDAY, 2/21/2019×
+Scripts
+●
+~/LFY/scripts/create_MNase_filtering.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LFY
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=170
+minFragLen=130
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30 
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.sam | \
+		awk 'BEGIN{OFS=\"\t\"} \$0!~\"^@\" && \$9<=${maxFragLen} && \$9>=${minFragLen}{print} \$0~\"^@\"{print}' | \
+		samtools sort - -o ${SRX}.filter.bam """
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+Steps to filter reads for fragment length 130-170
+●
+Remove reads with fragment lengths greater than 300bp and then remove duplicates
+source ~/LFY/scripts/create_MNase_filtering.sh > ~/LFY/scripts/MNase_filtering.sh
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+nohup ~/LFY/scripts/MNase_filtering.sh > ~/LFY/log_files/MNase_filtering.log 2>&1 &
+●
+Redo all the heatmaps using TAIR10: 
+nohup computeMatrix reference-point -S lowMock_MNase1.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o lowMock1_TAIR10_Fnor.mat.gz &
+
+TAIR10_GFF3_protein_coding_genes.bed
+
+plotHeatmap --matrixFile lowMock1_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/lowMock1_TSS_TAIR10_heatmap.png
+
+plotHeatmap --matrixFile lowDex1_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/lowDex1_TSS_TAIR10_heatmap.png
+
+plotHeatmap --matrixFile highDex2_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highDex2_TSS_TAIR10_heatmap.png
+
+plotHeatmap --matrixFile highMock1_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highMock1_TSS_TAIR10_heatmap.png
+
+A
+B
+C
+1
+# of peaks	%overlap
+2
+ettin_NC (670)	519	0.7746268657
+3
+ettin_noNC (1317)	984	0.7471526196
+Table21
+
+
+
+awk '$5>=10' ettin_OG_summits.bed > ettin_OG_qval10_summits.bed
+
+bedtools intersect -wa -a ettin_OG_qval10_summits.bed -b ath_MNase_nuc.bed -u > ettin_OG_qval10_bound.bed
+bedtools intersect -v -a ettin_OG_qval10_summits.bed -b ath_MNase_nuc.bed > ettin_OG_qval10_free.bed
+
+bedtools intersect -wa -a ettin_OG_noNC_qval50_summits.bed -b ath_MNase_nuc.bed -u > ettin_OG_noNC_qval50_bound.bed
+bedtools intersect -v -a ettin_OG_noNC_qval50_summits.bed -b ath_MNase_nuc.bed > ettin_OG_noNC_qval50_free.bed
+
+nohup computeMatrix reference-point -S ../ettinPub.pooled.bigwig -R ettin_OG_qval10_bound.bed ettin_OG_qval10_free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettin_OG_ChIPAC_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ../ettinPub.pooled.bigwig -R ettin_OG_noNC_qval50_bound.bed ettin_OG_noNC_qval50_free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettin_OG_noNC_ChIPAC_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R ettin_OG_qval10_bound.bed ettin_OG_qval10_free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettin_OG_qval10_MNaseAC_1k.tab.gz &
+
+plotHeatmap --matrixFile ettin_OG_ChIPAC_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/ettin_OG_ChIPAC_1k.png 
+plotHeatmap --matrixFile ettin_OG_noNC_ChIPAC_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/ettin_OG_noNC_ChIPAC_1k.png 
+
+plotHeatmap --matrixFile ettin_OG_qval10_MNaseAC_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/ettin_OG_qval10_MNaseAC_1k.png 
+
+ettin_OG_noNC_ChIPAC_1k.png
+thumbnail
+
+
+ettin_OG_ChIPAC_1k.png
+thumbnail
+
+●
+For the mapping -- definitely use NC as a control to get better peaks
+
+ettin_OG_qval10_MNaseAC_1k.png
+thumbnail
+
+A
+B
+C
+D
+1
+Start signals 	get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30	get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+2
+ettin_OG_A	90754550	27600506	27600506
+Table22
+
+
+
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 MNase_IH.sam
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c MNase_IH.filter.bam
+samtools view -c -F 4 MNase_IH.final.bam
+●
+get bigGraph files
+○
+get bedGraph files for each replicate
+■
+example command
+source ~/custom_scripts/bam2big_pairedEnd.sh MNase_IH.final.bam ~/Araport11/TAIR10_chr_count.txt .
+■
+batch script
+awk 'BEGIN{print "echo \42START\42"}{print "nohup ~/sammy_custom_scripts/bam2big_pairedEnd.sh "$0".final.bam ~/Araport11/TAIR10_chr_count.txt . &"}NR%3==0{x++;print "wait\necho \42WAIT "x"/4 COMPLETE\42"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/visualize.sh
+
+chmod 755 ~/LFY/scripts/visualize.sh
+
+nohup ~/LFY/scripts/visualize.sh > ~/LFY/log_files/visualize.log 2>&1 &
+●
+The ONLY way to get DANPOS to work:
+cd ~/Downloads/danpos-2.2.2
+unset R_HOME
+module load python/anaconda/2.7
+nano ~/.bashrc
+export PATH="/home/runjin/Downloads/samtools-0.1.18/:$PATH"
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos MNase_IH.final.sorted.bam --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2/ > ~/LFY/log_files/dpos_MNase_IH.log 2>&1 &
+●
+Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig MNase_IH.final.sorted.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase_IH.reanalyzed.bigwig
+nohup samtools sort -@ 2 MNase_IH.sam -o MNase_IH.bam &
+samtools index MNase_IH.bam
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' ettin_OG_qval10_summits.bed > ettin_OG_qval10_120bp.bed
+
+bedtools intersect -wa -a ettin_OG_qval10_120bp.bed -b MNase_IH_reanalyzed_nuc.bed -f 0.625 -u | wc -l 440
+bedtools intersect -wa -a ettin_OG_qval10_120bp.bed -b MNase_IH_reanalyzed_nuc.bed -f 0.75 -u | wc -l 319
+
+bedtools intersect -wa -a MP_filter.120bp.bed -b MNase_IH_reanalyzed_nuc.bed -f 0.625 -u | wc -l 610
+bedtools intersect -wa -a MP_filter.120bp.bed -b MNase_IH_reanalyzed_nuc.bed -f 0.75 -u | wc -l 459
+
+bedtools intersect -wa -a 35SLFY_Parcy_final_120bp.bed -b MNase_IH_reanalyzed_nuc.bed -f 0.625 -u | wc -l 610
+bedtools intersect -wa -a 35SLFY_Parcy_final_120bp.bed -b MNase_IH_reanalyzed_nuc.bed -f 0.75 -u | wc -l 459
+
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed  -b MNase_IH_reanalyzed_nuc.bed -f 0.625 -u | wc -l 
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed  -b MNase_IH_reanalyzed_nuc.bed -f 0.75 -u | wc -l 
+
+A
+B
+C
+D
+E
+F
+1
+75bp overlap	Callus_single (1181)	Callus_multi (1232)	Parcy_single (1952)	Ettin_pub_reanalyze (670)	MP_ours_SK_analyzed (1061)
+2
+ath_inflo	887	933	1492	437	615
+3
+Percentage	0.7510584251	0.7573051948	0.7643442623	0.652238806	0.5796418473
+4
+IH_re_inflo	860	894	1393	440	610
+5
+Percentage	0.7281964437	0.7569856054	0.7136270492	0.6567164179	0.574929312
+6
+90bp overlap	Callus_single (1181)	Callus_multi (1232)	Parcy_single (1952)	Ettin_pub_reanalyze (670)	MP_ours_SK_analyzed
+7
+ath_inflo	682	711	1188	338	439
+8
+Percentage	0.5774767146	0.5771103896	0.6086065574	0.5044776119	0.4137606032
+9
+IH_re_inflo	637	674	1063	319	459
+10
+Percentage	0.5393734124	0.5707027942	0.5445696721	0.476119403	0.4326107446
+Table23
+
+
+
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+1
+LFY_single_120bp	All	75bp 	% LFY peak overlap 75bp with MNase callus	90bp	% LFY peak overlap 90bp with MNase callus	LFY_multi_120bp	All	75bp 	% LFY peak overlap 75bp with MNase callus	90bp	% LFY peak overlap 90bp with MNase callus
+2
+highMock	1163	859	0.7273497036	663	0.5613886537	highMock	1216	893	0.7248376623	706	0.5730519481
+3
+lowMock	902	670	0.567315834	534	0.4521591871	lowMock	942	692	0.5616883117	559	0.4537337662
+4
+lowDex	1082	796	0.6740050804	631	0.5342929721	lowDex	1127	839	0.6810064935	678	0.5503246753
+5
+lowBoth	899	666	0.5639288738	531	0.449618967	lowBoth	939	687	0.5576298701	556	0.4512987013
+6
+All3MNase	892	661	0.5596951736	527	0.4462320068	All3MNase	931	682	0.5535714286	552	0.4480519481
+Table24
+
+
+
+bedtools intersect -wa -a DexvsMock_multi_qval10_120bp.chr.bed -b highMock_DANPOS.bed -f 0.75 -u | wc -l 
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42MNase IH re-analyzed\42 useScore=1"} NR>1{x++;print $1,$2,$3,"MNase_IH_"x,$5,"."}' MNase_IH.final.sorted.smooth.positions.xls > MNase_IH_reanalyzed_nuc.bed
+bedtools intersect -wa -a MP_filter.summit.bed -b MNase_IH_reanalyzed_nuc.bed -u > MNase_IH_bound.bed
+bedtools intersect -v -a MP_filter.summit.bed -b MNase_IH_reanalyzed_nuc.bed > MNase_IH_free.bed
+
+nohup computeMatrix reference-point -S MP_ChIP_pooled.bigwig -R MNase_IH_bound.bed MNase_IH_free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MPChIP_IH_reanalyzed.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNase_IH.reanalyzed.bigwig -R  MNase_IH_bound.bed MNase_IH_free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MP_MNase_IH_reanalyzed.tab.gz &
+
+plotHeatmap --matrixFile MPChIP_IH_reanalyzed.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/MPChIP_IH_reanalyzed_1k.png 
+
+plotHeatmap --matrixFile MP_MNase_IH_reanalyzed.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/MP_MNase_IH_reanalyzed_1k.png 
+
+bedtools intersect -wa -a ETT_qval15.summit.bed -b MNase_IH_reanalyzed_nuc.bed -u > ettin_ours_qval10.bound.bed
+bedtools intersect -v -a ETT_qval15.summit.bed -b MNase_IH_reanalyzed_nuc.bed > ettin_ours_qval10.free.bed
+
+nohup computeMatrix reference-point -S ETT1.filteren.bg.bw ETT2.filteren.bg.bw -R ettin_ours_qval10.bound.bed ettin_ours_qval10.free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o EttinChIP_ours_IH_reanalyzed.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNase_IH.reanalyzed.bigwig -R ettin_ours_qval10.bound.bed ettin_ours_qval10.free.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o EttinMNase_ours_IH_reanalyzed.tab.gz &
+
+plotHeatmap --matrixFile EttinMNase_ours_IH_reanalyzed.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/EttinMNase_ours_IH_reanalyzed_1k.png 
+
+plotHeatmap --matrixFile EttinChIP_ours_IH_reanalyzed.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/EttinChIP_ours_IH_reanalyzed_1k.png 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+1
+75bp_AC	90bp_AC	Summit_AC	75bp_IH	90bp_IH	Summit_IH	Summit_IH_q10	Summit_IH_q30	Summit_IH_q50
+2
+MP_noMC (1061)	588	417	704	586	438	696			
+3
+Ettin_ours (1086)	677	484	846	681	506	854			
+4
+Ettin_pub (670)	437	338	519	440	319	525	504	456	
+5
+LFY_Parcy (1952)	1492	1393	1686	1188	1063	1623	1602	1528	
+6
+MP_noMC (1061)	0.5541941565	0.3930254477	0.6635249764	0.5523091423	0.4128180961	0.6559849199			
+7
+Ettin_ours (1086)	0.623388582	0.4456721915	0.7790055249	0.6270718232	0.4659300184	0.7863720074			
+8
+Ettin_pub (670)	0.652238806	0.5044776119	0.7746268657	0.6567164179	0.476119403	0.7835820896	0.752238806	0.6805970149	
+9
+LFY_Parcy (1952)	0.7643442623	0.7136270492	0.8637295082	0.6086065574	0.5445696721	0.831454918	0.8206967213	0.7827868852	
+Table25
+
+
+
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b ath_MNase_nuc.bed -u | wc -l 
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNase_IH_reanalyzed_nuc.bed -u | wc -l 
+FRIDAY, 2/22/2019×
+●
+Redid the bam2big single end for published LFY data make the pooled files -- use the pooled data for parsing: 
+nohup bedtools unionbedg -i 35SLFYA.filteren.bg 35SLFYB.filteren.bg > 35SLFY_Parcy.unionbed &
+
+awk 'BEGIN{OFS="\t"; print "track name=\42LFY Parcy\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' 35SLFY_Parcy.unionbed > 35SLFY_Parcy.pooled.bedgraph
+
+bedGraphToBigWig 35SLFY_Parcy.pooled.bedgraph ~/Araport11/TAIR10_chr_count.txt 35SLFY_Parcy.pooled.bigwig
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNase_IH_reanalyzed_nuc.bed -u > LFY_Parcy_IHbound.bed 
+bedtools intersect -v -a 35SLFYParcyFinal_summits.bed -b MNase_IH_reanalyzed_nuc.bed > LFY_Parcy_IHfree.bed 
+
+nohup computeMatrix reference-point -S 35SLFY_Parcy.pooled.bigwig -R LFY_Parcy_IHbound.bed LFY_Parcy_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFYChIP_Parcy_IH_reanalyzed.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNase_IH.reanalyzed.bigwig -R LFY_Parcy_IHbound.bed LFY_Parcy_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFYMNase_Parcy_IH_reanalyzed.tab.gz &
+
+plotHeatmap --matrixFile LFYChIP_Parcy_IH_reanalyzed.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/LFYChIP_Parcy_IH_reanalyzed_1k.png 
+
+plotHeatmap --matrixFile LFYMNase_Parcy_IH_reanalyzed.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/LFYMNase_Parcy_IH_reanalyzed_1k.png 
+nohup computeMatrix reference-point -S 35SLFY_Parcy.pooled.bigwig -R LFY_ACbound.bed LFY_ACfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFYChIP_Parcy_AC_pooled.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R LFY_ACbound.bed LFY_ACfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFYMNase_Parcy_AC_pooled.tab.gz &
+
+plotHeatmap --matrixFile LFYChIP_Parcy_AC_pooled.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/LFYChIP_Parcy_AC_pooled_1k.png 
+
+plotHeatmap --matrixFile LFYMNase_Parcy_AC_pooled.tab.gz --colorMap Purples --missingDataColor white --outFileName ~/LFY/graphs/LFYMNase_Parcy_AC_pooled_1k.png 
+
+plotHeatmap --matrixFile MPChIP_IH_reanalyzed.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/MPChIP_IH_reanalyzed_1k.png 
+
+plotHeatmap --matrixFile MP_MNase_IH_reanalyzed.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/MP_MNase_IH_reanalyzed_1k.png 
+bedtools intersect -wa -a ettin_OG_qval10_summits.bed -b MNase_IH_reanalyzed_nuc.bed -u > ettin_OG_qval10_IHbound.bed
+bedtools intersect -v -a ettin_OG_qval10_summits.bed -b MNase_IH_reanalyzed_nuc.bed > ettin_OG_qval10_IHfree.bed
+
+nohup computeMatrix reference-point -S ../ettinPub.pooled.bigwig -R ettin_OG_qval10_IHbound.bed ettin_OG_qval10_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettin_OG_ChIPIH_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNase_IH.reanalyzed.bigwig -R ettin_OG_qval10_IHbound.bed ettin_OG_qval10_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettin_OG_MNaseIH_1k.tab.gz &
+
+plotHeatmap --matrixFile ettin_OG_ChIPIH_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/ettin_OG_ChIPIH_1k.png 
+plotHeatmap --matrixFile ettin_OG_MNaseIH_1k.tab.gz --colorMap Blues --missingDataColor white --outFileName ~/LFY/graphs/ettin_OG_MNaseIH_1k.png 
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b MNase_IH_reanalyzed_nuc.bed -u > DexvsMock_qval10_IHbound.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b MNase_IH_reanalyzed_nuc.bed > DexvsMock_qval10_IHfree.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DexvsMock_qval10_IHbound.bed > DexvsMock_qval10_IHbound_nochr.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DexvsMock_qval10_IHfree.bed > DexvsMock_qval10_IHfree_nochr.bed
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK/LFYChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R DexvsMock_qval10_IHbound_nochr.bed DexvsMock_qval10_IHfree_nochr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_ChIPIH_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNase_IH.reanalyzed.bigwig -R DexvsMock_qval10_IHbound.bed DexvsMock_qval10_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_MNaseIH_1k.tab.gz &
+
+plotHeatmap --matrixFile LFY1HrDex_ChIPIH_1k.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_ChIPIH_1k.png 
+plotHeatmap --matrixFile LFY1HrDex_MNaseIH_1k.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_MNaseIH_1k.png 
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b ath_MNase_nuc.bed  -u > DexvsMock_qval10_ACbound.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b ath_MNase_nuc.bed  > DexvsMock_qval10_ACfree.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DexvsMock_qval10_ACbound.bed > DexvsMock_qval10_ACbound_nochr.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DexvsMock_qval10_ACfree.bed > DexvsMock_qval10_ACfree_nochr.bed
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK/LFYChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R DexvsMock_qval10_ACbound_nochr.bed DexvsMock_qval10_ACfree_nochr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_ChIPAC_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/ath_MNase_publish_inflo.bigwig -R DexvsMock_qval10_ACbound.bed DexvsMock_qval10_ACfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_MNaseAC_1k.tab.gz &
+
+plotHeatmap --matrixFile LFY1HrDex_ChIPAC_1k.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_ChIPAC_1k.png 
+
+plotHeatmap --matrixFile LFY1HrDex_MNaseAC_1k.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_MNaseAC_1k.png 
+●
+Next thing to do: use different -q parameter to call more stringent peaks -- and then play with those 
+●
+The ONLY way to get DANPOS to work:
+cd ~/Downloads/danpos-2.2.2
+unset R_HOME
+module load python/anaconda/2.7
+nano ~/.bashrc
+export PATH="/home/runjin/Downloads/samtools-0.1.18/:$PATH"
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos MNase_IH.final.sorted.bam -q 10 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2_q10/ > ~/LFY/log_files/dpos_MNase_IH.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos MNase_IH.final.sorted.bam -q 15 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2_q15/ > ~/LFY/log_files/dpos_MNase_IH.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos MNase_IH.final.sorted.bam -q 30 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2_q15/ > ~/LFY/log_files/dpos_MNase_IH.log 2>&1 &
+●
+Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig MNase_IH.final.sorted.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase_IH.reanalyzed.bigwig
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42MNase IH re-analyzed\42 useScore=1"} NR>1{x++;print $1,$2,$3,"MNase_IH_"x,$5,"."}' MNase_IH.final.sorted.smooth.positions.xls > MNase_IH_reanalyzed_nuc.bed
+
+●
+Generate new heatmap using highMock2 and highDex2:
+DexvsMock_qval10_summmit.chr.bed
+TUESDAY, 2/26/2019×
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_IH_q10_"x,$5,"."; x++}' MNase_IH.final.sorted.smooth.positions.xls > MNaseIH_final_q10.bed 
+
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_IH_q15_"x,$5,"."; x++}' MNase_IH.final.sorted.smooth.positions.xls > MNaseIH_final_q15.bed 
+
+wigToBigWig MNase_IH.final.sorted.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNaseIH_q10_final.bigwig
+
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q10.bed -u > 35SLFYParcy_q10_IHbound.bed
+bedtools intersect -v -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q10.bed  > 35SLFYParcy_q10_IHfree.bed
+
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q15.bed -u > 35SLFYParcy_q15_IHbound.bed
+bedtools intersect -v -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q15.bed  > 35SLFYParcy_q15_IHfree.bed
+
+nohup computeMatrix reference-point -S 35SLFY_Parcy.pooled.bigwig -R 35SLFYParcy_q10_IHbound.bed 35SLFYParcy_q10_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFYParcy_ChIPIH_q10.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q10_final.bigwig -R 35SLFYParcy_q10_IHbound.bed 35SLFYParcy_q10_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFYParcy_MNaseIH_q10.tab.gz &
+
+plotHeatmap --matrixFile 35SLFYParcy_ChIPIH_q10.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFYParcy_ChIPIH_q10.png 
+plotHeatmap --matrixFile 35SLFYParcy_MNaseIH_q10.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFYParcy_MNaseIH_q10.png 
+
+nohup computeMatrix reference-point -S 35SLFY_Parcy.pooled.bigwig -R 35SLFYParcy_q15_IHbound.bed 35SLFYParcy_q15_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFYParcy_ChIPIH_q15.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q15_final.bigwig -R 35SLFYParcy_q15_IHbound.bed 35SLFYParcy_q15_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFYParcy_MNaseIH_q15.tab.gz &
+
+plotHeatmap --matrixFile 35SLFYParcy_ChIPIH_q15.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFYParcy_ChIPIH_q15.png 
+plotHeatmap --matrixFile 35SLFYParcy_MNaseIH_q15.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFYParcy_MNaseIH_q15.png 
+
+●
+Use whatever we have for the ettin and see whether we can distinguishe the two: 
+bedtools intersect -wa -a ettin_OG_qval10_summits.bed -b MNaseIH_final_q10.bed -u > ettinOG_qval10_q10_IHbound.bed 504
+bedtools intersect -v -a ettin_OG_qval10_summits.bed -b MNaseIH_final_q10.bed  > ettinOG_qval10_q10_IHfree.bed 166
+
+nohup computeMatrix reference-point -S ../ettinPub.pooled.bigwig -R ettinOG_qval10_q10_IHbound.bed ettinOG_qval10_q10_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinOG_qval10_ChIPIH_q10.tab.gz &
+
+nohup computeMatrix reference-point -S LFY1HrMock_pooled_greenscreen1.bigwig LFY1HrDex_pooled_greenscreen1.bigwig -R DexvsMock_1summit.modified.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o DvM_GS_1summit.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q10_final.bigwig -R ettinOG_qval10_q10_IHbound.bed ettinOG_qval10_q10_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinOG_qval10_MNaseIH_q10.tab.gz &
+
+plotHeatmap --matrixFile ettinOG_qval10_ChIPIH_q10.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/ettinOG_qval10_ChIPIH_q10.png 
+plotHeatmap --matrixFile ettinOG_qval10_MNaseIH_q10.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/ettinOG_qval10_MNaseIH_q10.png 
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_IH_q30_"x,$5,"."; x++}' MNase_IH.final.sorted.smooth.positions.xls > MNaseIH_final_q30.bed 
+
+wigToBigWig MNase_IH.final.sorted.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNaseIH_q30_final.bigwig
+
+bedtools intersect -wa -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q30.bed -u > 35SLFYParcy_q30_IHbound.bed
+bedtools intersect -v -a 35SLFYParcyFinal_summits.bed -b MNaseIH_final_q30.bed  > 35SLFYParcy_q30_IHfree.bed
+
+nohup computeMatrix reference-point -S 35SLFY_Parcy.pooled.bigwig -R 35SLFYParcy_q30_IHbound.bed 35SLFYParcy_q30_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFYParcy_ChIPIH_q30.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q30_final.bigwig -R 35SLFYParcy_q30_IHbound.bed 35SLFYParcy_q30_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFYParcy_MNaseIH_q30.tab.gz &
+
+plotHeatmap --matrixFile 35SLFYParcy_ChIPIH_q30.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFYParcy_ChIPIH_q30.png 
+plotHeatmap --matrixFile 35SLFYParcy_MNaseIH_q30.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFYParcy_MNaseIH_q30.png 
+bedtools intersect -wa -a ettin_OG_qval10_summits.bed -b MNaseIH_final_q30.bed -u > ettinOG_qval10_q30_IHbound.bed 456
+bedtools intersect -v -a ettin_OG_qval10_summits.bed -b MNaseIH_final_q30.bed  > ettinOG_qval10_q30_IHfree.bed 214 
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos MNase_IH.final.sorted.bam -q 100 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o DANPOS2_q100/ > ~/LFY/log_files/dpos_MNase_IH.log 2>&1 &
+
+Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig MNase_IH.final.sorted.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase_IH.reanalyzed.bigwig
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42MNase IH re-analyzed\42 useScore=1"} NR>1{x++;print $1,$2,$3,"MNase_IH_"x,$5,"."}' MNase_IH.final.sorted.smooth.positions.xls > MNase_IH_reanalyzed_nuc.bed
+
+●
+Use the highDex and highMock2 to see whether it looks better:
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b highDex_DANPOS.bed -u > DvM_highDex_bound.bed 
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b highDex_DANPOS.bed  > DvM_highDex_free.bed 
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b highMock2_DANPOS.bed -u > DvM_highMock2_bound.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b highMock2_DANPOS.bed  > DvM_highMock2_free.bed
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DvM_highMock2_bound.nochr.bed > DvM_highMock2_bound.chr.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DvM_highMock2_free.nochr.bed > DvM_highMock2_free.chr.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DvM_highDex_bound.nochr.bed > DvM_highDex_bound.chr.bed
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DvM_highDex_free.nochr.bed > DvM_highDex_free.chr.bed
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK/LFYChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R  DvM_highMock2_bound.nochr.bed DvM_highMock2_free.nochr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_ChIPHM2_1k.tab.gz &
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK/LFYChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R  DvM_highDex_bound.nochr.bed DvM_highDex_free.nochr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_ChIPHD_1k.tab.gz &
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK_MNase/MNase_all/highMock_MNase2.bigwig -R DvM_highMock2_bound.chr.bed DvM_highMock2_free.chr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_MNaseHM2_1k.tab.gz &
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK_MNase/MNase_all/highDex_MNase2.bigwig -R DvM_highDex_bound.chr.bed DvM_highDex_free.chr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o LFY1HrDex_MNaseHD_1k.tab.gz &
+
+--zMin 0 --zMax 145 
+--yMin 0 --yMax 62
+
+plotHeatmap --matrixFile LFY1HrDex_ChIPHM2_1k.tab.gz --colorMap Reds --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_ChIPHM2_1k.png 
+plotHeatmap --matrixFile LFY1HrDex_ChIPHD_1k.tab.gz --colorMap Reds --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_ChIPHD_1k.png 
+
+plotHeatmap --matrixFile LFY1HrDex_MNaseHM2_1k.tab.gz --zMin 0 --zMax 145 --yMin 0 --yMax 62 --colorMap Reds --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_MNaseHM2_1k.png 
+plotHeatmap --matrixFile LFY1HrDex_MNaseHD_1k.tab.gz --colorMap Reds --missingDataColor white --outFileName ~/LFY/graphs/LFY1HrDex_MNaseHD_1k.png 
+nohup computeMatrix reference-point -S ../ettinPub.pooled.bigwig -R ettinOG_qval10_q30_IHbound.bed ettinOG_qval10_q30_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinOG_qval10_ChIPIH_q30.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q30_final.bigwig -R ettinOG_qval10_q30_IHbound.bed ettinOG_qval10_q30_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinOG_qval10_MNaseIH_q30.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q30_final.bigwig -R ../../35SLFYParcy/35SLFYParcy_q30_IHbound.bed ../../35SLFYParcy/35SLFYParcy_q30_IHfree.bed ettinOG_qval10_q30_IHbound.bed ettinOG_qval10_q30_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinvsParcy_qval10_MNaseIH_q30.tab.gz &
+
+plotHeatmap --matrixFile ettinOG_qval10_ChIPIH_q30.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/ettinOG_qval10_ChIPIH_q30.png 
+plotHeatmap --matrixFile ettinOG_qval10_MNaseIH_q30.tab.gz --yMin 0 --yMax 250 --zMin 0 --zMax 420 --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/ettinOG_qval10_MNaseIH_q30.png 
+
+plotHeatmap --matrixFile ettinvsParcy_qval10_MNaseIH_q30.tab.gz --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/ettinvsParcy_qval10_MNaseIH_q30.png 
+
+plotHeatmap --matrixFile ettinOG_qval10_MNaseIH_q10.tab.gz --yMin 0 --yMax 250 --zMin 0 --zMax 420 --colorMap Greens --missingDataColor white --outFileName ~/LFY/graphs/ettinOG_qval10_MNaseIH_q10.png 
+
+--zMin -3 --zMax 3 
+--yMin 0 --yMax 250
+A
+B
+C
+D
+E
+F
+1
+Summit_IH_default	Summit_IH_q10	Summit_IH_q30	Summit_IH_q50	Summit_IH_q100
+2
+Ettin_pub (670)	525	504	456	363	213
+3
+LFY_Parcy (1952)	1623	1602	1528	1360	1047
+4
+Ettin_pub (670)	0.7835820896	0.752238806	0.6805970149	0.5417910448	0.3179104478
+5
+LFY_Parcy (1952)	0.831454918	0.8206967213	0.7827868852	0.6967213115	0.5363729508
+Table26
+
+
+
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_IH_q100_"x,$5,"."; x++}' MNase_IH.final.sorted.smooth.positions.xls > MNaseIH_final_q100.bed 
+
+bedtools intersect -wa -a ettin_OG_qval10_summits.bed -b MNaseIH_final_q100.bed -u | wc -l
+WEDNESDAY, 2/27/2019×
+●
+Make heat map for q50 and q100:	
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_IH_q30_"x,$5,"."; x++}' MNase_IH.final.sorted.smooth.positions.xls > MNaseIH_final_q30.bed 
+
+wigToBigWig MNase_IH.final.sorted.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNaseIH_q100_final.bigwig
+
+bedtools intersect -wa -a 35SLFY_Parcy_final_summits.bed -b MNaseIH_final_q50.bed -u >  35SLFY_Parcy_final_q50_IHbound.bed
+bedtools intersect -wa -a 35SLFY_Parcy_final_summits.bed -b MNaseIH_final_q100.bed -u >  35SLFY_Parcy_final_q100_IHbound.bed
+
+bedtools intersect -v -a 35SLFY_Parcy_final_summits.bed -b MNaseIH_final_q50.bed >  35SLFY_Parcy_final_q50_IHfree.bed
+bedtools intersect -v -a 35SLFY_Parcy_final_summits.bed -b MNaseIH_final_q100.bed > 35SLFY_Parcy_final_q100_IHfree.bed
+
+nohup computeMatrix reference-point -S 35SLFY_Parcy.pooled.bigwig -R 35SLFY_Parcy_final_q100_IHbound.bed 35SLFY_Parcy_final_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFY_Parcy_ChIPIH_q100.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q100_final.bigwig -R 35SLFY_Parcy_final_q100_IHbound.bed 35SLFY_Parcy_final_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o 35SLFY_Parcy_MNaseIH_q100.tab.gz &
+
+plotHeatmap --matrixFile 35SLFY_Parcy_ChIPIH_q100.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFY_Parcy_ChIPIH_q100.png 
+plotHeatmap --matrixFile 35SLFY_Parcy_MNaseIH_q100.tab.gz --colorMap Oranges --yMin 0 --yMax 250 --zMin 0 --zMax 420 --missingDataColor white --outFileName ~/LFY/graphs/35SLFY_Parcy_MNaseIH_q100.png 
+
+plotHeatmap --matrixFile 35SLFY_Parcy_MNaseIH_q100.tab.gz --colorMap Oranges --missingDataColor white --outFileName ~/LFY/graphs/35SLFY_Parcy_MNaseIH_q100.png
+THURSDAY, 2/28/2019×
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNaseIH_q100_final.bigwig -R ../../35SLFYParcy/35SLFY_Parcy_final_q100_IHbound.bed  ../../35SLFYParcy/35SLFY_Parcy_final_q100_IHfree.bed ettin_OG_qval10_q100_IHbound.bed ettin_OG_qval10_q100_IHfree.bed --outFileNameMatrix ettinvsParcy_MNaseIH_q100.tab --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinvsParcy_MNaseIH_q100.tab.gz &
+
+nohup computeMatrix reference-point -S ~/MNase_other/MNase_IH_AC/MNase_IH.reanalyzed.bigwig -R ../../35SLFYParcy/LFY_Parcy_IHbound.bed ../../35SLFYParcy/LFY_Parcy_IHfree.bed ettin_OG_qval10_IHbound.bed ettin_OG_qval10_IHfree.bed --outFileNameMatrix ettinvsParcy_MNaseIH_q5.tab --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinvsParcy_MNaseIH_q5.tab.gz &
+
+ettin_OG_qval10_IHbound.bed ettin_OG_qval10_IHfree.bed
+
+~/MNase_other/MNase_IH_AC/MNase_IH.reanalyzed.bigwig
+LFY_Parcy_IHbound.bed LFY_Parcy_IHfree.bed 
+
+plotProfile --matrixFile ettinvsParcy_MNaseIH_q5.tab.gz --colors Red Blue Black Green --plotType se --outFileName ~/LFY/graphs/ettinvsParcy_MNaseIH_q5.png 
+
+FRIDAY, 3/1/2019×
+●
+Use q100 as a new parameter for generating the files: 
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./highMock1 -q 100 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o highMock1_q100/ > ~/LFY/log_files/dpos_MNase_HM1.log 2>&1 &
+
+#Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig highMock2_2.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt ../../highMock2_2_q100.bigwig
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42highMock2_2 q100\42 useScore=1"} NR>1{x++;print $1,$2,$3,"HM2_2_q100_"x,$5,"."}' highMock2_2.Fnor.smooth.positions.xls > ../../highMock2_2_q100_nuc.bed
+A
+B
+C
+D
+E
+F
+G
+1
+lowMock1	lowDex1	highMock1	highMock2	highMock2-2	highDex2
+2
+Number of  LFY peaks (out of 1181)	362	194	266	48	90	183
+3
+% of peaks	0.3065198984	0.1642675699	0.2252328535	0.0406435224	0.0762066046	0.1549534293
+Table27
+
+
+
+ bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b highDex2_q100_nuc.bed -u | wc -l 
+●
+Re did all the annotation using the new way of calling summits underneath - add additional column 
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowMock_DANPOS.bed -u > DvM_summit_lowMock.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowDex_DANPOS.bed -u > DvM_summit_lowDex.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowBoth_DANPOS.bed -u > DvM_summit_lowBoth.bed
+bedtools intersect -wa -a DexvsMock_1summit_qval10.summit.bed -b highDex_DANPOS.bed -u > DvM_summit_highDex.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b all3MNase_DANPOS.bed -u > DvM_summit_all3MNase.bed
+
+lowMock_DANPOS.bed
+lowDex_DANPOS.bed
+lowBoth_DANPOS.bed
+highDex_DANPOS.bed
+all3MNase_DANPOS.bed
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DvM_summit_highDex.bed > DvM_summit_highDex.chr.bed
+
+DvM_summit_highDex.bed
+
+DvM_summit_lowMock.bed
+DvM_summit_lowDex.bed
+DvM_summit_lowBoth.bed
+DvM_summit_highDex.bed
+DvM_summit_all3MNase.bed
+●
+Re did annotation with the following files -- removed the 
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation DvM_single_summit \
+        . \
+        DexvsMock_1summit.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  DexvsMock_1summit.modified.narrowPeak \
+        -ps ../useful_files/SeedlingLFYTAIR10.bed \
+            ../useful_files/InflLFYTAIR10.bed \
+        -pn seedlings inflorescence \
+        -rs ../useful_files/cara_final_de_list.tsv \
+        ../useful_files/dexVmock_t1hr.txt \
+        ../useful_files/dexVmock_t6hr.txt \
+        ../useful_files/dexVmock_t24hr.txt \
+        -mf ../useful_files/LFY1_T10_uniq.bed \
+        ../useful_files/LFY2_T10_uniq.bed \
+        ../useful_files/LFY_1and2_T10.chr.bed \
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -df ../useful_files/flowersNotLeafsDHS.bed \
+            ../useful_files/all_DHS_full.chr.bed \
+        -dn flowerDNase allDNase \
+        -nf ../MNase_bed_files/DvM_single_90bp_all3MNase.bed \
+            ../MNase_bed_files/DvM_single_90bp_highMock.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowBoth.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowDex.bed \
+            ../MNase_bed_files/DvM_single_90bp_lowMock.bed \
+            ../MNase_bed_files/DvM_summit_highDex.chr.bed \
+            ../MNase_bed_files/DvM_summit_all3MNase.bed \
+            ../MNase_bed_files/DvM_summit_lowBoth.bed \
+            ../MNase_bed_files/DvM_summit_lowDex.bed \
+            ../MNase_bed_files/DvM_summit_lowMock.bed \
+        -nn 90bp_all3MNase 90bp_highMock 90bp_lowBoth 90bp_lowDex 90bp_lowMock summit_highDex summit_all3MNase summit_lowBoth summit_lowDex summit_lowMock \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ../useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+MONDAY, 3/18/2019×
+●
+Use q100 as a new parameter for generating the files: 
+cd ~/LFY/MNase_bamfiles
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./lowMock1 -q 20 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o lowMock1_q20/ > ~/LFY/log_files/dpos_MNase_LM1.log 2>&1 &
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./lowMock1 -q 30 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o lowMock1_q30/ > ~/LFY/log_files/dpos_MNase_LM1_30.log 2>&1 &
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./lowMock1 -q 50 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o lowMock1_q50/ > ~/LFY/log_files/dpos_MNase_LM1_50.log 2>&1 &
+
+#Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig lowMock1_q20/pooled/lowMock1.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt ./bigwig/lowMock1_q20.bigwig
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42lowDex1 q50\42 useScore=1"} NR>1{x++;print $1,$2,$3,"LD1_q50_"x,$5,"."}' lowDex1_q50/pooled/lowDex1.smooth.positions.xls > ./nuc_bed/lowDex1_q50_nuc.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowMock1_q20_nuc.bed -u > ~/LFY/annotation/useful_files/lowMock1_q20_summit.bed
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowMock1_q30_nuc.bed -u > ~/LFY/annotation/useful_files/lowMock1_q30_summit.bed
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowMock1_q50_nuc.bed -u > ~/LFY/annotation/useful_files/lowMock1_q50_summit.bed
+
+●
+Re did annotation with the following files -- 
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation DvM_single_DANPOS \
+        . \
+        DexvsMock_1summit.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  DexvsMock_1summit.modified.narrowPeak \
+        -ps ../useful_files/SeedlingLFYTAIR10.bed \
+            ../useful_files/InflLFYTAIR10.bed \
+        -pn seedlings inflorescence \
+        -rs ../useful_files/cara_final_de_list.tsv \
+        ../useful_files/dexVmock_t1hr.txt \
+        ../useful_files/dexVmock_t6hr.txt \
+        ../useful_files/dexVmock_t24hr.txt \
+        -mf ../useful_files/LFY1_T10_uniq.bed \
+        ../useful_files/LFY2_T10_uniq.bed \
+        ../useful_files/LFY_1and2_T10.chr.bed \
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -df ../useful_files/flowersNotLeafsDHS.bed \
+            ../useful_files/all_DHS_full.chr.bed \
+        -dn flowerDNase allDNase \
+        -nf ../MNase_bed_files/lowMock1_q20_summit.bed \
+            ../MNase_bed_files/lowMock1_q30_summit.bed \
+            ../MNase_bed_files/lowMock1_q50_summit.bed \
+            ../MNase_bed_files/lowDex1_q20_summit.bed \
+            ../MNase_bed_files/lowDex1_q30_summit.bed \
+            ../MNase_bed_files/lowDex1_q50_summit.bed \
+            ../MNase_bed_files/highDex2_q20_summit.bed \
+            ../MNase_bed_files/highDex2_q30_summit.bed \
+            ../MNase_bed_files/highDex2_q50_summit.bed \
+            ../MNase_bed_files/DvM_summit_highDex.chr.bed \
+            ../MNase_bed_files/DvM_summit_all3MNase.bed \
+            ../MNase_bed_files/DvM_summit_lowBoth.bed \
+            ../MNase_bed_files/DvM_summit_lowDex.bed \
+            ../MNase_bed_files/DvM_summit_lowMock.bed \
+        -nn LM_20 LM_30 LM_50 LD_20 LD_30 LD_50 HD_20 HD_30 HD_50 summit_highDex summit_all3MNase summit_lowBoth summit_lowDex summit_lowMock \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ../useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+●
+Use the new file to generate list for go term analysis
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowMock1_q50_nuc.bed -u > ./bound_free_sep/DvM_LM50_bound.bed 
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b lowMock1_q50_nuc.bed  > ./bound_free_sep/DvM_LM50_free.bed 
+
+~/LFY/annotation/single_peak/DvM_1summit_peaks_peakwise_ann.bed
+cut -f4 DvM_LM50_bound.bed > DvM_LM50_bound.list
+cut -f4 DvM_LM50_free.bed > DvM_LM50_free.list
+
+python ~/custom_scripts/findInColumn.py ~/LFY/annotation/single_peak/DvM_1summit_peaks_peakwise_ann.bed DvM_LM50_bound.list 4 > DvM_LM50_bound.bed
+
+python ~/custom_scripts/findInColumn.py ~/LFY/annotation/single_peak/DvM_1summit_peaks_peakwise_ann.bed DvM_LM50_free.list 4 > DvM_LM50_free.bed
+
+cut -f6 DvM_LM50_bound.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_LM50_bound.txt
+cut -f6 DvM_LM50_free.bed | awk -F";" '{for(i=1;i<=NF;i++){print $i}}' > DvM_LM50_free.txt
+WEDNESDAY, 4/17/2019×
+●
+Re did annotation with the following files -- 
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation DvM_final_DANPOS \
+        . \
+        DexvsMock_1summit.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  DexvsMock_1summit.modified.narrowPeak \
+        -ps ../useful_files/SeedlingLFYTAIR10.bed \
+            ../useful_files/InflLFYTAIR10.bed \
+            ../bed_regions/35SLFY_Parcy_final.modified.bed \
+        -pn seedlings inflorescence 35SLFYParcy\
+        -rs ../useful_files/cara_final_de_list.tsv \
+        ../useful_files/dexVmock_t1hr.txt \
+        ../useful_files/dexVmock_t6hr.txt \
+        ../useful_files/dexVmock_t24hr.txt \
+        -mf ../useful_files/LFY1_T10_uniq.bed \
+        ../useful_files/LFY2_T10_uniq.bed \
+        ../useful_files/LFY_1and2_T10.chr.bed \
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -df ../useful_files/flowersNotLeafsDHS.bed \
+            ../useful_files/all_DHS_full.chr.bed \
+        -dn flowerDNase allDNase \
+        -nf ../MNase_bed_files/lowMock1_q30_summit.bed \
+            ../MNase_bed_files/lowMock1_q50_summit.bed \
+            ../bed_regions/35SLFYParcy_q100_IHbound.bed \
+            ../bed_regions/DvM_qval10_IH100_bound.bed \
+        -nn LM_30 LM_50 bound_Parcy_nuc callus_IH100_nuc \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ../useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$9,"."}' 35SLFY_Parcy_final_q100_IHbound.bed > 35SLFYParcy_q100_IHbound.bed
+nohup multiBigwigSummary BED-file -b lowMock_MNase1.bigwig lowDex_MNase1.bigwig highDex_MNase2.bigwig --BED ../LFY_ChIP/DexvsMock_1summit.modified.bed -l LowMock1 LowDex1 HighDex2 -o ../matrix_files/MNaseunderLFY_bw_corr.npz &
+
+nohup plotCorrelation --corData ./matrix_files/MNaseunderLFY_bw_corr.npz --removeOutliers -o ./graphs/MNaseunderLFY_spearman.png -c spearman -p scatterplot -T=LFYMNaseCorrealtion_spearman &
+
+nohup plotCorrelation --corData ./matrix_files/LFYMNase_bw_corr.npz --removeOutliers --skipZeros -o ./graphs/LFYMNase_pearson.png -c pearson -p scatterplot -T=LFYMNaseCorrealtion_pearson &
+
+nohup plotCorrelation --corData ./matrix_files/LFYMNase_bw_corr.npz --removeOutliers --skipZeros -o ./graphs/LFYMNase_spearman.png -c spearman -p scatterplot -T=LFYMNaseCorrealtion_spearman &
+FRIDAY, 4/19/2019×
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation DvM_LM3050_IH \
+        . \
+        DexvsMock_1summit.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  DexvsMock_1summit.modified.narrowPeak \
+        -ps ../useful_files/SeedlingLFYTAIR10.bed \
+            ../useful_files/InflLFYTAIR10.bed \
+            ../LFY_ChIP/35SLFYParcy_final.modified.bed \
+        -pn seedlings inflorescence 35SLFYParcy \
+        -rs ../useful_files/cara_final_de_list.tsv \
+        ../useful_files/dexVmock_t1hr.txt \
+        ../useful_files/dexVmock_t6hr.txt \
+        ../useful_files/dexVmock_t24hr.txt \
+        -mf ../useful_files/LFY1_T10_uniq.bed \
+        ../useful_files/LFY2_T10_uniq.bed \
+        ../useful_files/LFY_1and2_T10.chr.bed \
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -df ../useful_files/flowersNotLeafsDHS.bed \
+            ../useful_files/all_DHS_full.chr.bed \
+        -dn flowerDNase allDNase \
+        -nf ../MNase_bed_files/lowMock1_q30_summit.bed \
+            ../MNase_bed_files/lowMock1_q50_summit.bed \
+            ../bed_regions/35SLFYParcy_q100_IHbound.bed \
+            ../bed_regions/DvM_qval10_IH100_bound.bed \
+        -nn LM_30 LM_50 Parcy_IH100 Callus_IH100 \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ../useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+awk '$1 != "ChrC" && $1 !="ChrM"' 35SLFYParcy_final.narrowPeak > 35SLFYParcy_final.modified.narrowPeak
+cut -f1,2,3,4,5,6 35SLFYParcy_final.modified.narrowPeak > 35SLFYParcy_final.modified.bed
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b MNaseIH_final_q100.bed -u > DvM_qval10_IH100_bound.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b MNaseIH_final_q100.bed > DvM_qval10_IH100_free.bed
+
+Chr1    2842290 2842291 DexvsMock_1summit_peak_45
+TUESDAY, 6/4/2019×
+nohup computeMatrix reference-point -S lowMock_MNase1.bigwig -R ../MNase_bam_bed/nuc_bed/bound_free_sep/DvM_LM30_bound.bed ../MNase_bam_bed/nuc_bed/bound_free_sep/DvM_LM30_free.bed --outFileNameMatrix lowMock_q30_BF --referencePoint center -b 1000 -a 1000 --binSize 10 -o ../matrix/lowMock_q30_BF.tab.gz &
+
+plotProfile --matrixFile ./matrix/lowMock_q30_BF.tab.gz --plotType se --outFileName ./graphs/lowMock_q30_BF.png 
+
+nohup computeMatrix reference-point -S lowDex_MNase1.bigwig  -R ../MNase_bam_bed/nuc_bed/bound_free_sep/DvM_LD30_bound.bed ../MNase_bam_bed/nuc_bed/bound_free_sep/DvM_LD30_free.bed --outFileNameMatrix lowDex_q30_BF --referencePoint center -b 1000 -a 1000 --binSize 10 -o ../matrix/lowDex_q30_BF.tab.gz &
+
+plotProfile --matrixFile ./matrix/lowDex_q30_BF.tab.gz --plotType se --outFileName ./graphs/lowDex_q30_BF.png
+
+nohup computeMatrix reference-point -S highDex_MNase2.bigwig -R ../MNase_bam_bed/nuc_bed/bound_free_sep/DvM_HD30_bound.bed ../MNase_bam_bed/nuc_bed/bound_free_sep/DvM_HD30_free.bed --outFileNameMatrix highDex_q30_BF --referencePoint center -b 1000 -a 1000 --binSize 10 -o ../matrix/highDex_q30_BF.tab.gz &
+
+plotProfile --matrixFile ./matrix/highDex_q30_BF.tab.gz --plotType se --outFileName ./graphs/highDex_q30_BF.png
+
+WEDNESDAY, 6/5/2019×
+●
+Convert bigwig files into bedgraph:
+bigWigToBedGraph Ath_buds_H3K27me3.bw flower_H3K27me3.bedgraph
+bigWigToBedGraph Ath_buds_DNase.bw flower_DHS.bedgraph
+●
+Peak calling using MACS2 call peaks from bedgraph - decided to go with -c 10 after comparing among :
+macs2 bdgpeakcall -i flower_H3K27ac.bedgraph --outdir MACS2_bdgpeaks -c 8 --o-prefix flower_H3K27ac
+macs2 bdgpeakcall -i flower_H3K4me1.bedgraph --outdir MACS2_bdgpeaks -c 8 --o-prefix flower_H3K4me1
+macs2 bdgpeakcall -i flower_H3K27me3.bedgraph --outdir MACS2_bdgpeaks -c 8 --o-prefix flower_H3K27me3
+●
+Now try to annotate:
+awk '$1 != "ChrM" && $1 !="ChrC" {print $0}' flower_H3K4me1_c10.0_l200_g30_peaks.narrowPeak > flower_H3K4me1_cf10.modified.narrowPeak
+cut -f1,2,3,4,5,6 flower_H3K4me1_cf10.modified.narrowPeak > flower_H3K4me1_cf10.modified.bed
+
+awk '$1 != "ChrM" && $1 !="ChrC" {print $0}' flower_H3K27ac_c10.0_l200_g30_peaks.narrowPeak > flower_H3K27ac_cf10.modified.narrowPeak
+cut -f1,2,3,4,5,6 flower_H3K27ac_cf10.modified.narrowPeak > flower_H3K27ac_cf10.modified.bed
+
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation flower_K4me1 \
+        . \
+        ../MACS2_bdgpeaks/flower_H3K4me1_cf10.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 0 -tts 0 \
+        -n  ../MACS2_bdgpeaks/flower_H3K4me1_c10.0_l200_g30_peaks.narrowPeak
+
+●
+Convert bigwig files into bedgraph:
+bigWigToBedGraph 6hrDexA.final.bw 6hrDexA_ATAC.bedgraph
+bigWigToBedGraph 6hrDexB.final.bw 6hrDexB_ATAC.bedgraph
+bigWigToBedGraph 6hrMockA.final.bw 6hrMockA_ATAC.bedgraph
+bigWigToBedGraph 6hrMockB.final.bw 6hrMockB_ATAC.bedgraph
+
+bigWigToBedGraph 6hrDex.bigwig 6hrDex_pooled_ATAC.bedgraph
+bigWigToBedGraph 6hrMock.bigwig 6hrMock_pooled_ATAC.bedgraph
+●
+Peak calling using MACS2 call peaks from bedgraph - decided to go with -c 10 after comparing among :
+macs2 bdgpeakcall -i 6hrDexA_ATAC.bedgraph --outdir MACS2_bdgpeaks -l 100 -g 40 --o-prefix ATAC_6hrDexA
+macs2 bdgpeakcall -i 6hrDexB_ATAC.bedgraph --outdir MACS2_bdgpeaks -l 100 -g 40 --o-prefix ATAC_6hrDexB
+macs2 bdgpeakcall -i 6hrMockA_ATAC.bedgraph --outdir MACS2_bdgpeaks -l 100 -g 40 --o-prefix ATAC_6hrMockA
+macs2 bdgpeakcall -i 6hrMockB_ATAC.bedgraph --outdir MACS2_bdgpeaks -l 100 -g 40 --o-prefix ATAC_6hrMockB
+
+macs2 bdgpeakcall -i 6hrDex_pooled_ATAC.bedgraph --outdir MACS2_bdgpeaks -l 100 -g 40 --o-prefix ATAC_6hrDex_pooled
+macs2 bdgpeakcall -i 6hrMock_pooled_ATAC.bedgraph --outdir MACS2_bdgpeaks -l 100 -g 40 --o-prefix ATAC_6hrMock_pooled
+●
+Decided to use pooled -c = 5 
+bedtools intersect -a ATAC_6hrDex_pooled_c5.0_l100_g40_peaks.narrowPeak -b ATAC_6hrMock_pooled_c5.0_l100_g40_peaks.narrowPeak -v > ATAC6hr_DexNotMockHS.narrowPeak
+
+bedtools intersect -b ATAC6hr_DexNotMockHS.narrowPeak -a ~/LFY/ChIP_files/DexvsMock_1summit_qval10.chr.narrowPeak -wa > ChIPDvM_overlap_ATACDvM.narrowPeak
+# DEAL WITH CHIP PEAKS
+cut -f1,2,3,4,5,6 ChIPDvM_overlap_ATACDvM.narrowPeak > ChIPDvM_overlap_ATACDvM.modified.bed
+
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation ChIPDvM_overlap_ATACDvM \
+        . \
+        ../MACS2_bdgpeaks/ChIPDvM_overlap_ATACDvM.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  ../MACS2_bdgpeaks/ChIPDvM_overlap_ATACDvM.narrowPeak \
+        -ps ~/CIM_LDL3/useful_files/SeedlingLFYTAIR10.bed \
+            ~/CIM_LDL3/useful_files/InflLFYTAIR10.bed \
+        -pn seedlings inflorescence \
+        -rs ~/CIM_LDL3/useful_files/cara_final_de_list.tsv \
+        ~/CIM_LDL3/useful_files/dexVmock_t1hr.txt \
+        ~/CIM_LDL3/useful_files/dexVmock_t6hr.txt \
+        ~/CIM_LDL3/useful_files/dexVmock_t24hr.txt \
+        -mf ~/CIM_LDL3/useful_files/LFY1_T10_uniq.bed \
+        ~/CIM_LDL3/useful_files/LFY2_T10_uniq.bed \
+        ~/CIM_LDL3/useful_files/LFY_1and2_T10.chr.bed \
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -df ~/CIM_LDL3/useful_files/flowersNotLeafsDHS.bed \
+            ~/CIM_LDL3/useful_files/all_DHS_full.chr.bed \
+        -dn flowerDNase allDNase \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ~/CIM_LDL3/useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+bedtools intersect -a flowersNotLeafsDHS.bed -b ATAC6hr_DexNotMockHS.narrowPeak -wa (438)
+bedtools intersect -a ATAC6hr_DexNotMockHS.narrowPeak -b all_DHS_full.chr.bed -v | wc -l (17193)
+
+bedtools intersect -a flowersNotLeafsDHS.bed -b ATAC6hr_DexNotMockHS.narrowPeak -v | wc -l (8969)
+bedtools intersect -b flowersNotLeafsDHS.bed -a ATAC6hr_DexNotMockHS.narrowPeak -v | wc -l (19123)
+
+9406 flowersNotLeafsDHS.bed (437)
+19559 ATAC6hr_DexNotMockHS.narrowPeak (436)
+
+bedtools intersect -a all_DHS_full.chr.bed -b ATAC_6hrDex_pooled_c5.0_l100_g40_peaks.narrowPeak -wa | wc -l 
+63820 ATAC_6hrDex_pooled_c5.0_l100_g40_peaks.narrowPeak
+56052 ATAC_6hrMock_pooled_c5.0_l100_g40_peaks.narrowPeak
+55495 all_DHS_full.chr.bed
+
+31854 of all_DHS_full are in ATAC 6hrDex
+34332 of all_DHS_full are in ATAC 6hrMock
+
+bedtools intersect -a all_DHS_full.chr.bed -b ATAC_6hrDex_pooled_c5.0_l100_g40_peaks.narrowPeak -v | wc -l 
+34099 only in ATAC 6hrDex (29811 in DHS)
+25212 only in ATAC 6hrMock (30840 in DHS)
+
+23880 only in DHS compared to ATAC 6hrMock 
+27005 only in DHS compared to ATAC 6hrDex
+
+bedtools intersect -b ATAC_6hrMock_pooled_c5.0_l100_g40_peaks.narrowPeak -a ATAC_6hrDex_pooled_c5.0_l100_g40_peaks.narrowPeak -v | wc -l 
+15054 Mock only compared to Dex
+19559 Dex only compared to Mock 
+
+bedtools intersect -a all_DHS_full.chr.bed -b flowersNotLeafsDHS.bed -v | wc -l 
+
+●
+Try to annotate flower specific DHS to genes:
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation flowerDHS_1kb \
+        . \
+        ../MACS2_bdgpeaks/flowersNotLeafsDHS.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 1000 -tts 0 
+
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation flowerDHS_genic_2rounds \
+        . \
+        ../MACS2_bdgpeaks/flowersNotLeafsDHS.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 0 -tts 0 \
+        -ps ~/CIM_LDL3/useful_files/SeedlingLFYTAIR10.bed \
+            ~/CIM_LDL3/useful_files/InflLFYTAIR10.bed \
+        -pn seedlings inflorescence \
+        -rs ~/CIM_LDL3/useful_files/cara_final_de_list.tsv \
+        ~/CIM_LDL3/useful_files/dexVmock_t1hr.txt \
+        ~/CIM_LDL3/useful_files/dexVmock_t6hr.txt \
+        ~/CIM_LDL3/useful_files/dexVmock_t24hr.txt \
+        -mf ~/CIM_LDL3/useful_files/LFY1_T10_uniq.bed \
+        ~/CIM_LDL3/useful_files/LFY2_T10_uniq.bed \
+        ~/CIM_LDL3/useful_files/LFY_1and2_T10.chr.bed \
+        -mn LFY1 LFY2 LFY1n2 \
+        -ms 60 60 \
+        -rn RNA_seed RNA2_callus_t1hr RNA2_callus_t6hr RNA2_callus_t24hr \
+        -rc log2FoldChange -rf ~/CIM_LDL3/useful_files/avgTPMvalues.txt \
+        -ra "_TPM"
+THURSDAY, 7/25/2019×
+nohup computeMatrix reference-point -S MNaseIH_q100_final.bigwig -R LFY_inflo_nuc LFY_inflo_free ettin_inflo_nuc ettin_inflo_free --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ettinvsParcy_MNaseIH_q100_simplified.tab.gz &
+
+plotProfile --matrixFile ettinvsParcy_MNaseIH_q100_simplified.tab.gz --colors Red Blue Black Green --plotType se --outFileName ettinvsParcy_MNaseIH_q100.png 
+
+plotProfile --matrixFile ettinvsParcy_MNaseIH_q100.tab.gz --plotType se --outFileName ettinvsParcy_MNaseIH_q100.png 
+ 
+THURSDAY, 10/3/2019×
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DexvsMock_1summit_qval10.narrowPeak > DexvsMock_1summit_qval10.nochr.narrowPeak
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$9,$10}' DexvsMock_1summit_qval10.narrowPeak > DexvsMock_1summit_qval10.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DexvsMock_1summit_qval10.bed > DexvsMock_1summit_qval10.nochr.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R ettin_OG_qval10_peaks.narrowPeak -S MNaseIH_q100_final.bigwig 35SLFY_Parcy.pooled.bigwig -o LFYcenter_IH_ChIP.tab.gz --sortRegions descend --sortUsing mean
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R ettin_OG_qval10_peaks.narrowPeak -S MNaseIH_q100_final.bigwig ettinPub.pooled.bigwig -o Ettincenter_IH_ChIP.tab.gz --sortRegions descend --sortUsing mean
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R ettin_OG_qval10_peaks.narrowPeak -S MNaseIH_q100_final.bigwig ettinPub.pooled.bigwig -o Ettincenter_ChIP.tab.gz 
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R ettin_OG_qval10_peaks.narrowPeak -S ettinPub.pooled.bigwig -o Ettincenter_ChIPonly.tab.gz 
+
+plotHeatmap -m Ettincenter_ChIPonly.tab.gz --colorList white,blue --whatToShow 'heatmap and colorbar' --plotTitle 'inflo Ettin ChIP' --missingDataColor white -o Ettincenter_ChIPonly.png --sortRegions ascend --sortUsing median
+
+plotHeatmap -m Ettincenter_IH_ChIP.tab.gz --colorList white,blue --whatToShow 'heatmap and colorbar' --plotTitle 'inflo Ettin IH ChIP' --missingDataColor white -o Ettincenter_ChIP_MNase.png --sortRegions ascend --sortUsing median
+
+plotHeatmap -m LFYcallue_LM30.tab.gz --colorList white,maroon --whatToShow 'heatmap and colorbar' --plotTitle 'callus LFY LM30' --missingDataColor white -o LFYcenter_LM30.png --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DexvsMock_qval10.narrowPeak -S lowMock_MNase1.bigwig -o LFYcallue_MNase.tab.gz --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DexvsMock_qval10.narrowPeak -S LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallue_ChIPonly.tab.gz --sortRegions ascend --sortUsing median
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DexvsMock_qval10.narrowPeak > DexvsMock_qval10.nochr.narrowPeak
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_LM30_all.bed -S lowMock_MNase1.bigwig -o LFYcallue_LM30.tab.gz --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_LD30_all.nochr.bed -S LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallus_LD30_ChIP.tab.gz --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_HD30_all.nochr.bed -S LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallus_HD30_ChIP.tab.gz --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_LD30_all.bed -S lowDex_MNase1.bigwig -o LFYcallus_LD30.tab.gz --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_HD30_all.bed -S highDex_MNase2.bigwig -o LFYcallus_HD30.tab.gz --sortRegions ascend --sortUsing 
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DexvsMock_qval10.nochr.narrowPeak > DexvsMock_qval10.narrowPeak
+
+cat DvM_LD30_free.bed DvM_LD30_bound.bed > DvM_LD30_all.bed
+cat DvM_HD30_free.bed DvM_HD30_bound.bed > DvM_HD30_all.bed
+
+plotHeatmap -m LFYcallus_LD30_ChIP.tab.gz --colorList white,red --whatToShow 'heatmap and colorbar' --plotTitle 'callus LFY ChIP LD30' --missingDataColor white -o LFYcenter_LD30_ChIP.png --sortRegions ascend --sortUsing median
+
+plotHeatmap -m LFYcallus_LM30_ChIP.tab.gz --colorList white,red --whatToShow 'heatmap and colorbar' --plotTitle 'callus LFY ChIP LM30' --missingDataColor white -o LFYcenter_LM30_ChIP.png --sortRegions ascend --sortUsing median
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DvM_LD30_all.bed > DvM_LD30_all.nochr.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DvM_HD30_all.bed > DvM_HD30_all.nochr.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DvM_LM30_all.bed > DvM_LM30_all.nochr.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' DvM_LD30_all.bed > DvM_LD30_all.nochr.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_LM30_all.nochr.bed -S lowMock_MNase1.bigwig LFY1HrDex.pooled.bw -o LFYcallus_LM30_ChIP_both.tab.gz --sortRegions ascend --sortUsing median
+
+plotHeatmap -m LFYcallus_LM30_ChIP_both.tab.gz --colorList white,red --whatToShow 'heatmap and colorbar' --plotTitle 'callus LFY ChIP LM30' --missingDataColor white -o LFYcenter_LM30_ChIP_both.png --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_LD30_all.nochr.bed -S LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallus_LD30_ChIP.tab.gz --sortRegions ascend --sortUsing median
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R DvM_HD30_all.nochr.bed -S LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallus_HD30_ChIP.tab.gz --sortRegions ascend --sortUsing median
+
+TUESDAY, 10/15/2019×
+bedtools intersect -wa -a highDex2_q30_nuc.bed -b DexvsMock_qval10_summmit.chr.bed -u > MNase_bed/highDex2_q30_summit.bed
+
+bedtools intersect -v -b highDex2_q30_nuc.bed -a DexvsMock_qval10_summmit.chr.bed > MNase_bed/highDex2_q30_free.bed
+
+awk '$5>=100' highDex2_q30_summit.bed > highDex2_q30_summit2.bed
+sort -k5,5 highDex2_q30_summit2.bed > highDex2_q30_summit2.sorted.bed
+sort -k5,5 highDex2_q30_summit1.bed > highDex2_q30_summit1.sorted.bed
+
+awk '$5<100' highDex2_q30_summit.bed > highDex2_q30_summit1.bed
+
+cat highDex2_q30_summit1.sorted.bed highDex2_q30_summit2.sorted.bed > highDex2_q30_summit.sorted.bed
+
+bedtools intersect -v -b highDex2_q30_nuc.bed -a DexvsMock_qval10_summmit.chr.bed > MNase_bed/highDex2_q30_free.bed
+cat highDex2_q30_summit.sorted.bed highDex2_q30_free.bed > highDex2_q30_all.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R highDex2_q30_all.bed --sortRegions keep -S ../highDex_MNase2.bigwig -o LFYcallus_MNase_HDq30_all.tab.gz
+
+plotHeatmap -m LFYcallus_MNase_HDq30_all.tab.gz --colorList white,maroon --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'callus LFY HD30' --missingDataColor white -o LFYcallus_MNase_HDq30_all.png
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' highDex2_q30_all.bed > highDex2_q30_all.nochr.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R highDex2_q30_all.nochr.bed --sortRegions keep -S ../LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallus_ChIP_HDq30_all.tab.gz
+
+plotHeatmap -m LFYcallus_ChIP_HDq30_all.tab.gz --colorList white,red --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'callus LFY HD30 ChIP' --missingDataColor white -o LFYcallus_ChIP_HDq30_all.png
+
+
+WEDNESDAY, 10/16/2019×
+bedtools intersect -wa -a lowMock1_q30_nuc.bed -b DexvsMock_qval10_summmit.chr.bed -u > MNase_bed/lowMock1_q30_summit.bed
+bedtools intersect -v -b lowMock1_q30_nuc.bed -a DexvsMock_qval10_summmit.chr.bed > MNase_bed/lowMock1_q30_free.bed
+
+bedtools intersect -wa -a lowDex1_q30_nuc.bed -b DexvsMock_qval10_summmit.chr.bed -u > MNase_bed/lowDex1_q30_summit.bed
+bedtools intersect -v -b lowDex1_q30_nuc.bed -a DexvsMock_qval10_summmit.chr.bed > MNase_bed/lowDex1_q30_free.bed
+
+sort -nrk 5,5 lowMock1_q30_summit.bed > lowMock1_q30_summit.sorted.bed
+sort -nrk 5,5 lowDex1_q30_summit.bed > lowDex1_q30_summit.sorted.bed
+
+cat lowMock1_q30_summit.sorted.bed lowMock1_q30_free.bed > lowMock1_q30_all.bed
+cat lowDex1_q30_summit.sorted.bed lowDex1_q30_free.bed > lowDex1_q30_all.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' lowMock1_q30_all.bed > lowMock1_q30_all.nochr.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' lowDex1_q30_all.bed > lowDex1_q30_all.nochr.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R lowMock1_q30_all.bed --sortRegions keep -S ../lowMock_MNase1.bigwig -o LFYcallus_MNase_LMq30_all.tab.gz
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R lowDex1_q30_all.bed --sortRegions keep -S ../lowDex_MNase1.bigwig -o LFYcallus_MNase_LDq30_all.tab.gz
+
+plotHeatmap -m LFYcallus_MNase_LMq30_all.tab.gz --colorList white,maroon --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'callus LFY LM30' --missingDataColor white -o LFYcallus_MNase_LMq30_all.png
+plotHeatmap -m LFYcallus_MNase_LDq30_all.tab.gz --colorList white,maroon --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'callus LFY LD30' --missingDataColor white -o LFYcallus_MNase_LDq30_all.png
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R lowMock1_q30_all.nochr.bed --sortRegions keep -S ../LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallus_ChIP_LMq30_all.tab.gz
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R lowDex1_q30_all.nochr.bed --sortRegions keep -S ../LFY1HrDex_pooled_greenscreen1.bigwig -o LFYcallus_ChIP_LDq30_all.tab.gz
+
+plotHeatmap -m LFYcallus_ChIP_LMq30_all.tab.gz --colorList white,red --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'callus LFY LM30 ChIP' --missingDataColor white -o LFYcallus_ChIP_LMq30_all.png
+plotHeatmap -m LFYcallus_ChIP_LDq30_all.tab.gz --colorList white,red --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'callus LFY LD30 ChIP' --missingDataColor white -o LFYcallus_ChIP_LDq30_all.png
+
+
+●
+Generate the heatmap using ettin qval10 and MNase IH DANPOS q100:
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' ettin_OG_qval10_summits.bed > ettin_OG_qval10_summit.bed
+
+bedtools intersect -wa -a MNaseIH_final_q100.bed -b ettin_OG_qval10_summit.bed -u > MNase_bed/MNaseIH_ettin_summit.bed
+bedtools intersect -v -b MNaseIH_final_q100.bed -a ettin_OG_qval10_summit.bed > MNase_bed/MNaseIH_ettin_free.bed
+
+sort -nrk 5,5 MNaseIH_ettin_summit.bed > MNaseIH_ettin_summit.sorted.bed
+
+cat MNaseIH_ettin_summit.sorted.bed MNaseIH_ettin_free.bed > MNaseIH_ettin_all.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' lowMock1_q30_all.bed > lowMock1_q30_all.nochr.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' lowDex1_q30_all.bed > lowDex1_q30_all.nochr.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R MNaseIH_ettin_all.bed --sortRegions keep -S ../MNaseIH_q100_final.bigwig -o MNaseIH_ettin_all.tab.gz
+
+plotHeatmap -m MNaseIH_ettin_all.tab.gz --colorList white,navy --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'MNaseIH ettin' --zMax 450 --missingDataColor white -o MNaseIH_ettin_all.png
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R MNaseIH_ettin_all.bed --sortRegions keep -S ../ettinPub.pooled.bigwig -o MNaseIH_ettin_ChIP.tab.gz
+
+plotHeatmap -m MNaseIH_ettin_ChIP.tab.gz --colorList white,blue --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'MNase IH ettin ChIP' --missingDataColor white -o MNaseIH_ettin_ChIP.png
+
+
+MNaseIH_ettin_ChIP.png
+thumbnail
+
+
+MNaseIH_ettin_all.png
+thumbnail
+
+●
+Next wanted to see whether we can use ettin ChIP without qval to see whethre we can get less striking stripes - but then it looks different like this -- basically the ChIP signals are stronger when there are not MNase present 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' ettin_OG_summits.bed > ettin_OG_summit.bed
+
+bedtools intersect -wa -a MNaseIH_final_q100.bed -b ettin_OG_summit.bed -u > MNase_bed/MNaseIH_ettin_noqval_summit.bed
+bedtools intersect -v -b MNaseIH_final_q100.bed -a ettin_OG_qval10_summit.bed > MNase_bed/MNaseIH_ettin_noqval_free.bed
+
+sort -nrk 5,5 MNaseIH_ettin_noqval_summit.bed > MNaseIH_ettin_noqval_summit.sorted.bed
+
+cat MNaseIH_ettin_noqval_summit.sorted.bed MNaseIH_ettin_noqval_free.bed > MNaseIH_ettin_noqval_all.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R MNaseIH_ettin_noqval_all.bed --sortRegions keep -S ../MNaseIH_q100_final.bigwig -o MNaseIH_ettin_noqval_all.tab.gz
+
+plotHeatmap -m MNaseIH_ettin_noqval_all.tab.gz --colorList white,navy --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'MNaseIH ettin noqval' --missingDataColor white -o MNaseIH_ettin_noqval_all.png
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R MNaseIH_ettin_noqval_all.bed --sortRegions keep -S ../ettinPub.pooled.bigwig -o MNaseIH_ettin_noqval_ChIP.tab.gz
+
+plotHeatmap -m MNaseIH_ettin_noqval_ChIP.tab.gz --colorList white,blue --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'MNase IH ettin ChIP noqval' --missingDataColor white -o MNaseIH_ettin_noqval_ChIP.png
+
+
+MNaseIH_ettin_noqval_all.png
+thumbnail
+
+
+MNaseIH_ettin_noqval_ChIP.png
+thumbnail
+
+●
+Doing the same for LFY in inflorescence:
+bedtools intersect -wa -a MNaseIH_final_q100.bed -b 35SLFYParcyFinal_summits.bed -u > MNase_bed/InfloLFY_MNaseIH_summit.bed
+bedtools intersect -v -b MNaseIH_final_q100.bed -a 35SLFYParcyFinal_summits.bed > MNase_bed/InfloLFY_MNaseIH_free.bed
+
+sort -nrk 5,5 InfloLFY_MNaseIH_summit.bed > InfloLFY_MNaseIH_summit.sorted.bed
+
+cat InfloLFY_MNaseIH_summit.sorted.bed InfloLFY_MNaseIH_free.bed > InfloLFY_MNaseIH_all.bed
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R InfloLFY_MNaseIH_all.bed --sortRegions keep -S ../MNaseIH_q100_final.bigwig -o InfloLFY_MNaseIH_all.tab.gz
+
+plotHeatmap -m InfloLFY_MNaseIH_all.tab.gz --colorList white,purple --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'MNaseIH Inflo LFY' --zMax 450 --missingDataColor white -o InfloLFY_MNaseIH_all.png
+
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -R InfloLFY_MNaseIH_all.bed --sortRegions keep -S ../35SLFY_Parcy.pooled.bigwig -o InfloLFY_MNaseIH_ChIP.tab.gz
+
+plotHeatmap -m InfloLFY_MNaseIH_ChIP.tab.gz --colorList white,fuchsia --whatToShow 'heatmap and colorbar' --sortRegions no --plotTitle 'MNaseIH inflo LFY ChIP' --missingDataColor white -o InfloLFY_MNaseIH_ChIP.png
+
+MONDAY, 10/28/2019×
+multiBigwigSummary BED-file -b LFY1HrMockA.filteren.bg.bw LFY1HrMockB.filteren.bg.bw LFY1HrMockC.filteren.bg.bw LFY1HrDexA.filteren.bg.bw LFY1HrDexB.filteren.bg.bw LFY1HrDexC.filteren.bg.bw -o ChIPreplicates_peakregions.npz --BED DexvsMock_1summit_qval10.bed
+
+plotCorrelation -in ChIPreplicates_peakregions.npz -c spearman -p heatmap -l 1HrMockA 1HrMockB 1HrMockC 1HrDexA 1HrDexB 1HrDexC --skipZeros -o ChIPreplicates_peakregions_w_spearman.png --plotNumbers
+
+cut -f1,2,3,4,5,6 6hr-DiffPeak_peaks.narrowPeak > 6hr-DiffPeak.modified.bed
+cut -f1,2,3,4,5,6 ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak > ATAC-24hr-Spikein-DiffPeak.modified.bed
+cut -f1,2,3,4,5,6 ATAC-6hr-DiffPeak_peaks.narrowPeak > ATAC-6hr-DiffPeak.modified.bed
+
+python ~/Downloads/ChIP_Annotation/ ATAC_24hrSI_DiffPkeak \
+        . \
+        ./ATAC-24hr-Spikein-DiffPeak.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak
+
+cut -f1,2,3,4,5,6 ATAC_24hrDvM_SK_11070_peaks.qval10.bed > ATAC_24hrDvM_SK_11070_peaks.modified.bed
+cut -f1,2,3,4,5,6 ATAC_24hrMvD_SK_11070_peaks.qval10.bed > ATAC_24hrMvD_SK_11070_peaks.modified.bed
+cut -f1,2,3,4,5,6 ATAC_6hrDvM_SK_11070_peaks.qval10.bed > ATAC_6hrDvM_SK_11070_peaks.modified.bed
+cut -f1,2,3,4,5,6 ATAC_6hrMvD_SK_11070_peaks.qval10.bed > ATAC_6hrMvD_SK_11070_peaks.modified.bed
+
+python ~/Downloads/ChIP_Annotation/ ATAC_6hr_11070_DvM_qval10 \
+        . \
+        ./ATAC_6hrDvM_SK_11070_peaks.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+
+python ~/Downloads/ChIP_Annotation/ ATAC_6hr_11070_MvD_qval10 \
+        . \
+        ./ATAC_6hrMvD_SK_11070_peaks.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+
+python ~/Downloads/ChIP_Annotation/ ATAC_24hr_11070_DvM_qval10 \
+        . \
+        ./ATAC_24hrDvM_SK_11070_peaks.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+
+python ~/Downloads/ChIP_Annotation/ ATAC_24hr_11070_MvD_qval10 \
+        . \
+        ./ATAC_24hrMvD_SK_11070_peaks.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        
+TUESDAY, 11/5/2019×
+computeMatrix reference-point --referencePoint center -b 1000 -a 1000 -S LFY1HrMock_pooled_greenscreen1.bigwig LFY1HrDex_pooled_greenscreen1.bigwig -R DexvsMock_qval10.nochr.narrowPeak -o LFYChIP_DvM_QC.tab.gz
+
+plotHeatmap -m LFYChIP_DvM_QC.tab.gz --colorList white,red --plotTitle 'LFY ChIP DvM' --missingDataColor white -o LFYChIP_DvM_QC.png
+
+multiBigwigSummary BED-file -b RNA1HrMockA.bigwig RNA1HrMockB.bigwig RNA1HrDexA.bigwig RNA1HrDexB.bigwig RNA6HrMockA.bigwig RNA6HrMockB.bigwig RNA6HrDexA.bigwig RNA6HrDexB.bigwig RNA24hrMockA.bigwig RNA24hrMockB.bigwig RNA24hrDexA.bigwig RNA24hrDexB.bigwig -o RNAreplicates_geneRegions.npz --BED ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed
+
+multiBigwigSummary bins -b RNA1HrMockA.bigwig RNA1HrMockB.bigwig RNA1HrDexA.bigwig RNA1HrDexB.bigwig RNA6HrMockA.bigwig RNA6HrMockB.bigwig RNA6HrDexA.bigwig RNA6HrDexB.bigwig RNA24hrMockA.bigwig RNA24hrMockB.bigwig RNA24hrDexA.bigwig RNA24hrDexB.bigwig -o RNAreplicates_bins.npz 
+
+plotCorrelation -in RNAreplicates_geneRegions.npz -c spearman -p heatmap -l 1hrMockA 1hrMockB 1hrDexA 1hrDexB 6hrMockA 6hrMockB 6hrDexA 6hrDexB 24hrMockA 24hrMockB 24hrDexA 24hrDexB --skipZeros -o RNAreplicates_geneRegions_spearman.png 
+
+plotCorrelation -in RNAreplicates_bins.npz -c spearman -p heatmap -l 1hrMockA 1hrMockB 1hrDexA 1hrDexB 6hrMockA 6hrMockB 6hrDexA 6hrDexB 24hrMockA 24hrMockB 24hrDexA 24hrDexB --skipZeros -o RNAreplicates_bins_spearman.png 
+
+plotCorrelation -in RNAreplicates_geneRegions.npz -c pearson -p heatmap -l 1hrMockA 1hrMockB 1hrDexA 1hrDexB 6hrMockA 6hrMockB 6hrDexA 6hrDexB 24hrMockA 24hrMockB 24hrDexA 24hrDexB --skipZeros -o RNAreplicates_geneRegions_pearson.png --removeOutliers
+
+plotCorrelation -in RNAreplicates_bins.npz -c pearson -p heatmap -l 1hrMockA 1hrMockB 1hrDexA 1hrDexB 6hrMockA 6hrMockB 6hrDexA 6hrDexB 24hrMockA 24hrMockB 24hrDexA 24hrDexB --skipZeros -o RNAreplicates_bins_pearson.png --removeOutliers
+
+MONDAY, 11/11/2019×
+python ~/Downloads/ChIP_Annotation/ ATAC_24hrSI_DiffPeak_qval7 \
+        . \
+        ./ATAC_24hrSI_DiffPeak_qval7.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+
+cut -f1,2,3,4,5,6 ATAC-24hr-Spikein-DiffPeak_peaks.qval7.narrowPeak > ATAC_24hrSI_DiffPeak_qval7.modified.bed
+
+cut -f1,2,3,4,5,6 6hr-DiffPeak_peaks.qval7.narrowPeak > 6hrATAC_DiffPeak_qval7.modified.bed
+
+python ~/Downloads/ChIP_Annotation/ 6hr-DiffPeak_peaks.qval7 \
+        . \
+        ./6hrATAC_DiffPeak_qval7.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+MONDAY, 2/17/2020×
+nohup computeMatrix reference-point -S ETT_noIAA.pooled.bigwig -R Ettin_IHbound.bed Ettin_IHfree.bed --skipZeros --missingDataAsZero --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o Ettin_IHsep.tab.gz &
+ plotProfile --matrixFile LFYinflo_MNase_sep.tab.gz --plotType lines --outFileName InfloLFY_profile.png 
+
+SPLIT WORKSPACE
