@@ -1,0 +1,835 @@
+MNase ANALYSIS
+
+TUESDAY, 11/6/2018
+●
+Trimming and mapping details see note LFY_ATAC10062018_RJ
+●
+Briefly: 
+○
+Trimming with adapter finding using Sammy's custom scripts + headcrop of 3bp 
+○
+Mapping using bowtie1 with the parameter -v 2 -m 3 and X = 250 (default) -- although maybe at some point we can try to use up to X=1000 just to get more signals
+●
+Previously, using Deeptools for visualization and compute matrix do NOT give good results 
+○
+Next need to use Danpos for making stuff
+●
+load modules for DANPOS
+unset R_home 
+module load python/anaconda/2.7 
+●
+run dpos
+○
+This time: no need to get rid of the ChrM and ChrC since we used samtools before and filtered: 
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./mapping_BS/MNase-HM-100618/ --smooth_width 10 -H 1 -n S -m 1 --mifrsz 40 --mafrsz 300 -o visualization/MNase/MNase_HM_100618 > log_files/dpos_MNase_HM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./mapping_BS/MNase-LM-100618/ --smooth_width 10 -H 1 -n S -m 1 --mifrsz 40 --mafrsz 300 -o visualization/MNase/MNase_LM_100618 > log_files/dpos_MNase_LM.log 2>&1 &
+●
+convert wig files to big wig file
+wigToBigWig dpos/fragLen_170_130/highMock_MNase1.wig ~/Araport11/TAIR10_chr_count.txt dpos/fragLen_170_130/highMock_MNase1.bigwig
+
+wigToBigWig dpos/fragLen_170_130/lowDex_MNase1.wig ~/Araport11/TAIR10_chr_count.txt dpos/fragLen_170_130/lowDex_MNase1.bigwig
+●
+get nucleosome bed files
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42HighMock MNase-1\42 useScore=1"} NR>1{x++;print $1,$2,$3,"HighMOCK_"x,$5,"."}' dpos/fragLen_170_130/highMock_MNase1/pooled/mapping_highMock_MNase1.Fnor.smooth.positions.xls > dpos/fragLen_170_130/highMock_MNase1_nucleosomes.bed
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42LowDex MNase-1\42 useScore=1"} NR>1{x++;print $1,$2,$3,"lowDEX_"x,$5,"."}' dpos/fragLen_170_130/lowDex_MNase1/pooled/mapping_lowDex_MNase1.smooth.positions.xls > dpos/fragLen_170_130/lowDex_MNase1_nucleosomes.bed
+Create Heatmaps at the TSS sites
+●
+get coverage of each MNase sample using bedtools coverage
+○
+wd:  /home/wagner-lab/sklasfeld/PRE_Project/MNase/LFY
+ls mapping/highMock_MNase1/*.final.bam mapping/lowDex_MNase1/*.final.bam | awk -F"/" 'BEGIN{print"#!/bin/bash"}{split($3,a,"."); print "bedtools coverage -a /home/wagner-lab/sklasfeld/Araport11/Araport11_TSSPM1000bin20_protein_coding.201606.nucleus.bed -b "$0" > tss_analysis/fragLen_170_130/"a[1]".coverage.txt"}' > scripts/mnase_coverage.sh
+chmod 755 scripts/mnase_coverage.sh
+nohup ./scripts/mnase_coverage.sh &
+●
+convert the coverage files into a matrices using custom script
+○
+wd:  /home/wagner-lab/sklasfeld/PRE_Project/MNase/LFY
+○
+recall the number of reads with Fragment Length <300, MAPQ>=30, paired, and NO DUPS: (see meta/nodups_mapq30_fragLen_170_130_counts.txt)
+qlogin -l h=node03.gpc-global
+FRIDAY, 11/9/2018×
+●
+Fixed danpos2!!! -- For anything else, need to 
+cd ~/Downloads/danpos2.2.2
+unset R_HOME
+module load python/anaconda/2.7
+python danpos.py -h
+TUESDAY, 11/13/2018×
+cd ~/LFY/mapping_BS/
+python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-HM-100618 --smooth_width 10 -H 1 -n S -m 1 --mifrsz 40 -o ../visualization/MNase/MNase_HM_100618 > ../log_files/dpos_MNase_HM.log 2>&1 
+
+python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-LM-100618 --smooth_width 10 -H 1 -n S -m 1 --mifrsz 40 -o ../visualization/MNase/MNase_LM_100618 > ../log_files/dpos_MNase_LM.log 2>&1 
+TUESDAY, 12/4/2018×
+●
+The ONLY way to get DANPOS to work:
+cd ~/Downloads/danpos-2.2.2
+unset R_HOME
+module load python/anaconda/2.7
+nano ~/.bashrc
+export PATH="/home/runjin/Downloads/samtools-0.1.18/:$PATH"
+Run the following DANPOS to generate the visualization file: 
+cd ~/LFY/mapping_BS/
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-HM-100618 --smooth_width 10 -H 1 -n S -m 1 --mifrsz 40 -o ../visualization/MNase/MNase_HM_100618 > ../log_files/dpos_MNase_HM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-LM-100618 --smooth_width 10 -H 1 -n S -m 1 --mifrsz 40 -o ../visualization/MNase/MNase_LM_100618 > ../log_files/dpos_MNase_LM.log 2>&1 &
+●
+Do F nomralization with the files:
+cd ~/LFY/mapping_BS/
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-HM-100618 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ../visualization/MNase/MNase_HM_100618 > ../log_files/dpos_MNase_HM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-LM-100618 --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ../visualization/MNase/MNase_LM_100618 > ../log_files/dpos_MNase_LM.log 2>&1 &
+
+mv normalize_region.wig MNase_HM_100618_dpos.bigwig 
+mv normalize_region.wig MNase_LM_100618_dpos.bigwig 
+●
+NOTE that the nomralize region file might NOT be what I want 
+●
+Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig MNase_HM_100618_dpos.wig ~/Araport11/TAIR10_chr_count.txt MNase_HM_100618_dpos.bigwig
+wigToBigWig MNase_LM_100618_dpos.wig ~/Araport11/TAIR10_chr_count.txt MNase_LM_100618_dpos.bigwig
+
+nohup computeMatrix reference-point -S MNase_HM_100618_dpos.bigwig MNase_LM_100618_dpos.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsFinalMNase.tab.gz &
+
+wigToBigWig MNase-HM-100618.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase-HM-100618.Fnor.smooth.bigwig
+wigToBigWig MNase-LM-100618.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase-LM-100618.Fnor.smooth.bigwig
+
+nohup computeMatrix reference-point -S MNase-HM-100618.Fnor.smooth.bigwig MNase-LM-100618.Fnor.smooth.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsFnorMNase.tab.gz &
+
+plotHeatmap --matrixFile ChIPvsFnorMNase.tab.gz --outFileName ../../graphs/ChIPvsFnorMNase.png &
+
+nohup computeMatrix reference-point -S MNase-HM-100618.Fnor.smooth.bigwig MNase-LM-100618.Fnor.smooth.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsFnorMNase.tab.gz &
+●
+Plot profile and heatmap using the file 
+nohup computeMatrix reference-point -S MNase-HM-100618.Fnor.smooth.bigwig MNase-LM-100618.Fnor.smooth.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 10 --sortRegions descend -o MNase-100618Fnor.mat.gz &
+
+nohup plotProfile --matrixFile MNase-100618Fnor.mat.gz --outFileName ../../graphs/MNaseFinalFnor_profile.png &
+nohup plotHeatmap --matrixFile MNase-100618Fnor.mat.gz --outFileName ../../graphs/MNaseFinalFnor_heatmap.png &
+●
+Compare with old MNase that seems to work -- see whether there is a better or worse signal:
+○
+Also try to make the bin size to 20 to see whether we see a difference 
+○
+The files used: MNase-seq2 - Frag 170-130 - IGV - danpos: 
+nohup computeMatrix reference-point -S ../MNase-HM-100618.Fnor.smooth.bigwig ../MNase-LM-100618.Fnor.smooth.bigwig highMock_MNase1.bigwig highMock_MNase2.bigwig lowDex_MNase1.bigwig lowDex_MNase2.bigwig lowMock_MNase1.bigwig lowMock_MNase2.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNaseAllFnor.mat.gz &
+nohup plotProfile --matrixFile MNaseAllFnor.mat.gz --perGroup --outFileName ~/LFY/graphs/MNaseAllFnor_pg_profile.png &
+nohup plotHeatmap --matrixFile MNaseAllFnor.mat.gz --outFileName ~/LFY/graphs/MNaseAllFnor_heatmap.png &
+●
+Try to see all the old files:
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig highMock_MNase2.bigwig lowDex_MNase1.bigwig lowDex_MNase2.bigwig lowMock_MNase1.bigwig lowMock_MNase2.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase_oldall_Fnor.mat.gz &
+
+plotProfile --matrixFile MNase_oldall_Fnor.mat.gz --perGroup --outFileName ~/LFY/graphs/MNase_oldall_Fnor_profile.png 
+plotHeatmap --matrixFile MNase_oldall_Fnor.mat.gz --outFileName ~/LFY/graphs/MNase_oldall_Fnor_heatmap.png 
+
+MNaseAllFnor_heatmap.png
+thumbnail
+
+
+MNaseFinalFnor_heatmap.png
+thumbnail
+
+
+MNase_oldall_Fnor_heatmap.png
+thumbnail
+
+WEDNESDAY, 12/5/2018×
+●
+Seems like there is a lot of noise in the new data -- need to clean up by giving the fragment size between 130 to 170 
+cd ~/LFY/mapping_BS/
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-HM-100618 --smooth_width 10 -H 1 -n F -m 1 --mifrsz 130 --mafrsz 170 -o ../visualization/MNase/MNase_130_170_HM_100618 > ../log_files/dpos_MNase_130_170_HM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-LM-100618 --smooth_width 10 -H 1 -n F -m 1 --mifrsz 130 --mafrsz 170 -o ../visualization/MNase/MNase_130_170_LM_100618 > ../log_files/dpos_MNase_130_170_LM.log 2>&1 &
+
+wigToBigWig MNase_HM_130_170_100618.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase_HM_130_170_100618.Fnor.smooth.bigwig
+wigToBigWig MNase_LD_130_170_100618.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase_LD_130_170_100618.Fnor.smooth.bigwig
+
+nohup computeMatrix reference-point -S MNase_HM_130_170_100618.Fnor.smooth.bigwig MNase_LD_130_170_100618.Fnor.smooth.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase_new130170_Fnor.mat.gz &
+
+plotProfile --matrixFile MNase_new130170_Fnor.mat.gz --perGroup --outFileName ~/LFY/graphs/MNase_new130170_Fnor_profile.png 
+plotHeatmap --matrixFile MNase_new130170_Fnor.mat.gz --outFileName ~/LFY/graphs/MNase_new130170_Fnor_heatmap.png 
+
+●
+Try DANPOS again with Sammy's parameter:
+○
+If this doesn't work -- need to filter read lengths in the filtering step and then try again (for fair comparison)
+cd ~/LFY/mapping_BS/
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-HM-100618 -m 1 --frsz 140 -o ../visualization/MNase/MNase_140_HM_100618 > ../log_files/dpos_MNase_140_HM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-LM-100618 -m 1 --frsz 140 -o ../visualization/MNase/MNase_140_LM_100618 > ../log_files/dpos_MNase_140_LM.log 2>&1 &
+
+wigToBigWig MNase_140_HM_100618.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase_HM_140_100618.Fnor.smooth.bigwig
+wigToBigWig MNase_140_LD_100618.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase_LD_140_100618.Fnor.smooth.bigwig
+
+nohup computeMatrix reference-point -S MNase_HM_140_100618.Fnor.smooth.bigwig MNase_LD_140_100618.Fnor.smooth.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase_new140_Fnor.mat.gz &
+
+plotProfile --matrixFile MNase_new140_Fnor.mat.gz --perGroup --outFileName ~/LFY/graphs/MNase_new140_Fnor_profile.png 
+plotHeatmap --matrixFile MNase_new140_Fnor.mat.gz --outFileName ~/LFY/graphs/MNase_new140_Fnor_heatmap.png 
+THURSDAY, 12/13/2018×
+●
+Compute matrix for the visualization for the talk: 
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase_new130170_Fnor.mat.gz &
+
+TAIR10_GFF3_protein_coding_genes.bed
+
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsMNaseHM.tab.gz &
+
+plotHeatmap --matrixFile ChIPvsMNaseHM.tab.gz --colorMap YlGnBu --outFileName ~/LFY/graphs/LFYvsMNaseHM_heatmap.png 
+
+nohup computeMatrix reference-point -S highDex_MNase2.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsMNaseHD.tab.gz &
+
+plotHeatmap --matrixFile ChIPvsMNaseHD.tab.gz --colorMap YlGnBu --outFileName ~/LFY/graphs/LFYvsMNaseHD_heatmap.png 
+
+plotCorrelation -in ChIPvsMNaseHD.tab.gz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of LFY peaks vs. MNase" --whatToPlot scatterplot -o ~/LFY/graphs/LFYvsMNaseHD_scatterplot_pearson.png 
+
+plotHeatmap --matrixFile ChIPvsMNaseHD.tab.gz --colorMap YlGnBu --outFileName ~/LFY/graphs/LFYvsMNaseHD_heatmap.png MNase_oldall_Fnor.mat.gz
+
+plotHeatmap --matrixFile MNase_oldall_Fnor.mat.gz --colorList 'black, yellow' --outFileName ~/LFY/graphs/MNaseHD_all_heatmap.png 
+plotProfile --matrixFile MNase_oldall_Fnor.mat.gz --outFileName ~/LFY/graphs/MNase_all_profile.png
+
+MONDAY, 1/7/2019×
+Goals
+●
+filter out duplicate and unpaired reads with fragment length between 130-170bp
+●
+run DANPOS mapping
+●
+create heatmaps
+Scripts
+●
+scripts/create_filtering.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LFY/mapping_130_170
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=170
+minFragLen=130
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/../meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30 
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.sam | samtools sort - -o ${SRX}.filter.bam """
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $PICARD/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+samtools index MNase-HM1.bam
+samtools view -@ 2 -h -f3 -F 1804 -q 30 MNase-HM1.bam Chr1 Chr2 Chr3 Chr4 Chr5 | samtools sort -o MNase-HM1.bam.filter.bam
+samtools index MNase-HM1.filter.bam
+java -jar /home/runjin/Downloads/picard/build/libs/picard.jar MarkDuplicates I=MNase-HM1.bam.filter.bam O=MNase-HM1.bam.dupmark.bam M=MNase-HM1.bam.dup.qc VALIDATION_STRINGENCY$
+samtools sort MNase-HM1.dupmark.bam > MNase-HM1.dupmark.sorted.bam
+samtools index MNase-HM1.dupmark.sorted.bam
+samtools view -@ 2 -F 1804 -b MNase-HM1.dupmark.bam > MNase-HM1.final.bam
+samtools index MNase-HM1.final.bam && rm MNase-HM1.dupmark.bam 
+Steps to filter reads for fragment length 130-170
+●
+Remove reads between 130-170 and then remove duplicates
+cd ~/LFY/mapping_130_170
+source ../scripts/create_filtering.sh > ../scripts/filtering.sh
+nohup ../scripts/filtering.sh > ../log_files/filtering.log 2>&1 &
+●
+get counts of reads
+ls *.filter.bam| awk '{print "samtools view -c "$0}' > count.sh
+ls *.final.bam| awk '{print "samtools view -c "$0}' >> count.sh
+source count.sh
+●
+get NRF
+head *.dup.qc| grep 'Unknown'| awk '{print 1-$10}'
+●
+get average fragment size
+samtools view MNase-HM1.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view MNase-HM2.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view MNase-LM1.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view MNase-LM2.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+A
+B
+C
+D
+E
+F
+1
+Number of reads with Fragment Length all, MAPQ>=30, paired and NO DUP	Number of reads with Fragment Length  b/w 130-170bp, MAPQ>=30, paired, and NO DUP	Average size	NRF	
+2
+HM1	51030706	11872814	151.305	1	
+3
+HM2	76292864	16841257	150.783	1	
+4
+LM1	31560990	6725878	151.477	1	
+5
+LM2	59940464	12548499	152.348	1	
+Table1
+
+
+
+●
+move replicates into specific directories to pool them for DANPOS
+mkdir MNase-HM
+mkdir MNase-LM
+
+mv MNase-HM?.final.bam MNase-HM
+mv MNase-LM?.final.bam MNase-LM
+mv MNase-HM?.final.bam.bai MNase-HM
+mv MNase-LM?.final.bam.bai MNase-LM
+●
+The ONLY way to get DANPOS to work:
+cd ~/Downloads/danpos-2.2.2
+unset R_HOME
+module load python/anaconda/2.7
+nano ~/.bashrc
+export PATH="/home/runjin/Downloads/samtools-0.1.18/:$PATH"
+●
+Do F nomralization with the files:
+cd ~/LFY/mapping_130_170/
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-HM --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ../visualization/MNase_130_170/MNase-HM > ../log_files/dpos_MNase_HM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-LM --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ../visualization/MNase_130_170/MNase-LM > ../log_files/dpos_MNase_LM.log 2>&1 &
+
+mv normalize_region.wig MNase_HM_dpos.bigwig 
+mv normalize_region.wig MNase_LM_dpos.bigwig 
+●
+NOTE that the nomralize region file might NOT be what I want 
+●
+Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig MNase-HM.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase-HM_130_170_dpos.bigwig
+wigToBigWig MNase-LM.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase-LM_130_170_dpos.bigwig
+
+nohup computeMatrix reference-point -S MNase-HM_130_170_dpos.bigwig MNase-LM_130_170_dpos.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsFilteredMNase.tab.gz &
+
+plotHeatmap --matrixFile ChIPvsFilteredMNase.tab.gz --outFileName ../../graphs/ChIPvsFilteredFnorMNase.png &
+
+nohup computeMatrix reference-point -S MNase-HM_130_170_dpos.bigwig MNase-LM_130_170_dpos.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o FilteredMNaseTSS.tab.gz &
+
+nohup plotProfile --matrixFile FilteredMNaseTSS.tab.gz --outFileName ../../graphs/FilteredMNaseTSS_profile.png &
+
+plotHeatmap --matrixFile MNaseAllFilteredFnor.mat.gz --outFileName ~/LFY/graphs/FilteredMNaseTSS_heatmap.png &
+plotProfile --matrixFile MNaseAllFilteredFnor.mat.gz --outFileName ~/LFY/graphs/FilteredMNaseTSS_profile.png &
+
+MNaseAllFilteredFnor_profile.png
+thumbnail
+
+
+FilteredMNaseTSS_heatmap.png
+thumbnail
+
+MONDAY, 1/14/2019×
+nohup computeMatrix reference-point -S MNase-HM_130_170_dpos.bigwig MNase-LM_130_170_dpos.bigwig highMock_MNase1.bigwig highMock_MNase2.bigwig lowDex_MNase1.bigwig lowMock_MNase1.bigwig highDex_MNase2.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o FilteredMNasevsChIP.tab.gz &
+
+or DexvsMock_qval10.bed
+plotHeatmap --matrixFile FilteredMNasevsChIP_2k.tab.gz --outFileName ~/LFY/graphs/FilteredMNasevsLFY_heatmap.png &
+plotHeatmap --matrixFile FilteredMNasevsChIP.tab.gz --colorMap Blues_r --outFileName ~/LFY/graphs/FilteredMNasevsLFY1k_heatmap.png &
+
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig highMock_MNase2.bigwig lowDex_MNase1.bigwig lowMock_MNase1.bigwig highDex_MNase2.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o MNaseOldvsChIP.tab.gz &
+
+plotHeatmap --matrixFile MNaseOldvsChIP.tab.gz --colorMap Blues_r --outFileName ~/LFY/graphs/MNaseOldvsLFY1k_heatmap.png &
+
+MNaseOldvsLFY1k_heatmap.png
+thumbnail
+
+
+FilteredMNasevsLFY1k_heatmap.png
+thumbnail
+
+MONDAY, 1/21/2019×
+●
+Instead of finding doing all the analysis and compute matrix together, decided to do the profile and comparing with the LFY ChIP file individually:
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o highMock1_TSS.mat.gz &
+
+nohup computeMatrix reference-point -S highDex_MNase2.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o highDex2_TSS.mat.gz &
+
+nohup computeMatrix reference-point -S lowDex_MNase1.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o lowDex1_TSS.mat.gz &
+
+nohup computeMatrix reference-point -S lowMock_MNase1.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o lowMock1_TSS.mat.gz &
+
+/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed
+
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o highMock1_LFY.mat.gz &
+
+nohup computeMatrix reference-point -S highDex_MNase2.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o highDex2_LFY.mat.gz &
+
+nohup computeMatrix reference-point -S lowDex_MNase1.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o lowDex1_LFY.mat.gz &
+
+nohup computeMatrix reference-point -S lowMock_MNase1.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o lowMock1_LFY.mat.gz &
+
+nohup computeMatrix reference-point -S Ath_buds_DNase.bw -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o DHS_Flower_LFY.mat.gz &
+
+nohup computeMatrix reference-point -S Ath_leaf_DNase.bw -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o DHS_Leaf_LFY.mat.gz &
+
+--colorMap YlGnBu \
+ --regionsLabel 'fly genes' \
+ --heatmapHeight 15 \
+ --plotTitle 'GC content fly' &
+
+plotHeatmap --matrixFile highMock1_TSS.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highMock1_TSS_heatmap.png 
+plotHeatmap --matrixFile highDex2_TSS.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highDex2_TSS_heatmap.png 
+plotHeatmap --matrixFile lowDex1_TSS.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/lowDex1_TSS_heatmap.png 
+plotHeatmap --matrixFile lowMock1_TSS.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/lowMock1_TSS_heatmap.png 
+
+plotHeatmap --matrixFile highMock1_LFY.mat.gz --colorMap YlGnBu  --heatmapHeight 15 --heatmapWidth 8 --regionsLabel 'signals' --outFileName ~/LFY/graphs/highMock1_LFY_heatmap.png 
+plotHeatmap --matrixFile highDex2_LFY.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --regionsLabel 'signals' --outFileName ~/LFY/graphs/highDex2_LFY_heatmap.png 
+plotHeatmap --matrixFile lowDex1_LFY.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --regionsLabel 'signals' --outFileName ~/LFY/graphs/lowDex1_LFY_heatmap.png 
+plotHeatmap --matrixFile lowMock1_LFY.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --regionsLabel 'signals' --outFileName ~/LFY/graphs/lowMock1_LFY_heatmap.png 
+plotHeatmap --matrixFile DHS_Flower_LFY.mat.gz --colorMap Purples --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/DHS_Flower_LFY_heatmap.png 
+plotHeatmap --matrixFile DHS_Leaf_LFY.mat.gz --colorMap Purples --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/DHS_Leaf_LFY_heatmap.png 
+plotHeatmap --matrixFile ChIPvsDvMqval10.tab.gz --heatmapHeight 15 --heatmapWidth 8 --colorMap Oranges_r --outFileName ~/LFY/graphs/ChIPvsDvMqval10_gs_heatmap.png &
+TUESDAY, 1/22/2019×
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R DexvsMock_qval10_chr.bed --referencePoint center -b 2000 -a 2000 -bs 20 --sortRegions descend -o highMock1_LFY_2k.mat.gz &
+
+nohup computeMatrix reference-point -S highDex_MNase2.bigwig -R DexvsMock_qval10_chr.bed --referencePoint center -b 2000 -a 2000 -bs 20 --sortRegions descend -o highDex2_LFY_2k.mat.gz &
+
+plotHeatmap --matrixFile highMock1_LFY_2k.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highMock1_LFY_2k.png 
+plotHeatmap --matrixFile highDex2_LFY_2k.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highDex2_LFY_2k.png
+
+
+highDex2_LFY_2k.png
+thumbnail
+
+
+highMock1_LFY_2k.png
+thumbnail
+
+THURSDAY, 1/24/2019×
+●
+Redo mapping with the MNase files using Sammy's original method:
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_HC3_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_HC3_fastq/"$1"_R2.paired.fastq > mapping_SK/"$1".sam \
+    2> log_files/mapping/browtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/2 WAIT\42"}END{print "wait\necho \42YAY YOU FINALLY DONE!\42"}' \
+    meta/SRX.list > scripts/mapping.sh
+
+ATAC-24hrDexA-Spikein
+ATAC-24hrDexB-Spikein
+MNase-HM1_R1.paired.fastq  
+MNase-HM1_R2.paired.fastq
+MNase-HM1
+
+chmod 755 scripts/mapping.sh
+mkdir log_files/mapping
+nohup ./scripts/mapping.sh > ./log_files/mapping.log &
+A
+B
+C
+D
+E
+1
+Mapped	Unmapped	Non-unique
+2
+MNase-HM1	47045760	21071154 (44.79%)	16874938 (35.87%)	9099668 (19.34%)
+3
+MNase-HM2	74707945	30428846 (40.73%)	30156052 (40.37%)	14123047 (18.90%)
+4
+MNase-LM1	30704935	13190852 (42.96%)	11728219 (38.20%)	5785864 (18.84%)
+5
+MNase-LM2	65029667	24178807 (37.18%)	29471627 (45.32%)	11379233 (17.50%)
+Table2
+
+
+
+Scripts
+●
+../scripts/creeate_MNase_filtering.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LFY
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=170
+minFragLen=130
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30 
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.sam | \
+		awk 'BEGIN{OFS=\"\t\"} \$0!~\"^@\" && \$9<=${maxFragLen} && \$9>=${minFragLen}{print} \$0~\"^@\"{print}' | \
+		samtools sort - -o ${SRX}.filter.bam """
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+Steps to filter reads for fragment length 130-170
+●
+Remove reads with fragment lengths greater than 300bp and then remove duplicates
+cd ~/LFY/mapping_SK
+source ../scripts/creeate_MNase_filtering.sh > ../scripts/MNase_filtering.sh
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+nohup ../scripts/MNase_filtering.sh > ../log_files/MNase_filtering.log 2>&1 &
+●
+Redo all the heatmaps using TAIR10: 
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o highMock1_TAIR10_Fnor.mat.gz &
+
+nohup computeMatrix reference-point -S highDex_MNase2.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o highDex2_TAIR10_Fnor.mat.gz &
+
+nohup computeMatrix reference-point -S lowDex_MNase1.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o lowDex1_TAIR10_Fnor.mat.gz &
+
+nohup computeMatrix reference-point -S lowMock_MNase1.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o lowMock1_TAIR10_Fnor.mat.gz &
+
+TAIR10_GFF3_protein_coding_genes.bed
+
+plotHeatmap --matrixFile lowMock1_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/lowMock1_TSS_TAIR10_heatmap.png
+
+plotHeatmap --matrixFile lowDex1_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/lowDex1_TSS_TAIR10_heatmap.png
+
+plotHeatmap --matrixFile highDex2_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highDex2_TSS_TAIR10_heatmap.png
+
+plotHeatmap --matrixFile highMock1_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highMock1_TSS_TAIR10_heatmap.png
+
+SATURDAY, 1/26/2019×
+●
+Need to use dpos to call peaks:
+●
+Do F nomralization with the files:
+cd ~/LFY/mapping_SK/
+mkdir MNase-HM
+mkdir MNase-LM
+
+mv MNase-HM?.final.bam MNase-HM
+mv MNase-LM?.final.bam MNase-LM
+mv MNase-HM?.final.bam.bai MNase-HM
+mv MNase-LM?.final.bam.bai MNase-LM
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-HM --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ./MNase-HM > ../log_files/dpos_MNase_HM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos ./MNase-LM --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ./MNase-LM > ../log_files/dpos_MNase_LM.log 2>&1 &
+
+wigToBigWig dpos/highMock.wig ~/Araport11/TAIR10_chr_count_10based.txt dpos/highMock.bigwig
+
+●
+NOTE that the nomralize region file might NOT be what I want 
+●
+Generate bigwig file for normalization and matrix -- ran in their respecitve directory -- and compute matrix based on that: 
+wigToBigWig MNase-HM.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase-HM-100618.bigwig
+wigToBigWig MNase-LM.Fnor.smooth.wig ~/Araport11/TAIR10_chr_count.txt MNase-LM-100618.bigwig
+
+nohup computeMatrix reference-point -S MNase-HM-100618.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase-HM-100618_TAIR10_Fnor.mat.gz &
+nohup computeMatrix reference-point -S MNase-LM-100618.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase-LM-100618_TAIR10_Fnor.mat.gz &
+
+plotHeatmap --matrixFile MNase-HM-100618_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/MNaseHM100618_TSS_TAIR10_heatmap.png
+plotHeatmap --matrixFile MNase-LM-100618_TAIR10_Fnor.mat.gz --colorList 'black, yellow' --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/MNaseLM100618_TSS_TAIR10_heatmap.png
+
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R DexvsMock_qval10_chr.bed --referencePoint center -b 2000 -a 2000 -bs 20 --sortRegions descend -o highMock1_LFY_2k.mat.gz &
+
+nohup computeMatrix reference-point -S highDex_MNase2.bigwig -R DexvsMock_qval10_chr.bed --referencePoint center -b 2000 -a 2000 -bs 20 --sortRegions descend -o highDex2_LFY_2k.mat.gz &
+
+plotHeatmap --matrixFile highMock1_LFY_2k.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highMock1_LFY_2k.png 
+plotHeatmap --matrixFile highDex2_LFY_2k.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highDex2_LFY_2k.png
+
+MNaseHM100618_TSS_TAIR10_heatmap.png
+thumbnail
+
+
+MNaseLM100618_TSS_TAIR10_heatmap.png
+thumbnail
+
+WEDNESDAY, 1/30/2019×
+nohup computeMatrix reference-point -S MNase-HM-100618.bigwig -R ~/Araport11/TAIR10_protein_coding_strand.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions keep -o MNaseHM-100618_TAIR10_sort.mat.gz &
+nohup computeMatrix reference-point -S MNase-LM-100618.bigwig -R ~/Araport11/TAIR10_protein_coding_strand.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions keep -o MNaseLM-100618_TAIR10_sort.mat.gz &
+
+plotHeatmap --matrixFile MNaseHM-100618_TAIR10_sort.mat.gz --colorList 'black, yellow' --sortRegions no --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/MNaseHM100618_TAIR10sorted_heatmap.png
+plotHeatmap --matrixFile MNaseLM-100618_TAIR10_sort.mat.gz --colorList 'black, yellow' --sortRegions no --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/MNaseLM100618_TAIR10sorted_heatmap.png
+●
+To sort the bed files: sort -k6,6 <filename> > <newfilename>
+○
+And when computing the matrix: use --sortRegions Keep 
+○
+And when making the heatmap: use --sortRegions no 
+FRIDAY, 2/1/2019×
+highMock_MNase1.bigwig
+
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig -R ~/Araport11/TAIR10_protein_coding_strand.bed --referencePoint TSS -b 1000 -a 1000 -bs 20 --sortRegions keep -o highMock1_TAIR10_sort.mat.gz &
+
+plotHeatmap --matrixFile highMock1_TAIR10_sort.mat.gz --colorList 'black, yellow' --sortRegions no --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/highMock1_TAIR10sorted_heatmap.png
+
+highMock1_TAIR10sorted_heatmap.png
+thumbnail
+
+bedtools coverage -a TAIR10_TSSPM1000bin20_protein_coding.nucleus.bed -b MNase-HM/MNase-HM1.final.bam > MNase-HM1.coverage.TAIR10.txt 
+nohup bedtools coverage -a TAIR10_TSSPM1000bin20_protein_coding.nucleus.bed -b MNase-HM/MNase-HM2.final.bam > MNase-HM2.coverage.TAIR10.txt &
+nohup bedtools coverage -a TAIR10_TSSPM1000bin20_protein_coding.nucleus.bed -b MNase-LM/MNase-LM2.final.bam > MNase-LM2.coverage.TAIR10.txt &
+nohup bedtools coverage -a TAIR10_TSSPM1000bin20_protein_coding.nucleus.bed -b MNase-LM/MNase-LM1.final.bam > MNase-LM1.coverage.TAIR10.txt &
+cp /home/wagner-lab/sklasfeld/custom_scripts/binnedRegionMatrix.py ./sammy_custom_scripts
+cp /home/wagner-lab/sklasfeld/custom_scripts/smoothBinnedMatrixToHeatmap.py ./sammy_custom_scripts
+
+#make matricies. Note that set '-n' since I already reversed the negative strand
+#module load python/anaconda/2.7
+#the number of reads are done by samtools view -c 
+
+python ~/sammy_custom_scripts/binnedRegionMatrix.py MNase-HM1.coverage.TAIR10.txt 2000 20 9734646 MNase-HM1_TSSpm2000.matrix.TAIR10.txt -n
+python ~/sammy_custom_scripts/binnedRegionMatrix.py MNase-HM2.coverage.TAIR10.txt 2000 20 13392663 MNase-HM2_TSSpm2000.matrix.TAIR10.txt -n
+python ~/sammy_custom_scripts/binnedRegionMatrix.py MNase-LM1.coverage.TAIR10.txt 2000 20 5533941 MNase-LM1_TSSpm2000.matrix.TAIR10.txt -n
+python ~/sammy_custom_scripts/binnedRegionMatrix.py MNase-LM2.coverage.TAIR10.txt 2000 20 9848680 MNase-LM2_TSSpm2000.matrix.TAIR10.txt -n
+
+#make picture
+python ~/sammy_custom_scripts/smoothBinnedMatrixToHeatmap.py --plot_title "MNase HM 100618" -i MNase-HM1_TSSpm2000.matrix.TAIR10.txt MNase-HM2_TSSpm2000.matrix.TAIR10.txt --verbose -c 6 -m MNase_HM.smoothMatrix.txt --ylabel Transcription_Start_Sites --smoothing_len 11 --smoothing_window bartlett --robust --density_plot -r 2000 -b 20 -st ~/LFY/graphs/MNase_HM_SK_heatmap.png 
+
+python ~/sammy_custom_scripts/smoothBinnedMatrixToHeatmap.py --plot_title "MNase LM 100618" -i MNase-LM1_TSSpm2000.matrix.TAIR10.txt MNase-LM2_TSSpm2000.matrix.TAIR10.txt --verbose -c 6 -m MNase_LM.smoothMatrix.txt --ylabel Transcription_Start_Sites --smoothing_len 11 --smoothing_window bartlett --robust --density_plot -r 2000 -b 20 -st ~/LFY/graphs/MNase_LM_SK_heatmap.png 
+
+/home/runjin/LFY/mapping_SK/
+MNase-HM1_TSSpm2000.matrix.TAIR10.txt 
+MNase-HM2_TSSpm2000.matrix.TAIR10.txt
+MNase-LM1_TSSpm2000.matrix.TAIR10.txt 
+MNase-LM2_TSSpm2000.matrix.TAIR10.txt
+
+MNase_HM_SK_heatmap.png
+thumbnail
+
+
+MNase_LM_SK_heatmap.png
+thumbnail
+
+MONDAY, 2/4/2019×
+●
+Decide which MNase files to use:
+nohup computeMatrix reference-point -S MNase-HM-100618.bigwig -R DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase-HM_LFY.mat.gz &
+nohup computeMatrix reference-point -S MNase-LM-100618.bigwig -R DexvsMock_qval10_chr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o MNase-LM_LFY.mat.gz &
+
+plotHeatmap --matrixFile MNase-HM_LFY.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/MNase-HM_LFY.png 
+plotHeatmap --matrixFile MNase-LM_LFY.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/MNase-LM_LFY.png 
+
+
+MNase-HM_LFY.png
+thumbnail
+
+
+MNase-LM_LFY.png
+thumbnail
+
+MONDAY, 2/11/2019×
+●
+Decided to use the following MNase files: highMock1 lowMock1 lowDex2
+multiBigwigSummary highMock_MNase1.bigwig lowDex_MNase1.bigwig lowMock_MNase1.bigwig
+
+nohup multiBigwigSummary bins -b highMock_MNase1.bigwig lowMock_MNase1.bigwig lowDex_MNase1.bigwig --binSize 10 -l HighMock LowMock LowDex -o MNase_bw_corr.npz &
+
+nohup multiBigwigSummary bins -b lowMock_MNase1.bigwig lowDex_MNase1.bigwig --binSize 10 -l LowMock LowDex -o MNase_lowvslow_corr.npz &
+
+nohup multiBigwigSummary bins -b highMock_MNase1.bigwig lowDex_MNase1.bigwig --binSize 10 -l HighMock LowDex -o MNase_highvslowdex_corr.npz &
+
+nohup multiBigwigSummary bins -b highMock_MNase1.bigwig lowMock_MNase1.bigwig --binSize 10 -l HighMock LowMock -o MNase_highvslowmock_corr.npz &
+
+plotCorrelation --corData MNase_lowvslow_corr.npz -o ~/LFY/graphs/MNase_lowvslow_pearson.png -c pearson --whatToPlot scatterplot --removeOutliers  
+plotCorrelation --corData MNase_highvslowdex_corr.npz -o ~/LFY/graphs/MNase_highvslowdex_pearson.png -c pearson --whatToPlot scatterplot --removeOutliers  
+plotCorrelation --corData MNase_highvslowmock_corr.npz -o ~/LFY/graphs/MNase_highvslowmock_pearson.png -c pearson --whatToPlot scatterplot --removeOutliers  
+plotCorrelation --corData MNase_lowvslow_corr.npz -o ~/LFY/graphs/MNase_lowvslow_pearson.png -c pearson --whatToPlot scatterplot --removeOutliers --skipZeros
+plotCorrelation --corData MNase_highvslowdex_corr.npz -o ~/LFY/graphs/MNase_highvslowdex_pearson.png -c pearson --whatToPlot scatterplot --removeOutliers --skipZeros
+plotCorrelation --corData MNase_highvslowmock_corr.npz -o ~/LFY/graphs/MNase_highvslowmock_pearson.png -c pearson --whatToPlot scatterplot --removeOutliers --skipZeros
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
+
+
+MNase_highvslowmock_pearson.png
+thumbnail
+
+
+MNase_highvslowdex_pearson.png
+thumbnail
+
+
+MNase_lowvslow_pearson.png
+thumbnail
+
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' DexvsMock_peaks.narrowPeak  > DexvsMock_qval10.bed
+~/LFY/mapping_SK/LFYChIP/MACS2_greenscreen/DexvsMock_qval10.bed 
+
+nohup multiBigwigSummary BED-file -b highMock_MNase1.bigwig lowDex_MNase1.bigwig lowMock_MNase1.bigwig --BED ~/LFY/mapping_SK/LFYChIP/MACS2_greenscreen/DexvsMock_qval10.chr.bed  -l "High Mock" "Low Dex" "Low Mock" --outRawCounts MNaseAllvsChIP.tab -o MNaseAllvsChIP.npz &
+
+nohup computeMatrix reference-point -S highMock_MNase1.bigwig lowDex_MNase1.bigwig lowMock_MNase1.bigwig -R ~/LFY/mapping_SK/LFYChIP/MACS2_greenscreen/DexvsMock_qval10.chr.bed --referencePoint center -b 2000 -a 2000 -bs 20 --sortRegions descend -o MNaseAllvsLFY.mat.gz &
+
+nohup computeMatrix reference-point -S lowDex_MNase1.bigwig lowMock_MNase1.bigwig -R ~/LFY/mapping_SK/LFYChIP/MACS2_greenscreen/DexvsMock_qval10.chr.bed --referencePoint center -b 2000 -a 2000 -bs 20 --sortRegions descend -o MNaseLowBothvsLFY.mat.gz &
+
+plotHeatmap --matrixFile MNaseLowBothvsLFY.mat.gz --colorMap YlGnBu --outFileName ~/LFY/graphs/MNaseBothvsLFY.png 
+
+plotCorrelation -in MNaseAllvsChIP.npz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of LFY peaks vs. MNase" --whatToPlot scatterplot -o ~/LFY/graphs/LFYvsMNaseAll_scatterplot_pearson.png
+plotCorrelation -in MNaseAllvsChIP.npz --corMethod spearman --skipZeros --plotTitle "Spearman Correlation of LFY peaks vs. MNase" --whatToPlot scatterplot -o ~/LFY/graphs/LFYvsMNaseAll_scatterplot_spearman.png  
+
+plotHeatmap --matrixFile MNaseAllvsLFY.mat.gz --colorMap YlGnBu --outFileName ~/LFY/graphs/MNaseAllvsLFY.png 
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DexvsMock_qval10.bed > DexvsMock_qval10.chr.bed
+
+lowDex_MNase1.bigwig 
+lowMock_MNase1.bigwig
+
+LFYvsMNaseAll_scatterplot_spearman.png
+thumbnail
+
+
+LFYvsMNaseAll_scatterplot_pearson.png
+thumbnail
+
+
+MNaseAllvsLFY.png
+thumbnail
+
+plotHeatmap --matrixFile highMock1_LFY_2k.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --kmeans 2 --outFileName ~/LFY/graphs/highMock1_LFY_kmeans2.png 
+plotHeatmap --matrixFile highMock1_LFY_2k.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --kmeans 3 --outFileName ~/LFY/graphs/highMock1_LFY_kmeans3.png 
+
+highMock1_LFY_kmeans3.png
+thumbnail
+
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_peak_"x,$5,"."; x++}' mapping_highMock_MNase1.Fnor.smooth.positions.xls > highMock_DANPOS.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_peak_"x,$5,"."; x++}' mapping_lowMock_MNase1.Fnor.smooth.positions.xls > lowMock_DANPOS.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"; x=1} NR>1{print $1,$2,$3,"mnase_peak_"x,$5,"."; x++}' mapping_lowDex_MNase2.Fnor.smooth.positions.xls > lowDex_DANPOS.bed
+
+
+~/LFY/mapping_SK/LFYChIP/MACS2_greenscreen/DexvsMock_qval10.chr.bed
+
+bedtools intersect -wa -a DexvsMock_qval10.chr.bed -b all3MNase_DANPOS.bed -F 0.9 | sort -u | wc -l 
+
+bedtools intersect -wa -a lowMock_DANPOS.bed -b lowDex_DANPOS.bed -u > lowBoth_DANPOS.bed
+bedtools intersect -wa -a lowBoth_DANPOS.bed -b highMock_DANPOS.bed -u > all3MNase_DANPOS.bed
+
+1228
+1209
+1112
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+1
+At least 1bp overlap 	- f 0.3	% LFY peaks that have at least 30% overlap with MNase peak	-f 0.5 	% LFY peaks that have at least 50% overlap with MNase peak	- F 0.5	% of LFY that contains half MNase peak 	- F 0.9	% of LFY that contains 90% MNase peak 	-F 1	% of LFY that contains a complete  MNase peak 
+2
+HighMock	1228	712	0.577922078	241	0.195616883	1220	0.99025974	1139	0.924512987	1085	0.880681818
+3
+LowMock	1112	560	0.454545455	192	0.155844156	1061	0.861201299	972	0.788961039	919	0.745941558
+4
+LowDex	1209	663	0.538149351	226	0.183441558	1180	0.957792208	1098	0.891233766	1047	0.849837662
+5
+LowBoth	1109	559	0.453733766	190	0.154220779	1059	0.859577922	970	0.787337662	919	0.745941558
+6
+AllThree	1107	558	0.452922078	189	0.153409091	1056	0.857142857	966	0.784090909	915	0.742694805
+Table3
+
+
+
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+1
+Single_summit & 1bp overlap	% LFY peak	Single_summit & 75bp overlap	% LFY peak	Multi_summit & 1bp overlap	% LFY peak	Multi_summit & 75bp overlap	% LFY peak						
+2
+HighMock	1173	0.9932260796	1105	0.9356477561	1227	0.9959415584	1164	0.9448051948						
+3
+LowMock	952	0.8060965284	829	0.7019475021	993	0.8060064935	871	0.7069805195						
+4
+LowDex	1124	0.9517358171	1007	0.8526672312	1169	0.9488636364	1058	0.8587662338						
+5
+LowBoth	949	0.8035563082	825	0.6985605419	989	0.8027597403	866	0.7029220779						
+6
+AllThree	942	0.7976291279	819	0.6934801016	982	0.7970779221	859	0.6972402597						
+Table4
+
+
+
+bedtools intersect -wa -a DexvsMock_multi_qval10_200bp.chr.bed -b highMock_DANPOS.bed | sort -u | wc -l 
+bedtools intersect -wa -a lowMock_DANPOS.bed -b lowDex_DANPOS.bed -u > lowBoth_DANPOS.bed
+bedtools intersect -wa -a lowBoth_DANPOS.bed -b highMock_DANPOS.bed -u > all3MNase_DANPOS.bed
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' DexvsMock_multi_qval10_200bp.bed > DexvsMock_multi_qval10_200bp.chr.bed
+WEDNESDAY, 2/13/2019×
+●
+Try calling motif on the new LFY peak files:
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' DexvsMock_qval10.narrowPeak > DexvsMock_qval10.bed
+
+#Find motifs:
+findMotifsGenome.pl DexvsMock_multi_qval10_200bp.bed tair10 LFY_MotifOutput
+findMotifsGenome.pl DexvsMock_1summit_qval10_200bp.bed tair10 LFY_MotifOutput
+
+#current directory to homer:
+/home/runjin/Downloads/homer/bin/
+#available organism: arabidopsis-o v6.0
+#available promoter: arabidopsis-p v5.0
+#available genomes: tair10	v6.0 
+
+DexvsMock_multi_qval10_200bp.chr.bed
+DexvsMock_1summit_qval10_200bp.chr.bed
+35SLFY_Parcy_final_200bp.bed 
+WEDNESDAY, 12/4/2019×
+cat LFY1HrDexA_S8_L001_R1_001.fastq.gz LFY1HrDexA_S8_L002_R1_001.fastq.gz LFY1HrDexA_S8_L003_R1_001.fastq.gz LFY1HrDexA_S8_L004_R1_001.fastq.gz > LFY1HrDexA.fastq.gz
+
+cat LFY1HrDexB_S18_L001_R1_001.fastq.gz LFY1HrDexB_S18_L002_R1_001.fastq.gz LFY1HrDexB_S18_L003_R1_001.fastq.gz LFY1HrDexB_S18_L004_R1_001.fastq.gz > LFY1HrDexB.fastq.gz
+
+cat LFY1HrDexC_S19_L001_R1_001.fastq.gz LFY1HrDexC_S19_L002_R1_001.fastq.gz LFY1HrDexC_S19_L003_R1_001.fastq.gz LFY1HrDexC_S19_L004_R1_001.fastq.gz > LFY1HrDexC.fastq.gz
+
+cat LFY1HrMockA_S12_L001_R1_001.fastq.gz LFY1HrMockA_S12_L002_R1_001.fastq.gz LFY1HrMockA_S12_L003_R1_001.fastq.gz LFY1HrMockA_S12_L004_R1_001.fastq.gz > LFY1HrMockA.fastq.gz
+
+cat LFY1HrMockB_S10_L001_R1_001.fastq.gz LFY1HrMockB_S10_L002_R1_001.fastq.gz LFY1HrMockB_S10_L003_R1_001.fastq.gz LFY1HrMockB_S10_L004_R1_001.fastq.gz > LFY1HrMockB.fastq.gz
+
+cat LFY1HrMockC_S13_L001_R1_001.fastq.gz LFY1HrMockC_S13_L002_R1_001.fastq.gz LFY1HrMockC_S13_L003_R1_001.fastq.gz LFY1HrMockC_S13_L004_R1_001.fastq.gz > LFY1HrMockC.fastq.gz
+
+cat C-Low-D1_S5_L001_R1_001.fastq.gz C-Low-D1_S5_L002_R1_001.fastq.gz C-Low-D1_S5_L003_R1_001.fastq.gz C-Low-D1_S5_L004_R1_001.fastq.gz > MNase_HD1_R1.fastq.gz
+
+cat C-Low-D1_S5_L001_R2_001.fastq.gz C-Low-D1_S5_L002_R2_001.fastq.gz C-Low-D1_S5_L003_R2_001.fastq.gz C-Low-D1_S5_L004_R2_001.fastq.gz > MNase_HD1_R2.fastq.gz
+
+cat D-Low-D2_S12_L001_R1_001.fastq.gz D-Low-D2_S12_L002_R1_001.fastq.gz D-Low-D2_S12_L003_R1_001.fastq.gz D-Low-D2_S12_L004_R1_001.fastq.gz > MNase_HD2_R1.fastq.gz
+
+cat D-Low-D2_S12_L001_R2_001.fastq.gz D-Low-D2_S12_L002_R2_001.fastq.gz D-Low-D2_S12_L003_R2_001.fastq.gz D-Low-D2_S12_L004_R2_001.fastq.gz > MNase_HD2_R2.fastq.gz
+
+cat Run_S2_L001_R1_001.fastq.gz Run_S2_L002_R1_001.fastq.gz Run_S2_L003_R1_001.fastq.gz Run_S2_L004_R1_001.fastq.gz > MNase_LD2_R1.fastq.gz
+
+cat Run_S2_L001_R2_001.fastq.gz Run_S2_L002_R2_001.fastq.gz Run_S2_L003_R2_001.fastq.gz Run_S2_L004_R2_001.fastq.gz > MNase_LD2_R2.fastq.gz
+
+cat Run_S3_L001_R1_001.fastq.gz Run_S3_L002_R1_001.fastq.gz Run_S3_L003_R1_001.fastq.gz Run_S3_L004_R1_001.fastq.gz > MNase_LM2_R1.fastq.gz
+
+cat Run_S3_L001_R2_001.fastq.gz Run_S3_L002_R2_001.fastq.gz Run_S3_L003_R2_001.fastq.gz Run_S3_L004_R2_001.fastq.gz > MNase_LM2_R2.fastq.gz
+
+cat Run_S4_L001_R1_001.fastq.gz Run_S4_L002_R1_001.fastq.gz Run_S4_L003_R1_001.fastq.gz Run_S4_L004_R1_001.fastq.gz > MNase_LD1_R1.fastq.gz
+
+cat Run_S4_L001_R2_001.fastq.gz Run_S4_L002_R2_001.fastq.gz Run_S4_L003_R2_001.fastq.gz Run_S4_L004_R2_001.fastq.gz > MNase_LD1_R2.fastq.gz
+
+cat Run_S8_L001_R1_001.fastq.gz Run_S8_L002_R1_001.fastq.gz Run_S8_L003_R1_001.fastq.gz Run_S8_L004_R1_001.fastq.gz > MNase_LM1_R1.fastq.gz
+
+cat Run_S8_L001_R2_001.fastq.gz Run_S8_L002_R2_001.fastq.gz Run_S8_L003_R2_001.fastq.gz Run_S8_L004_R2_001.fastq.gz > MNase_LM1_R2.fastq.gz
+SPLIT WORKSPACE
