@@ -1,4 +1,5 @@
-#Parsing RNA data
+R for plotting
+FRIDAY, 6/7/2019
 
 Ways to plot and facet the grids based on B/F -- differnet ways to separate the groups:
 > ggplot(Plot_DvM_full, aes(x = RNAtimepoint, y = RNAlogFC)) + geom_boxplot() + facet_grid(. ~ LM_30)
@@ -8,14 +9,22 @@ Ways to plot and facet the grids based on B/F -- differnet ways to separate the 
 ggplot(Plot_DvM_full, aes(x = RNAtimepoint, y = RNAlogFC, color = LM_30)) +
     geom_jitter() +
     stat_boxplot(fill = NA)
-
-#Ways to gather certain columns not others:
+Ways to gather certain columns not others:
 Plot_DvM_full <- gather(DvM_full_RNAFC, 'RNA2_callus_t1hr.log2FoldChange', 'RNA2_callus_t6hr.log2FoldChange', 'RNA2_callus_t24hr.log2FoldChange', key = "RNAtimepoint", value = "RNAlogFC")
 
-#Way to transform data and get another column:
-Plot_DvM_full <- mutate(Plot_DvM_full, absRNAlogFC = abs(RNAlogFC))
+plot_exercise_M1 <- gather(exercise_M1, 'MT19.00005.BD.20190612', 'MP19.01994.JK.20190612', 'MP19.02126.02135.02136.KM.20190612', 'MP19.02158.02159.02160.JR.20190612', 'MP19.02161.02162.02163.CT.20190612', 'MP19.02182.02183.02184.TK.20190612', 'PosCtrl.PAN.20190612', key = "sample_id", value = "raw_reads")
 
-#The way the files are generated are noted in CIM_LDL3_041619 entry:
+ggplot(plot_exercise_M1, aes(x=raw_reads)) + 
+  geom_histogram(color="darkblue", fill="lightblue", bins = 50) 
+
+ggplot(plot_exercise_M1, aes(x = sample_id, y = raw_reads)) + geom_boxplot(color="darkblue") 
+ggplot(plot_exercise_M1, aes(y = X, x = raw_reads)) + geom_boxplot(color="darkblue") 
+
+Way to transform data and get another column:
+Plot_DvM_full <- mutate(Plot_DvM_full, absRNAlogFC = abs(RNAlogFC))
+TUESDAY, 6/11/2019×
+●
+The way the files are generated are noted in CIM_LDL3_041619 entry:
 C14_H3K27me3_all <-read.table(file = "Col_C14_H3K27me3_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
 colnames(C14_H3K27me3_all) <- c("chromosome","start","end","gene_id","score","strand","raw_counts")
 
@@ -43,8 +52,6 @@ colnames(C14_H3K4me2_all) <- c("chromosome","start","end","gene_id","score","str
 colnames(C14_H3K4me1_all) <- c("chromosome","start","end","gene_id","score","strand","H3K4me1_raw_counts")
 
 colnames(C14_histone_mod_DE24LM30B) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts")
-
-
 aa <- aa %>% mutate(z = x+y-2)
 
 C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3_RPKM = H3_raw_counts*1000000*1000/(35812219*(end-start)))
@@ -64,16 +71,25 @@ C14_histone_mod_LM30B <- subset(C14_histone_mod_LM30B, select = -c(12:20))
 C14_histone_mod_all <- subset(C14_histone_mod_all, select = -c(12))
 
 histonemod_RPKMratio_df <- rbind(C14_histone_mod_all[ ,c(17:21)], C14_histone_mod_LM30B[ ,c(17:21)], C14_histone_mod_LM30F[ ,c(17:21)], C14_histone_mod_DE24LM30B[ ,c(17:21)], C14_histone_mod_DE24LM30F[ ,c(17:21)], C14_histone_mod_LM30B_flower[ ,c(17:21)])
+A
+B
+1
+Callus_modification	Reads 
+2
+H3	35812219
+3
+H3K4me1	44255671
+4
+H3K4me2	48709501
+5
+H3K4me3	49361631
+6
+H3K27me3	20134818
+Table4
 
-#Callus_modification	Reads 
-#H3	35812219
-#H3K4me1	44255671
-#H3K4me2	48709501
-#H3K4me3	49361631
-#H3K27me3	20134818
+
 
 ggplot(histonemod_RPKMratio_df, aes(x = category, y = H3K4me2overH3, fill = category)) + geom_boxplot() 
-
 data %>% pickRandomRows(7)
 data %>% sample_n(10)
 
@@ -91,9 +107,7 @@ ggplot(histonemod_RPKMratio_sample_df, aes(x = category, y = H3K4me2overH3, fill
 ggplot(histonemod_RPKMratio_sample_df, aes(x = category, y = H3K4me3overH3, fill = category)) + geom_boxplot() 
 
 ggplot(histonemod_RPKMratio_sample_df, aes(x = category, y = H3K27me3overH3, fill = category)) + geom_boxplot() 
-
-
-
+TUESDAY, 6/25/2019×
 DvM_final_df <-read.csv(file = "DvM_final_DANPOS_genewise_ann.tsv", header = TRUE, sep = "\t")
 
 Plot_DvM_final <- gather(DvM_final_df, 'RNA2_callus_t1hr.log2FoldChange', 'RNA2_callus_t6hr.log2FoldChange', 'RNA2_callus_t24hr.log2FoldChange', key = "RNAtimepoint", value = "RNAlogFC") %>% mutate(absRANlogFC = abs(RNAlogFC))
@@ -117,11 +131,14 @@ ggplot(Plot_DvM_final, aes(x = RNAtimepoint, y = absRNAlogFC)) + geom_violin(aes
 
 labs(title = "MAIN TITLE", x = "X-AXIS TITLE", y = "Y-AXIS TITLE")
 
+image.png
+thumbnail
+
 
 image.png
-image.png
+thumbnail
 
-#Redid all the files for the histone modifications: again, using the violin plot this time: 
+Redid all the files for the histone modifications: again, using the violin plot this time: 
 C14_H3K27me3_all <-read.table(file = "Col_C14_H3K27me3_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
 colnames(C14_H3K27me3_all) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
 
@@ -134,8 +151,6 @@ colnames(C14_H3K27me3_DE24LM30B) <- c("chromosome","start","end","gene_id","scor
 C14_histone_mod_DE24LM30B <- cbind(C14_H3_DE24LM30B, C14_H3K4me1_DE24LM30B$H3K4me1_raw_counts, C14_H3K4me2_DE24LM30B$H3K4me2_raw_counts, C14_H3K4me3_DE24LM30B$H3K4me3_raw_counts, C14_H3K27me3_DE24LM30B$H3K27me3_raw_counts)
 
 colnames(C14_histone_mod_DE24LM30B) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts")
-
-
 aa <- aa %>% mutate(z = x+y-2)
 
 rm(list = apropos("C14_histone_mod_"))
@@ -172,16 +187,18 @@ ggplot(histonemod_RPKMratio_final, aes(x = category, y = RPKMoverH3)) + geom_vio
 ggplot(histonemod_RPKMratio_sample_final, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = HistoneMarks)) + facet_grid(. ~ HistoneMarks) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + scale_color_gradient()
 
 
+image.png
+thumbnail
+
 
 image.png
+thumbnail
 
 
 image.png
-
-image.png
+thumbnail
 
 C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me1_RPM = H3K4me1_raw_counts*1000000)
-
 
 #generage the same files for input as well: 
 C14_input_all <-read.table(file = "LFY1HrDexInput_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
@@ -194,10 +211,14 @@ C14_histone_mod_DE24LM30B <- cbind(C14_H3_DE24LM30B, C14_H3K4me1_DE24LM30B$H3K4m
 
 C14_histone_all_all <- cbind(C14_histone_mod_all, C14_input_all$input_raw_counts)
 setnames(C14_histone_all_all, "C14_input_all$input_raw_counts", "input_raw_counts")
+A
+1
+read depth for input files 
+2
+40737302
+Table1
 
 
-#read depth for input files 
-#40737302
 
 aa <- aa %>% mutate(z = x+y-2)
 
@@ -236,20 +257,16 @@ histoneall_RPKMratio_sample_final$category <- factor(histoneall_RPKMratio_sample
 
 histoneall_RPKMratio_final$category <- factor(histoneall_RPKMratio_final$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
 
-
 #ways to make the labels a certain seuqence as I want:
 histoneall_RPKMratio_sample_final$category <- factor(histoneall_RPKMratio_sample_final$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
 
 histoneall_RPKMratio_final$category <- factor(histoneall_RPKMratio_final$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
-
 write.csv(histoneall_RPKMratio_sample_df, file = "histoneall_RPKMratio_sample.csv")
-
 #clear R environment & garbage in memory:
 rm(list=ls())
 gc()
-
+●
 Now starting to look at the 3kb upstream region and generate the files for the
-
 ProteinANDmiRNA_araport11 <- read.table(file = "Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed", header = FALSE, sep = "\t")
 colnames(ProteinANDmiRNA_araport11) <- c("chromosome","start","end","gene_id","score","strand")
 
@@ -260,9 +277,7 @@ positive_3kbup_gene_miRNA <- mutate(positive_gene_miRNA, start = start - 3000)
 negative_3kbup_gene_miRNA <- mutate(negative_gene_miRNA, end = end + 3000)
 
 up3kb_only_araport11 <- rbind(positive_3kbup_gene_miRNA, negative_3kbup_gene_miRNA)
-
 #and then view the files to make sure and sort on the start to make sure they are all positive --> and then use the assign functions from R if they are actually negative - assign 1 to them:
-
 genic_3kb_araport11$start[3643] <- 1
 genic_3kb_araport11$start[3644] <- 1
 
@@ -279,11 +294,9 @@ cut -f2- up3kb_only_araport11.bed > up3kb_araport11_final.bed
 #sort the bed files for overlap
 bedtools sort -i genic_3kb_araport11_final.bed > genic_3kb_araport11.bed
 bedtools sort -i up3kb_araport11_final.bed > up3kb_only_araport11.bed
-
 #final names of the files being used:
 genic_3kb_araport11.bed
 up3kb_only_araport11.bed
-
 #do the violin plot for the up3kb only region:
 H3K27me3_up3kb_all <-read.table(file = "H3K27me3_all_up3kb_counts.bed", header = FALSE, sep = "\t")
 colnames(H3K27me3_up3kb_all) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
@@ -304,7 +317,6 @@ colnames(LFYDexinput_DE24LM30B_3kbOnly) <- c("chromosome","start","end","gene_id
 callus_markninput_LM30B_3kbOnly <- cbind(H3_LM30B_3kbOnly, H3K4me1_LM30B_3kbOnly$H3K4me1_raw_counts, H3K4me2_LM30B_3kbOnly$H3K4me2_raw_counts, H3K4me3_LM30B_3kbOnly$H3K4me3_raw_counts, H3K27me3_LM30B_3kbOnly$H3K27me3_raw_counts, LFYDexinput_LM30B_3kbOnly$input_raw_counts)
 
 colnames(callus_markninput_LM30B_3kbOnly) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts","input_raw_counts")
-
 #next calculate the RPKM:
 aa <- aa %>% mutate(z = x+y-2)
 
@@ -342,8 +354,7 @@ ggplot(histoneall_RPKMratio_3kbOnly, aes(x = category, y = RPKMoverH3)) + geom_v
 
 ggplot(H3_all_RPKM, aes(x = category, y = V7)) + geom_violin(aes(fill = Category), trim = TRUE) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), ) + geom_boxplot(width = 0.1, outlier.shape=NA) 
 
-
-
+WEDNESDAY, 6/26/2019×
 #do the violin plot for genic&3kb only region:
 H3K27me3_genen3kb_all <-read.table(file = "H3K27me3_all_genen3kb_counts.bed", header = FALSE, sep = "\t")
 colnames(H3K27me3_genen3kb_all) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
@@ -364,7 +375,6 @@ colnames(LFY1HrDexInput_DE24LM30B_genen3kb) <- c("chromosome","start","end","gen
 callus_markninput_DE24LM30B_genen3kb <- cbind(H3_DE24LM30B_genen3kb, H3K4me1_DE24LM30B_genen3kb$H3K4me1_raw_counts, H3K4me2_DE24LM30B_genen3kb$H3K4me2_raw_counts, H3K4me3_DE24LM30B_genen3kb$H3K4me3_raw_counts, H3K27me3_DE24LM30B_genen3kb$H3K27me3_raw_counts, LFY1HrDexInput_DE24LM30B_genen3kb$input_raw_counts)
 
 colnames(callus_markninput_DE24LM30B_genen3kb) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts","input_raw_counts")
-
 #next calculate the RPKM:
 aa <- aa %>% mutate(z = x+y-2)
 
@@ -402,8 +412,6 @@ ggplot(histoneall_RPKMratio_genen3kb, aes(x = category, y = RPKMoverH3)) + geom_
 write.table(histoneall_RPKMratio_sample_genen3kb, file = "histoneall_RPKMratio_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
 
 write.table(histoneall_RPKMratio_sample_genen3kb, file = "histoneall_RPKMratio_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
-
-
 dexVmock_t1hr_all <-read.delim(file = "dexVmock_t1hr.txt", header = TRUE, sep = "\t")
 dexVmock_t6hr_all <-read.delim(file = "dexVmock_t6hr.txt", header = TRUE, sep = "\t")
 dexVmock_t24hr_all <-read.delim(file = "dexVmock_t24hr.txt", header = TRUE, sep = "\t")
@@ -427,9 +435,7 @@ ggplot(DvMDE_sample_logFC, aes(x = LM_30, y = absRNAlogFC)) + geom_violin(aes(fi
 ggplot(DvMDE_all_logFC, aes(x = LM_30, y = absRNAlogFC)) + geom_violin(aes(fill = LM_30), trim = TRUE) + facet_grid(. ~ RNAtimepoint) + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
 ggplot(DvMDE_sample_logFC, aes(x = RNAtimepoint, y = RNAlogFC, fill = LM_30)) + geom_boxplot(outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + scale_x_discrete(labels=c("RNA2_callus_one.log2FoldChange" = "RNAlogFC 1hr", "RNA2_callus_six.log2FoldChange" = "RNAlogFC 6hr", "RNA2_callus_twentyfour.log2FoldChange" = "RNAlogFC 24hr")) + ylim(-2.5, 3)
-
-
-
+FRIDAY, 6/28/2019×
 write.table(DvMDE_all_logFC, file = "DvMDE_all_logFC.tsv", append = FALSE, quote = FALSE, sep = "\t")
 write.table(DvMDE_sample_logFC, file = "DvMDE_sample_logFC.tsv", append = FALSE, quote = FALSE, sep = "\t")
 
@@ -437,8 +443,7 @@ rm(list = ls())
 gc()
 
 
-
-
+TUESDAY, 7/2/2019×
 leafDHS_DE24LM30B <-read.table(file = "leafDHS_DE24LM30B_genen3kb_signalmean.tsv", header = FALSE, sep = "\t")
 colnames(leafDHS_DE24LM30B) <- c("chromosome","start","end","gene_id","quanlity","strand","signal")
 
@@ -493,8 +498,8 @@ write.table(Plot_DHS_RPKM_sample_all, file = "Plot_DHS_RPKM_sample_all.tsv", app
 
 rm(list = ls())
 
-
-#Now trying to figure out the qval for the histone modification:
+●
+Now trying to figure out the qval for the histone modification:
 histoneall_RPKMratio_genen3kb <-read.table(file = "histoneall_RPKMratio_genen3kb.tsv", header = TRUE, sep = "\t")
 histoneall_RPKMratio_genic <-read.table(file = "histoneall_RPKMratio.csv", header = TRUE, sep = ",")
 
@@ -514,8 +519,10 @@ print(summary(aov(inputoverH3 ~ category, data = histoneall_RPKMratio_genic_inpu
 
 
 image.png
+thumbnail
 
-#Use the following commands to find the average signals only from flower specific DHS: 
+●
+Use the following commands to find the average signals only from flower specific DHS: 
 python3 ~/custom_scripts/chromo/run.py -d leaf_DHS.bedgraph -q flowerSpecificDHS_bp.bed -v -a leaf_flowerSpecificDHS.bedgraph
 
 python3 ~/custom_scripts/chromo/run.py -d leaf_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -a leaf_flowerSpecificDHS_allgenes.bedgraph
@@ -551,10 +558,10 @@ awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$7}' ./Rplot_tsv/flower_flowerSpecifi
 python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS_mean.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -v -a ./Rplot_tsv/flower_flowerSpecificDHS_DE24L0F_mean.tsv
 
 
-#Now try to figure out how the flower specific DHS looks:
+●
+Now try to figure out how the flower specific DHS looks:
 leaf_fsDHS_allgenes <-read.table(file = "leaf_flowerSpecificDHS_allgenes.tsv", header = FALSE, sep = "\t")
 colnames(leaf_fsDHS_DE24LM30B) <- c("chromosome","start","end","gene_id","quality","strand","signal")
-
 
 flower_leaf_fsDHS_DE24LM30B <- cbind(flower_fsDHS_DE24LM30B, leaf_fsDHS_DE24LM30B$signal)
 colnames(flower_leaf_fsDHS_DE24LM30B) <- c("chromosome","start","end","gene_id","quanlity","strand","flower_signal", "leaf_signal")
@@ -605,7 +612,9 @@ write.table(Plot_DHS_RPKM_sample_all, file = "Plot_DHS_RPKM_sample_all.tsv", app
 
 rm(list = ls())
 
-#Based on the behavior of David's code, need to multiple by the gene length first to get the sum of the signals:
+WEDNESDAY, 7/3/2019×
+●
+Based on the behavior of David's code, need to multiple by the gene length first to get the sum of the signals:
 flower_leaf_fsDHS_all_graph <- flower_leaf_fsDHS_all_graph %>% mutate(leaf_coverage = leaf_signal*(end-start), flower_coverage = flower_signal*(end-start), flower_no_leaf_coverage = flower_no_leaf*(end-start))
 
 flower_leaf_fsDHS_sample_all_graph <- flower_leaf_fsDHS_sample_all_graph %>% mutate(leaf_coverage = leaf_signal*(end-start), flower_coverage = flower_signal*(end-start), flower_no_leaf_coverage = flower_no_leaf*(end-start))
@@ -623,7 +632,34 @@ Plot_fsDHS_coverage_all$DHScondition <- factor(Plot_fsDHS_coverage_all$DHScondit
 flower_leaf_fsDHS_flower_finite <- flower_leaf_fsDHS_all_graph[is.finite(flower_leaf_fsDHS_all_graph$flower_coverage),]
 print(summary(aov(category ~ flower_coverage, data = flower_leaf_fsDHS_flower_finite)))
 
+●
+For Jefferson stuff: copy the excel into clipboard and then directly pipe pipe them into R:
+NGS_Miseq_Nextseq <- read.table(pipe("pbpaste"), sep="\t", header = TRUE, na.strings=c(""," ","NA"))
 
+NGS_MiseqPos_Nextseq <- subset(NGS_Miseq_Nextseq, NGS_Miseq_Nextseq$REF_MISEQ != "NULL")
+NGS_MiseqPos_NextseqNeg <- filter(NGS_MiseqPos_Nextseq, is.na(NGS_MiseqPos_Nextseq$ALT_NEXTSEQ))
+
+NGS_Nextseq_Miseq_filtered <- NGS_Nextseq_Miseq %>% filter(NGS_Nextseq_Miseq$ALT_FREQ <3) %>% fiter(NGS_Nextseq_Miseq$ALT_DEPTH <10) 
+
+NGS_Miseq_Nextseq$ALT_DEPTH_MISEQ <- as.numeric(NGS_Miseq_Nextseq$ALT_DEPTH_MISEQ)
+
+ggplot(NGS_MiseqPos_NextseqNeg, aes(x=ALT_DEPTH_MISEQ)) + geom_histogram(bins = 100) 
+sum(ifelse(NGS_MiseqPos_NextseqPos$REF_MISEQ==NGS_MiseqPos_NextseqPos$REF_MISEQ,1,0))
+
+has.neg <- apply(NGS_MiseqPos_NextseqPos$NGS_MiseqPos_NextseqPos$ALT_DEPTH_NextMinusMi, 1, function(row) any(row < 0))
+length(which(has.neg))
+
+ggplot(NGS_MiseqPos_NextseqPos, aes(x=ALT_DEPTH_NextMinusMi)) + geom_histogram(bins = 100) 
+
+write.table(NGS_Nextseq_MiseqNeg, file = "NGS_Nextseq_MiseqNeg.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(NGS_Miseq_NextseqNeg, file = "NGS_Miseq_NextseqNeg.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+write.table(NGS_Nextseq_MiseqNeg, file = "NGS_Nextseq_MiseqNeg.tsv", append = FALSE, quote = FALSE, sep = "\t")
+NGS_Nextseq_MiseqNeg <-read.table(file = "NGS_Nextseq_MiseqNeg.tsv", header = FALSE, sep = "\t")
+NGS_Miseq_NextseqNeg <-read.table(file = "NGS_Miseq_NextseqNeg.tsv", header = TRUE, sep = "\t")
+
+
+SATURDAY, 7/6/2019×
 python3 ~/custom_scripts/chromo/run.py -d leaf_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -a leaf_flowerSpecificDHS_allgenes.bedgraph -v -j 
 
 ./run.py -d eg_data_disjoint.tsv -q eg_query_disjoint.tsv -v -j
@@ -636,10 +672,9 @@ python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~
 python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -a flower_flowerSpecificDHS_DE24LM30F.bedgraph -v -j 
 
 python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30B_genen3kb_araport11.bed -a flower_flowerSpecificDHS_DE24LM30B.bedgraph -v -j 
-
-
-#Read samples into R first
-
+MONDAY, 7/8/2019×
+●
+Read samples into R first
 flower_fsDHS_allgenes <-read.table(file = "flower_flowerSpecificDHS_allgenes.bedgraph", header = FALSE, sep = "\t")
 colnames(flower_fsDHS_allgenes) <- c("chromosome","start","end","gene_id","quality","strand","flower_signal")
 
@@ -669,19 +704,22 @@ ggplot(plot_flower_leaf_fsDHS_sample_full, aes(x = category, y = coverage)) + fa
 plot_flower_leaf_fsDHS_full[, 9][plot_flower_leaf_fsDHS_full[, 9] == 0] <- NA
 plot_flower_leaf_fsDHS_sample_full[, 9][plot_flower_leaf_fsDHS_sample_full[, 9] == 0] <- NA
 
-
 image.png
-
-
-image.png
-
-image.png
+thumbnail
 
 
 image.png
+thumbnail
 
 
+image.png
+thumbnail
 
+
+image.png
+thumbnail
+
+WEDNESDAY, 7/10/2019×
 write.table(flower_leaf_fsDHS_sample_full, file = "flower_leaf_fsDHS_sample_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
 write.table(flower_leaf_fsDHS_full, file = "flower_leaf_fsDHS_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
 
@@ -729,9 +767,117 @@ print(summary(aov(leaf_signal ~ category, flower_leaf_fsDHS_sample_genen3kb), na
 flower_leaf_fsDHS_sum[, 7:9][flower_leaf_fsDHS_sum[, 7:9] == 0] <- NA
 flower_leaf_fsDHS_sample_sum[, 7:9][flower_leaf_fsDHS_sample_sum[, 7:9] == 0] <- NA
 
+WEDNESDAY, 7/17/2019×
+Nextseq1 <- read.table(pipe("pbpaste"), sep="\t", header = TRUE, na.strings=c(""," ","NA"))
+
+colnames(Nextseq1) <- c("MPID","RUN","GENE","CHROM","POS","REF","ALT","ALT_FREQ","ALT_DEPTH","COSMIC_NextSEQ","NT_CHANGE_NextSEQ","AA_CHANGE_NextSEQ")
+
+Nextseq1_Miseq1 <- rbind(Nextseq1[,c(1:10)], Miseq1[,c(1:10)])
+
+write.table(Nextseq1, file = "Nextseq1.csv", append = FALSE, quote = FALSE, row.names = FALSE, sep = ",")
+
+MiseqNextseq1 <-read.table(file = "MN1.tsv", header = TRUE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+MiseqNextseq2 <-read.table(file = "M2N2.tsv", header = TRUE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+
+MiseqPos_NextseqNeg_1 <- filter(MiseqNextseq1, is.na(MiseqNextseq1$GENE_MISEQ)) %>% (!is.na(MiseqNextseq1$GENE_NextSEQ))
+
+MiseqNegNextseqPos1 <- filter(MiseqNextseq1, is.na(MiseqNextseq1$GENE_MISEQ))
+   11199 --> 4532 (ALT_FREQ 3 & ALT_DEPTH 10)
+MiseqPosNextseqNeg1 <- filter(MiseqNextseq1, is.na(MiseqNextseq1$GENE_NextSEQ))
+   5502 --> 1610 (ALT_FREQ 3 & ALT_DEPTH 10)
+
+MPosNNeg1_filtered <- MiseqPosNextseqNeg1 %>% filter(ALT_FREQ_MISEQ > 3) %>% filter(ALT_DEPTH_MISEQ > 10) 
+MNegNPos1_filtered <- MiseqNegNextseqPos1 %>% filter(ALT_FREQ_NextSEQ > 3) %>% filter(ALT_DEPTH_NextSEQ > 10)  
+
+MNegNPos1_filtered_summary <- MNegNPos1_filtered %>% group_by(GENE_NextSEQ) %>% summarise_at(vars(ALT_FREQ_NextSEQ, READ_DEPTH_NextSEQ, ALT_DEPTH_NextSEQ), funs(mean(., na.rm=TRUE), sd(., na.rm=TRUE), max(., na.rm=TRUE), min(., na.rm=TRUE)))
+
+MiseqNegNextseqPos2 <- filter(MiseqNextseq2, is.na(MiseqNextseq2$GENE_MISEQ))
+   27223 --> 3282 (ALT_FREQ 3 & ALT_DEPTH 10)
+MiseqPosNextseqNeg2 <- filter(MiseqNextseq2, is.na(MiseqNextseq2$GENE_NextSEQ))
+   4321 --> 940 (ALT_FREQ 3 & ALT_DEPTH 10)
+
+MNegNPos2_filtered <- MiseqNegNextseqPos2 %>% filter(ALT_FREQ_NextSEQ > 3) %>% filter(ALT_DEPTH_NextSEQ > 10)
+MPosNNeg2_filtered <- MiseqPosNextseqNeg2 %>% filter(ALT_FREQ_MISEQ > 3) %>% filter(ALT_DEPTH_MISEQ > 10)
+
+MNegNPos2_filtered_summary <- MNegNPos2_filtered %>% group_by(GENE_NextSEQ) %>% summarise_at(vars(ALT_FREQ_NextSEQ, READ_DEPTH_NextSEQ, ALT_DEPTH_NextSEQ), funs(mean(., na.rm=TRUE), sd(., na.rm=TRUE), max(., na.rm=TRUE), min(., na.rm=TRUE)))
+
+MNegNPos2_filtered_summary <- MNegNPos2_filtered %>% group_by(GENE_NextSEQ) %>% summarise_at(vars(ALT_FREQ_NextSEQ, READ_DEPTH_NextSEQ, ALT_DEPTH_NextSEQ), funs(mean(., na.rm=TRUE), sd(., na.rm=TRUE), max(., na.rm=TRUE), min(., na.rm=TRUE)))
+
+MPosNNeg2_filtered_summary <- MPosNNeg2_filtered %>% group_by(GENE_MISEQ) %>% summarise_at(vars(ALT_FREQ_MISEQ, READ_DEPTH_MISEQ, ALT_DEPTH_MISEQ), funs(mean(., na.rm=TRUE), sd(., na.rm=TRUE), max(., na.rm=TRUE), min(., na.rm=TRUE)))
+
+MNegNPos1_filtered_summary
+
+write.table(MNegNPos1_filtered_summary, file = "MNegNPos1_filtered_summary.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(MNegNPos2_filtered_summary, file = "MNegNPos2_filtered_summary.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(MPosNNeg1_filtered_summary, file = "MPosNNeg1_filtered_summary.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(MPosNNeg2_filtered_summary, file = "MPosNNeg2_filtered_summary.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+MiseqNextseq1_NextSeqNA_summary <- MiseqNextseq1 %>% group_by(GENE_MISEQ) %>% summarise_at(vars(GENE_NextSEQ), funs(sum(is.na(.))))
+
+MiseqNextseq1_summary <- MiseqNextseq1 %>% count(GENE_MISEQ)
+
+MiseqNextseq1_NextSeqNA_summary <- cbind(MiseqNextseq1_NextSeqNA_summary, MiseqNextseq1_summary$n)
+
+colnames(MiseqNextseq1_NextSeqNA_summary) <- c("Gene Group MiSeq","# of NA in NextSeq","# of total in MiSeq")
+
+MiseqNextseq1_MISeqNA_summary <- MiseqNextseq1 %>% group_by(GENE_NextSEQ) %>% summarise_at(vars(GENE_MISEQ), funs(sum(is.na(.))))
+
+MiseqNextseq1_MISeqNA_summary <- cbind(MiseqNextseq1_MISeqNA_summary, MiseqNextseq1_summary$n)
+colnames(MiseqNextseq1_MISeqNA_summary) <- c("Gene Group NextSeq","# of NA in MISeq","# of total in NextSeq")
+
+MiseqNextseq2_separate <- separate(MiseqNextseq2, ids, into = c("ids_sample", "ids_gene", "ids_chrom", "ids_pos", "ids_ref"), sep = "\\|", remove = TRUE, convert = FALSE, extra = "warn", fill = "warn")
+
+MiseqNextseq1 <- separate(MiseqNextseq1, ids, into = c("ids_sample", "ids_gene", "ids_chrom", "ids_pos", "ids_ref"), sep = "\\|", remove = TRUE, convert = FALSE, extra = "warn", fill = "warn")
+
+MiseqNextseq1_separate_summary <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise(funs(sum(is.na(GENE_MISEQ))), funs(count(GENE_MISEQ)), funs(sum(is.na(GENE_NextSEQ))), funs(count(GENE_NextSEQ)))
+
+MiseqNextseq1_separate_summary <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(GENE_MISEQ, GENE_NextSEQ), funs(sum(is.na(.)), count(.)))
+
+MiseqNextseq1_summary <- MiseqNextseq1 %>% count(GENE_MISEQ)
+
+MiseqNextseq1_separate_summary <- cbind(MiseqNextseq1_separate_summary, Miseq1_count_temp$GENE_MISEQ)
+
+colnames(MiseqNextseq1_separate_summary) <- c("ids_genes","# of NA in MISeq","# of genes in MiSeq")
+
+Miseq1_count_temp <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(GENE_NextSEQ), funs(sum(!is.na(.))))
+
+MiseqNextseq1_separate_summary <- cbind(MiseqNextseq1_separate_summary, Miseq1_count_temp$GENE_NextSEQ)
+
+colnames(MiseqNextseq1_separate_summary) <- c("ids_genes","MISEQ_NA","MISEQ_GENE","MISEQ_TOTAL")
+
+colnames(MiseqNextseq1_separate_summary) <- c("ids_genes","MISEQ_NA","MISEQ_GENE","MISEQ_TOTAL", "NextSEQ_NA", "NextSEQ_GENE")
+
+Miseq1_count_temp <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(ALT_FREQ_MISEQ, ), funs(mean(., na.rm = TRUE))
 
 
+MiseqNextseq1_separate_summary <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(GENE_MISEQ), funs(sum(is.na(.))))
 
+Miseq1_count_temp <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(GENE_MISEQ), funs(sum(!is.na(.))))
+
+MiseqNextseq1_separate_summary <- cbind(MiseqNextseq1_separate_summary, Miseq1_count_temp$GENE_MISEQ)
+
+MiseqNextseq1_separate_summary <- MiseqNextseq1_separate_summary %>% mutate(MISEQ_total = GENE_MISEQ + Miseq1_count_temp$GENE_MISEQ)
+
+Miseq1_count_temp <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(GENE_NextSEQ), funs(sum(is.na(.))))
+
+MiseqNextseq1_separate_summary <- cbind(MiseqNextseq1_separate_summary, Miseq1_count_temp$GENE_NextSEQ)
+
+Miseq1_count_temp <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(GENE_NextSEQ), funs(sum(!is.na(.))))
+
+MiseqNextseq1_separate_summary <- cbind(MiseqNextseq1_separate_summary, Miseq1_count_temp$GENE_NextSEQ)
+
+colnames(MiseqNextseq1_separate_summary) <- c("ids_genes","MISEQ_NA","MISEQ_GENE","MISEQ_TOTAL", "NextSEQ_NA", "NextSEQ_GENE")
+
+MiseqNextseq1_separate_summary <- MiseqNextseq1_separate_summary %>% mutate(NextSEQ_TOTAL = NextSEQ_NA + NextSEQ_GENE)
+
+Miseq1_count_temp <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(ALT_FREQ_MISEQ, ALT_FREQ_NextSEQ, ALT_DEPTH_MISEQ, ALT_DEPTH_NextSEQ, READ_DEPTH_MISEQ, READ_DEPTH_NextSEQ), funs(mean(., na.rm = TRUE), min(., na.rm = TRUE), max(., na.rm = TRUE)))
+
+MiseqNextseq1_separate_summary <- cbind(MiseqNextseq1_separate_summary, Miseq1_count_temp[,c(2:19)])
+
+Miseq1_count_temp <- MiseqNextseq1_separate %>% group_by(ids_gene) %>% summarise_at(vars(ALT_FREQ_MISEQ, ALT_FREQ_NextSEQ, ALT_DEPTH_MISEQ, ALT_DEPTH_NextSEQ, READ_DEPTH_MISEQ, READ_DEPTH_NextSEQ), funs(mean(., na.rm = TRUE), min(., na.rm = TRUE), max(., na.rm = TRUE)))
+MiseqNextseq1_separate_summary <- cbind(MiseqNextseq1_separate_summary, Miseq1_count_temp[,c(2:19)])
+
+WEDNESDAY, 7/24/2019×
 ggplot(RNA_plots, aes(x = RNAtimepoint, y = absRNAlogFC)) + geom_violin(aes(fill = LM_30)) + geom_boxplot(aes(fill = LM_30), width = 0.03, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + stat_summary(fun.y=mean, geom="point", shape=23, size=2)
 
 ggplot(RNA_plots, aes(x = LM_30, y = absRNAlogFC, fill = LM_30)) + facet_grid(. ~ RNAtimepoint) + geom_violin() + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(width = 0.03, outlier.shape=NA)
@@ -777,8 +923,74 @@ write.table(histone_genic_mod_all, file = "histone_genic_mod_all_RPKM_sampled.ts
 write.table(histone_mod_all, file = "histone_genen3kb_mod_all_RPKM_sampled.tsv", append = FALSE, quote = FALSE, sep = "\t")
 
 
+FRIDAY, 7/26/2019×
+MiseqNextseq1_summary <- MiseqNextseq1 %>% group_by(RUN_MISEQ) %>% summarise_at(vars(ALT_FREQ_MISEQ, READ_DEPTH_MISEQ, ALT_DEPTH_MISEQ, ALT_FREQ_NextSEQ, READ_DEPTH_NextSEQ, ALT_DEPTH_NextSEQ), funs(mean(., na.rm=TRUE), sd(., na.rm=TRUE), max(., na.rm=TRUE), min(., na.rm=TRUE)))
+
+test <- MiseqNextseq1 %>% group_by(RUN_MISEQ) %>% summarise_at(ALT_FREQ_MISEQ, funs(mean(., na.rm=TRUE), sd(., na.rm=TRUE), max(., na.rm=TRUE), min(., na.rm=TRUE)))
+
+BRAIN = 2423
+
+MiseqNextseq1_brain_summary <- MiseqNextseq1_BRAIN %>% group_by(ids_sample) %>% summarise_at(vars(ALT_FREQ_MISEQ, READ_DEPTH_MISEQ, ALT_DEPTH_MISEQ, ALT_FREQ_NextSEQ, READ_DEPTH_NextSEQ, ALT_DEPTH_NextSEQ), funs(mean(., na.rm=TRUE), sd(., na.rm=TRUE), max(., na.rm=TRUE), min(., na.rm=TRUE)))
+
 DHS_plot_filter$DHScondition <- factor(DHS_plot_filter$DHScondition, levels=c("leaf_signal", "flower_signal"))
 
+aggregate(X ~ GENE_MISEQ, data=MiseqNextseq1_BRAIN, function(x) {sum(is.na(x))}, na.action = NULL)
+
+MN1_separate_BRAIN_MP18_00271_TD$ids_gene <- paste(MN1_separate_BRAIN_MP18_00271_TD$ids_gene, MN1_separate_BRAIN_MP18_00271_TD$ids_chrom, MN1_separate_BRAIN_MP18_00271_TD$ids_pos, MN1_separate_BRAIN_MP18_00271_TD$ids_ref, sep = "-")
+
+aggregate(GENE_MISEQ ~ ids_variants, data=MiseqNextseq1_BRAIN, function(x) {sum(is.na(x))}, na.action = NULL)
+
+colnames(brain_all_variants) <- c("ids_variants","MISEQ_called","MISEQ_missed","NextSEQ_called")
+
+Ctrl + Shift + W
+
+brain1_variants <- aggregate(id_variants ~ GENE_MISEQ, data=MN1_brain1, function(x) {sum(is.na(x))}, na.action = NULL)
+
+MN1_brain2 <- MN1_unite %>% filter(ids_sample == "MP18-02673-CG")
+
+MN1 <- read.table(file = MN1, sep = "\t", 
+MN1_separate <- separate(MN1, ids, into = c("ids_sample", "ids_gene", "ids_chrom", "ids_pos", "ids_ref"), sep = "\\|", remove = TRUE, convert = FALSE, extra = "warn", fill = "warn")
+MN1_separate <- MN1_separate %>% separate(AA_CHANGE_NextSEQ, into = c("code", "AA_NextSEQ"), sep = "\\:", remove = TRUE, convert = FALSE, extra = "warn", fill = "warn")
+
+MN1_unite <- MN1_separate %>% unite("variants_id", 16:19)
+
+MN1_unite$ALT_NextSEQ <- as.character(MN1_unite$ALT_NextSEQ)
+MN1_unite$ALT_MISEQ <- as.character(MN1_unite$ALT_MISEQ)
+
+MN1_brain2 <- MN1_unite %>% filter(ids_sample == "MP18-02673-CG")
+
+MN1_brain2_select <- MN1_brain2[c( "variants_id", "ALT_MISEQ", "NT_CHANGE_MISEQ", "ALT_NextSEQ","AA_NextSEQ")]
+MN1_brain2_select$ALT_MISEQ <- as.character(MN1_brain2_select$ALT_MISEQ)
+MN1_brain2_select$ALT_MISEQ <- as.character(MN1_brain2_select$ALT_MISEQ)
+
+MN1_brain2_NextseqNA <- MN1_brain2_select %>% filter(is.na(ALT_NextSEQ))
+MN1_brain2_MiseqNA <- MN1_brain2_select %>% filter(is.na(ALT_MISEQ))
+MN1_brain2_same <- MN1_brain2_select %>% filter(ALT_MISEQ == ALT_NextSEQ)
+MN1_brain2_all <- rbind(MN1_brain2_same, MN1_brain2_NextseqNA, MN1_brain2_MiseqNA) %>% inner_join(MN1_brain2, by = "variants_id")
+
+write.table(MN1_brain2_all, file = "MN1_brain1_all.tsv", append = FALSE, quote = FALSE, row.names = FALSE, sep = "\t")
+MN1_brain3 <- MN1_unite %>% filter(ids_sample == "MT17-167")
+MN1_brain6 <- MN1_unite %>% filter(ids_sample == "MP19-01183-01184-DT")
+
+MN1_brain2_select <- MN1_brain3[c( "variants_id", "ALT_MISEQ", "NT_CHANGE_MISEQ", "ALT_NextSEQ","AA_NextSEQ")]
+MN1_brain1_select$ALT_MISEQ <- as.character(MN1_brain1_select$ALT_MISEQ)
+MN1_brain1_select$ALT_NextSEQ <- as.character(MN1_brain1_select$ALT_NextSEQ)
+
+MN1_brain2_NextseqNA <- MN1_brain2_select %>% filter(is.na(ALT_NextSEQ))
+MN1_brain2_MiseqNA <- MN1_brain2_select %>% filter(is.na(ALT_MISEQ))
+MN1_brain2_same <- MN1_brain2_select %>% filter(ALT_MISEQ == ALT_NextSEQ)
+MN1_brain2_all <- rbind(MN1_brain2_same, MN1_brain2_NextseqNA, MN1_brain2_MiseqNA) %>% inner_join(MN1_brain2, by = "variants_id")
+
+write.table(MN1_brain2_all, file = "MN1_brain1_all.tsv", append = FALSE, quote = FALSE, row.names = FALSE, sep = "\t")
+
+dat1_frame %>%
+    group_by(MONTH.YEAR) %>%
+    summarise(count=n())
+
+SUNDAY, 8/4/2019×
+M1N1_separate <- M1N1_separate %>% separate(AA_CHANGE_NextSEQ, into = c("code", "AA_NextSEQ"), sep = "\\:", remove = TRUE, convert = FALSE, extra = "warn", fill = "warn")
+
+MONDAY, 8/5/2019×
 res.aov <- aov(RPKM ~ category, data = histone_mod)
 
 summary(res.aov)
@@ -788,8 +1000,7 @@ summary(res.aov)
 
 wilcox.test(x, y, alternative = "g")
 t.test(x, y, paired = TRUE)
-
-
+THURSDAY, 8/8/2019×
 histone_mod$category <- as.factor(histone_mod$category)
 histone_mod$category = factor(histone_mod$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
 
@@ -801,8 +1012,7 @@ DT
 PT = DT$res
 
 cldList(P.adj ~ Comparison, data = PT, threshold = 0.05)
-
-
+SATURDAY, 9/21/2019×
 RNA_logFC <-read.table(file = "DvMDE_all_logFC.tsv", header = TRUE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
 
 res.aov <- aov(absRNAlogFC ~ LM_30, data = RNA_6hr_abslogFC)
@@ -817,10 +1027,19 @@ rm(list = ls())
 ctrl + shift + W
 
 image.png
-image.png
-image.png
-image.png
+thumbnail
 
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
 
 H3_genic_DE24LM30B <-read.table(file = "Col_C14_H3_DE24LM30B_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
 H3_genic_DE24LM30F <-read.table(file = "Col_C14_H3_DE24LM30F_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
@@ -853,7 +1072,7 @@ kruskal.test(RPKM ~ category, data = H3_genic_combined_1)
 
 
 image.png
-
+thumbnail
 
 Input_all <-read.table(file = "Col_input_all_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
 Input_DE24LM30F <-read.table(file = "Col_input_DE24LM30F_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
@@ -890,18 +1109,16 @@ H3_genic_combined_3$category = factor(H3_genic_combined_3$category, levels = c("
 kruskal.test(RPKM ~ category, data = H3_genic_combined_3)
 
 
-
 image.png
-
+thumbnail
 
 nohup multiBigwigSummary bins -b RNA1HrDexA.bigwig RNA1HrMockB.bigwig RNA24hrMockA.bigwig RNA6HrDexB.bigwig RNA1HrDexB.bigwig RNA24hrDexA.bigwig RNA24hrMockB.bigwig RNA6HrMockA.bigwig RNA1HrMockA.bigwig RNA24hrDexB.bigwig RNA6HrDexA.bigwig RNA6HrMockB.bigwig -o RNA_PCA_summary.npz &
 
 
-
 image.png
+thumbnail
 
-
-
+THURSDAY, 11/14/2019×
 H3_all_RPKM <- H3_all_RPKM %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
 Input_DE24LM30F <-read.table(file = "Col_input_DE24LM30F_counts.bed", header = FALSE, sep = "\t")
 Input_background <- Input_background %>% mutate(category = "background") %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
@@ -918,8 +1135,14 @@ ggplot(Input_allcombined_raw_RPKM, aes(x = category, y = RPKM)) + geom_violin(fi
 
 
 image.png
+thumbnail
+
 
 image.png
+thumbnail
 
 
 image.png
+thumbnail
+
+SPLIT WORKSPACE
