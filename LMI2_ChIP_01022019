@@ -1,0 +1,597 @@
+LMI2 ChIP 01022019
+MONDAY, 1/21/2019
+ls ~/BaseSpace_Mount/Projects/WagnerLab_01012019/Samples/*/Files/Run* | awk -F"/" '{gsub(" ","\\ ",$0)} NR%4==1{printf "cat "$0" "}NR%4==2||NR%4==3{printf $0" "}NR%4==0{split($NF,a,"_"); printf $0"> fastq/"$8".fastq.gz\n"}'| sed -e "s/fastq\/42/fastq\//g" > scripts/rename_fastq_files.sh
+
+ls ~/BaseSpace_Mount/Projects/WagnerLab_03302019/Samples/*/Files/* | awk -F"/" '{gsub(" ","\\ ",$0)} NR%4==1{printf "cat "$0" "}NR%4==2||NR%4==3{printf $0" "}NR%4==0{split($NF,a,"_"); printf $0"> fastq/"$8".fastq.gz\n"}'| sed -e "s/fastq\/42/fastq\//g" > scripts/rename_fastq_files.sh
+
+chmod 755 scripts/rename_fastq_files.sh 
+
+nohup ./scripts/rename_fastq_files.sh > log_files/rename_fastq_files.log 2>&1 &
+●
+Run FASTQC:
+chmod 755 ~/Downloads/FastQC/fastqc
+nohup ~/Downloads/FastQC/fastqc -o ./FASTQC/raw fastq/LIM2inputA.fastq.gz fastq/LMI2DexA.fastq.gz fastq/LMI2DexB.fastq.gz fastq/LMI2inputB.fastq.gz fastq/LMI2MockA.fastq.gz fastq/LMI2MockB.fastq.gz &
+TUESDAY, 1/22/2019×
+Steps for trimming reads
+●
+Working directory: /home/runjin/LMI2
+●
+Steps
+○
+get indexes of samples from BaseSpace (/runjin/adapters/index_LMI2.txt): https://basespace.illumina.com/run/150664514/WagnerLab_01012019/samples
+LIM2inputA    ATTCAGAA    ACGTCCTG
+LMI2inputB    GAATTCGT    GTCAGTAC
+LMI2MockA    ATTACTCG    AGGATAGG
+LMI2MockB    TCCGGAGA    TCAGAGCC
+LMI2DexA    CGCTCATT    CTTCGCCT
+LMI2DexB    GAGATTCC    TAAGATTA
+○
+Get full adapters using custom script
+python ~/sammy_custom_scripts/name_truSeq-HT_adapters.py adapters/index_LMI2.txt > adapters/adapters_LMI2.txt
+○
+Then I made a script to make adapter fasta files using the command:
+cd adapters
+awk '{print "echo \\>D501-D508_Adapter > "$1"_adapters.fasta\necho "$4" >> "$1"_adapters.fasta\necho \\>D701–D712_Adapter >> "$1"_adapters.fasta\necho "$5" >> " $1"_adapters.fasta\n"}' adapters_LMI2.txt > ../scripts/get_adapters_ChIP.sh
+○
+Then I ran the customized script
+source ../scripts/get_adapters_ChIP.sh
+○
+To run Trimmomatic I first made a batch script
+A
+B
+C
+D
+1
+Started	Survived	Dropped
+2
+LMI2_inputA	30937868	30168004 (97.51%)	769864 (2.49%)
+3
+LMI2_inputB	29737631	28945505 (97.34%)	792126 (2.66%)
+4
+LMI2_MockA	49632334	49038721 (98.80%)	593613 (1.20%)
+5
+LMI2_MockB	37506289	36954701 (98.53%)	551588 (1.47%)
+6
+LMI2_DexA	34083973	33566001 (98.48%)	Dropped: 517972 (1.52%)
+7
+LMI2_DexB	32395291	31841956 (98.29%)	Dropped: 553335 (1.71%)
+Table1
+
+
+
+cd ~/LMI2/fastq
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+
+ls *.gz| awk -F"." 'BEGIN{print "#!/bin/bash"}{print "java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar SE -phred33 fastq/"$0" trimmed_fastq/"$1".trimmed.fastq  ILLUMINACLIP:adapters/"$1"_adapters.fasta:2:30:10 MINLEN:50 TOPHRED33"}' > ../scripts/trim_adapters.sh
+
+#sample script:
+java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar SE -phred33 fastq/LMI2MockA.fastq.gz trimmed_fastq/LMI2MockA.trimmed.fastq ILLUMINACLIP:adapters/LMI2MockA_adapters.fasta:2:30:10 MINLEN:50 TOPHRED33
+
+cd ..
+
+chmod 755 scripts/trim_adapters.sh
+
+qsub -V -b y -N trimming -cwd -o log_files/trimming.log -e log_files/trimming.log source ./scripts/trim_adapters.sh
+
+●
+run FASTQC on the trimmed reads
+nohup ~/Downloads/FastQC/fastqc -o FASTQC/trimmed trimmed_fastq/LIM2inputA.trimmed.fastq trimmed_fastq/LMI2inputB.trimmed.fastq trimmed_fastq/LMI2MockA.trimmed.fastq trimmed_fastq/LMI2MockB.trimmed.fastq trimmed_fastq/LMI2DexA.trimmed.fastq trimmed_fastq/LMI2DexB.trimmed.fastq &
+●
+Make batch script for mapping -- used bowtie2 for mapping:
+mkdir mapped
+mkdir log_files/bowtie2_logs
+○
+example of command line script:
+bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/LFY20minDexA.sam trimmed_fastq/RJA.trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_LFY20minDexA.log
+○
+run batch script
+awk '{print "bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/"$1".sam trimmed_fastq/"$1".trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_"$1".txt"}' ~/LFY/meta/SRX.list > scripts/bowtie2_ChIP.sh
+
+chmod 755 ./scripts/bowtie2_ChIP.sh
+nohup ./scripts/bowtie2_ChIP.sh > log_files/mapping_bowtie2.log &
+●
+to get the count of reads that mapped
+head log_files/bowtie2_logs/*| awk '$0~"^="{sub("==> log_files/bowtie2_logs/bowtie_log_","",$0);sub(".txt <==","",$0); printf "\n"$0}$0~"1 time"{printf "\t"$1}'| awk 'BEGIN{OFS="\t"} length($3)>0{print $1,$2+$3}'
+A
+B
+C
+D
+E
+F
+1
+Start	Unmapped	Mapped once	Mapped more than once	Overall mapped
+2
+LMI2_inputA	49038721	12753066 (26.01%)	24659798 (50.29%)	11625857 (23.71%)	73.99%
+3
+LMI2_inputB	36954701	11965161 (32.38%)	16898074 (45.73%)	8091466 (21.90%)	67.62%
+4
+LMI2_MockA	30168003	11656042 (38.64%)	11386707 (37.74%)	7125254 (23.62%)	61.36%
+5
+LMI2_MockB	28945505	11239361 (38.83%)	10871360 (37.56%)	6834784 (23.61%)	61.17%
+6
+LMI2_dexA	33566001	11899914 (35.45%)	13231975 (39.42%)	8434112 (25.13%)	64.55%
+7
+LMI2_dexB	31841956	11083348 (34.81%)	12718081 (39.94%)	8040527 (25.25%) 	65.19%
+8
+9
+10
+Table2
+
+
+
+●
+Steps for filtering reads
+●
+create_filtering2.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LMI2/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX_LMI2.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1796: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd ~/LMI2/mapping
+
+source ../scripts/create_filtering2.sh > ../scripts/filtering2.sh
+chmod 755 ../scripts/filtering2.sh
+nohup ../scripts/filtering2.sh > ../log_files/filtering2.log 2>&1 &
+Steps for CP10M normalization of reads for IGV
+●
+run ~/custom_scripts/bam2big_singleEnd.sh script on each bam file to get bigwigs and bedgraph files
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh mapping/greenscreen1/"$0".greenscreen1.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX_LMI2.list > scripts/bam2big.sh
+
+chmod 755 scripts/bam2big.sh
+
+nohup ./scripts/bam2big.sh > log_files/bam2big.log 2>&1 &
+WEDNESDAY, 1/23/2019×
+●
+Use filter.bam files to call peaks f greenscreening: 
+A
+B
+C
+1
+Total peak	qval10
+2
+LMI2Input	10141	1149
+3
+LMI2Mock	26667	1012
+4
+LMI2Dex	34248	1180
+5
+6
+7
+Table3
+
+
+
+nohup macs2 callpeak -t LMI2InputA.filter.bam LMI2InputB.filter.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_greenscreen -n InputLMI2 > ../log_files/macs2_input.log &
+
+To check the # of peaks that it gets:
+wc -l InputLMI2_peaks.narrowPeak
+awk '$9>=50 && $7>=2' InputLMI2_peaks.narrowPeak | wc -l 
+
+#Decide which parameters to use: use the following command to see how many peaks to remove: 
+     -- && means filter on that as well 
+awk '$9>=50 && $7>=2' InputLMI2_peaks.narrowPeak > InputLMI2_qval50_fc2.narrowPeak
+
+#to make it into a bed file -- test 6 conditions
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=2{print $1,$2,$3,$4,$7,$6}' InputLMI2_peaks.narrowPeak > InputLMI2_qval50_fc2.bed
+
+#go into nano and add the following to 1) give it a name & 2) give color 
+track name="qval50 fc2" useScore=1
+
+bedtools merge -d 2000 -c 1,7 -o count,max -i InputLMI2_qval50_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"inputLFYChIP"x,$4,".";x++}'> InputLMI2_qval150_fc2_merge2k.bed
+
+wc -l InputLMI2_qval150_fc2_merge2k.bed (79)
+
+mkdir mapping_ChIP/greenscreen1
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+awk '{print "samtools view -L MACS2_greenscreen/InputLMI2_qval150_fc2_merge2k.bed -U greenscreen1/"$0".greenscreen1.bam "$0".filter.bam -o greenscreen1/"$0".garbage.bam"}' ~/LFY/meta/SRX.list > ../scripts/greenscreen1.sh
+
+LMI2inputA
+LMI2inputB
+LMI2MockA
+LMI2MockB
+LMI2DexA
+LMI2DexB
+
+chmod 755 ../scripts/greenscreen1.sh
+
+nohup ../scripts/greenscreen1.sh > ../log_files/rungreenscreen1.log 2>&1 &
+
+qlogin -l h=node05.gpc-global
+
+rm mapping/greenscreen1/*.garbage.bam
+
+
+image.png
+thumbnail
+
+●
+Convert the narrowPeak files into bed graph
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' InputLMI2_peaks.narrowPeak > InputLMI2_qval10.bed
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' LMI2Mock_peaks.narrowPeak > LMI2Mock_qval10.bed
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' LMI2Dex_peaks.narrowPeak > LMI2Dex_qval10.bed
+
+nohup bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S LMI2InputB.sam LMI2InputB.fixed.trimmed.fastq 2> ../log_files/bowtie2_logs/bowtie_log_LMI2InputB.txt &
+A
+B
+C
+1
+Kept	Garbage
+2
+LMI2InputA	3723781	58907
+3
+LMI2InputB	2658377	42962
+4
+LMI2MockA	1881839	43187
+5
+LMI2MockB	1792990	41723
+6
+LMI2DexA	2184048	50489
+7
+LMI2DexB	2098902	47877
+Table4
+
+
+
+●
+Peak number after greenscreening:
+A
+B
+C
+D
+1
+All peaks	qval5	qval10
+2
+MockvsInput	7040	725	40
+3
+DexvsInput	10328	885	54
+4
+DexvsMock	18	2	1
+5
+Mockalone	26520	3733	844
+6
+Dexalone	34099	4313	990
+Table5
+
+
+
+nohup macs2 callpeak -t LMI2DexA.greenscreen1.bam LMI2DexB.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n Dex > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2MockA.greenscreen1.bam LMI2MockB.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n Mock > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2DexA.greenscreen1.bam LMI2DexB.greenscreen1.bam -c LMI2InputA.greenscreen1.bam LMI2InputB.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n DexvsInput > ~/LMI2/log_files/macs2_input.log &
+
+awk '$9>=5' Dex_peaks.narrowPeak | wc -l 
+awk '$9>=5' Mock_peaks.narrowPeak | wc -l
+THURSDAY, 1/24/2019×
+●
+Try running greenscreen2:
+○
+Same bed files for greenscreening
+○
+Different bam files for peak calling
+nohup macs2 callpeak -t LMI2InputA.final.bam LMI2InputB.final.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_greenscreen -n InputLMI2_gs2 > ../log_files/macs2_input.log &
+
+To check the # of peaks that it gets:
+wc -l InputLMI2_gs2_peaks.narrowPeak (1619)
+awk '$9>=10' InputLMI2_gs2_peaks.narrowPeak | wc -l (537)
+awk '$9>=50 && $7>=2' InputLMI2_gs2_peaks.narrowPeak | wc -l (79)
+awk '$9>=20 && $7>=2' InputLMI2_gs2_peaks.narrowPeak | wc -l (219)
+awk '$9>=30 && $7>=2' InputLMI2_gs2_peaks.narrowPeak | wc -l (138)
+
+#Decide which parameters to use: use the following command to see how many peaks to remove: 
+     -- && means filter on that as well 
+awk '$9>=20 && $7>=2' InputLMI2_gs2_peaks.narrowPeak > InputLMI2_qval20_fc2.narrowPeak
+awk '$9>=30 && $7>=2' InputLMI2_gs2_peaks.narrowPeak > InputLMI2_qval30_fc2.narrowPeak
+
+#to make it into a bed file -- test 6 conditions
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=2{print $1,$2,$3,$4,$7,$6}' InputLMI2_qval20_fc2.narrowPeak > InputLMI2_qval20_fc2.bed
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=2{print $1,$2,$3,$4,$7,$6}' InputLMI2_qval30_fc2.narrowPeak > InputLMI2_qval30_fc2.bed
+
+#go into nano and add the following to 1) give it a name & 2) give color 
+track name="qval50 fc2" useScore=1
+
+bedtools merge -d 2000 -c 1,7 -o count,max -i InputLMI2_qval30_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"inputLFYChIP"x,$4,".";x++}'> InputLMI2_qval30_fc2_merge2k.bed
+
+wc -l InputLMI2_qval150_fc2_merge2k.bed (79)
+
+mkdir mapping_ChIP/greenscreen1
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+awk '{print "samtools view -L MACS2_greenscreen/InputLMI2_qval50_fc2_merge2k.bed -U greenscreen1/"$0".gsLMI2.bam "$0".filter.bam -o greenscreen1/"$0".garbage.bam"}' ~/LFY/meta/SRX.list > ../scripts/greenscreen1.sh
+
+LFY1HrDexInputA
+LFY1HrDexInputB
+LFY1HrDexInputC
+
+chmod 755 ../scripts/greenscreen1.sh
+
+nohup ../scripts/greenscreen1.sh > ../log_files/rungreenscreen1.log 2>&1 &
+
+qlogin -l h=node05.gpc-global
+
+rm mapping/greenscreen1/*.garbage.bam
+A
+B
+C
+1
+Survived	Garbage
+2
+LMI2MockA	1404196	3723
+3
+LMI2MockB	1330522	3600
+4
+LMI2DexA	1696165	4019
+5
+LMI2DexB	1663879	3881
+6
+LMI2InputA	2386135	4983
+7
+LMI2InputB	1882280	4469
+Table6
+
+
+
+nohup macs2 callpeak -t LMI2DexA.greenscreen2.bam LMI2DexB.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n Dex_final > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2MockA.greenscreen2.bam LMI2MockB.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n Mock_final > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2DexA.greenscreen2.bam LMI2DexB.greenscreen2.bam -c LMI2InputA.greenscreen2.bam LMI2InputB.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n DexvsInput_final > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2MockA.greenscreen2.bam LMI2MockB.greenscreen2.bam -c LMI2InputA.greenscreen2.bam LMI2InputB.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n MockvsInput_final > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -c LMI2MockA.greenscreen2.bam LMI2MockB.greenscreen2.bam -t LMI2DexA.greenscreen2.bam LMI2DexB.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n DexvsMock_final > ~/LMI2/log_files/macs2_input.log &
+
+awk '$9>=10' MockvsInput_final_peaks.narrowPeak > MockvsInput_final_peaks.qval10.narrowPeak
+awk '$9>=10' DexvsInput_final_peaks.narrowPeak > DexvsInput_final_peaks.qval10.narrowPeak
+
+awk '$9>=5' Mock_peaks.narrowPeak | wc -l
+The following peak calling are done by the following method:
+●
+After greenscreening using InputLMI2_qval50_fc2_merge2k.bed
+●
+Used the LMI2 input files that we sent for sequencing this time as control files 
+○
+Decided to use FILTERED for the subsequent analysis
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+1
+All peaks	qval5	qval10		All peaks	qval5	qval10	Overlap	qval15		
+2
+Mock_final	9481	1225	362	Mock_filter	26520	3733	844	625			
+3
+Dex_final	17066	1825	516	Dex_filter	34099	4313	990	683			
+4
+MockvsInput_final	1282	57	0	MockvsInput_filter	7040	725	40	6	7		
+5
+DexvsInput_final	3137	123	5	DexvsInput_filter	10328	885	54	6	7		
+6
+DexvsMock_final	1	1	1	DexvsMock_filter	18	2	1				
+Table7
+
+
+
+bedtools intersect -wa -b Dex_peaks.qval5.narrowPeak -a Mock_peaks.qval5.narrowPeak -u | wc -l 
+bedtools intersect -wa -b DexvsInput_peaks.qval15.narrowPeak -a MockvsInput_peaks.qval15.narrowPeak -u | wc -l 
+
+ DexvsremapInput_peaks.narrowPeak
+awk '$9>=15' MockvsremapInput_peaks.narrowPeak > MockvInput_finalized.qval15.narrowPeak 
+bedtools intersect -wa -b MockvInput_finalized.qval15.narrowPeak -a DexvInput_finalized.qval15.narrowPeak -u | wc -l 
+A
+B
+C
+D
+1
+All peaks	qval5	qval10
+2
+MockvsLFYinput	11472	1241	81
+3
+DexvsLFYinput	17535	1623	97
+4
+MockvsLFYinput_gs	11047	1198	77
+5
+DexvsLFYinput_gs	16974	1570	93
+Table8
+
+
+
+awk '$9>=5' DexvsInput_peaks.narrowPeak > DexvsInput_peaks.qval5.narrowPeak
+awk '$9>=5' MockvsInput_peaks.narrowPeak > MockvsInput_peaks.qval5.narrowPeak
+
+awk '$9>=10' DexvsLFYinput_peaks.narrowPeak > DexvsLFYinput_peaks.qval10.narrowPeak
+awk '$9>=5' Mock_peaks.narrowPeak | wc -l
+●
+Need to convert the names first -- Sammy already has it!!
+LFY1HrDexInput.filter.Araport11.bam
+●
+First use LFY Input greenscreened against itself & LMI2 peaks greenscreened against itself to call peaks:
+nohup macs2 callpeak -t LMI2DexA.greenscreen1.bam LMI2DexB.greenscreen1.bam -c LFY1HrDexInput.filter.Araport11.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n DexvsLFYinput > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2MockA.greenscreen1.bam LMI2MockB.greenscreen1.bam -c LFY1HrDexInput.filter.Araport11.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n MockvsLFYInput > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -c LMI2MockA.greenscreen1.bam LMI2MockB.greenscreen1.bam -t LMI2DexA.greenscreen1.bam LMI2DexB.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n MockvsDex > ~/LMI2/log_files/macs2_input.log &
+
+●
+Convert the greenscreen1.bam files into bigwig files first:
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh greenscreen1/"$0".greenscreen1.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' ../meta/SRX_LMI2.list > ../scripts/bam2big.sh
+
+chmod 755 ../scripts/bam2big.sh
+
+nohup ../scripts/bam2big.sh > ../log_files/bam2big.log 2>&1 &
+●
+Merge bedgraph and calculate the averge for the pooled:
+nohup bedtools unionbedg -header -i LMI2DexA.greenscreen1en.bg LMI2DexB.greenscreen1en.bg > LMI2Dex.greenscreen1.unionbedg &
+nohup bedtools unionbedg -header -i LMI2MockA.greenscreen1en.bg LMI2MockB.greenscreen1en.bg > LMI2Mock.greenscreen1.unionbedg &
+nohup bedtools unionbedg -header -i LMI2InputA.greenscreen1en.bg LMI2InputB.greenscreen1en.bg > LMI2Input.greenscreen1.unionbedg &
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' LMI2Input.greenscreen1.unionbedg > LMI2Input_pooled_greenscreen1.bg
+sort -k1,1 -k2,2n LMI2Input_pooled_greenscreen1.bg > LMI2Input_pooled_greenscreen1.sorted.bg
+bedGraphToBigWig LMI2Input_pooled_greenscreen1.sorted.bg ~/Araport11/TAIR10_chr_count.txt LMI2Input_pooled_greenscreen1.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' LMI2Dex.greenscreen1.unionbedg > LMI2Dex_pooled_greenscreen1.bg
+sort -k1,1 -k2,2n LMI2Dex_pooled_greenscreen1.bg > LMI2Dex_pooled_greenscreen1.sorted.bg
+bedGraphToBigWig LMI2Dex_pooled_greenscreen1.sorted.bg ~/Araport11/TAIR10_chr_count.txt LMI2Dex_pooled_greenscreen1.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' LMI2Mock.greenscreen1.unionbedg > LMI2Mock_pooled_greenscreen1.bg
+sort -k1,1 -k2,2n LMI2Mock_pooled_greenscreen1.bg > LMI2Mock_pooled_greenscreen1.sorted.bg
+bedGraphToBigWig LMI2Mock_pooled_greenscreen1.sorted.bg ~/Araport11/TAIR10_chr_count.txt LMI2Mock_pooled_greenscreen1.bigwig
+FRIDAY, 1/25/2019×
+●
+Do greenscreening on the Input files after Araport11 -- Use the LMI2 greenscreen regions for that: 
+LFY1HrDexInput.filter.Araport11.bam
+
+nohup samtools view -L ./MACS2_greenscreen/InputLMI2_qval50_fc2_merge2k.bed -U greenscreen1/LFY1HrInput.chr.greenscreen1.bam greenscreen1/LFY1HrDexInput.filter.Araport11.bam -o greenscreen1/LFY1hrInput.chr.garbage.bam &
+
+nohup macs2 callpeak -t LMI2DexA.greenscreen1.bam LMI2DexB.greenscreen1.bam -c LFY1HrInput.chr.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n DexvsLFYinput_gs > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2MockA.greenscreen1.bam LMI2MockB.greenscreen1.bam -c LFY1HrInput.chr.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n MockvsLFYInput_gs > ~/LMI2/log_files/macs2_input.log &
+
+●
+Map the input files using my method:
+awk '{print "bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapping_SK/"$1".sam trimmed_fastq/"$1".trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_"$1".txt"}' meta/SRX.list > scripts/bowtie2_ChIP.sh
+
+chmod 755 ./scripts/bowtie2_ChIP.sh
+nohup ./scripts/bowtie2_ChIP.sh > log_files/mapping_bowtie2.log &
+A
+B
+C
+D
+E
+F
+1
+Total	Unmapped	Mapped once	Mapped more than once 	Total mapped
+2
+LFY1HrInputA	26324791	2864014 (10.88%)	15641477 (59.42%)	7819300 (29.70%)	89.12%
+3
+LFY1HrInputB	20329122	3829778 (18.84%)	11115445 (54.68%)	5383899 (26.48%)	81.16% 
+4
+LFY1HrInputC	24530259	4569478 (18.63%)	13475048 (54.93%)	6485733 (26.44%)	81.37%
+Table9
+
+
+
+●
+Steps for filtering reads
+●
+create_filtering2.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LFY/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd ~/LFY/mapping_SK
+
+source ../scripts/create_filtering_input.sh > ../scripts/filterinput.sh
+chmod 755 ../scripts/filterinput.sh
+nohup ../scripts/filterinput.sh > ../log_files/filterinput.log 2>&1 &
+●
+Do greenscreening on the Input files - use its own bed regions for that: 
+nohup samtools view -L InputDexAll_qval50_fc2_merge2k.bed -U greenscreen_input/LFY1HrInputA.greenscreen1.bam LFY1HrDexInputA.filter.bam -o greenscreen_input/LFY1hrInputA.garbage.bam &
+
+nohup samtools view -L InputDexAll_qval50_fc2_merge2k.bed -U greenscreen_input/LFY1HrInputB.greenscreen1.bam LFY1HrDexInputB.filter.bam -o greenscreen_input/LFY1hrInputB.garbage.bam &
+
+nohup samtools view -L InputDexAll_qval50_fc2_merge2k.bed -U greenscreen_input/LFY1HrInputC.greenscreen1.bam LFY1HrDexInputC.filter.bam -o greenscreen_input/LFY1hrInputC.garbage.bam &
+
+cp LFY1HrInput?.greenscreen1.bam ~/LMI2/mapping/greenscreen1/
+nohup macs2 callpeak -t LMI2DexA.greenscreen1.bam LMI2DexB.greenscreen1.bam -c LFY1HrInputA.greenscreen1.bam LFY1HrInputB.greenscreen1.bam LFY1HrInputC.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n DexvsremapInput > ~/LMI2/log_files/macs2_input.log &
+
+nohup macs2 callpeak -t LMI2MockA.greenscreen1.bam LMI2MockB.greenscreen1.bam -c LFY1HrInputA.greenscreen1.bam LFY1HrInputB.greenscreen1.bam LFY1HrInputC.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_peaks -n MockvsremapInput > ~/LMI2/log_files/macs2_input.log &
+A
+B
+C
+D
+E
+F
+1
+All 	qval5	Overlap with the other 	qval10	Overlap with the other 
+2
+MockvsremapInput	11472	1241	424	81	22
+3
+DexvsremapInput	17535	1623	445	97	23
+Table10
+
+
+
+TUESDAY, 1/29/2019×
+awk '$9>=10' MockvsremapInput_peaks.narrowPeak > MockvInput_finalized.qval10.narrowPeak
+awk '$9>=5' MockvsremapInput_peaks.narrowPeak > MockvInput_finalized.qval5.narrowPeak
+
+awk '$9>=10' DexvsremapInput_peaks.narrowPeak > DexvInput_finalized.qval10.narrowPeak
+awk '$9>=5' DexvsremapInput_peaks.narrowPeak > DexvInput_finalized.qval5.narrowPeak
+
+bedtools intersect -wa -b MockvInput_finalized.qval10.narrowPeak -a DexvInput_finalized.qval10.narrowPeak -u > Overlap20_qval10.narrowPeak
+
+
+MONDAY, 2/11/2019×
+LMI2Dex_pooled_greenscreen1.bigwig LMI2Mock_pooled_greenscreen1.bigwig 
+
+nohup multiBigwigSummary bins -b LMI2Dex_pooled_greenscreen1.bigwig LMI2Mock_pooled_greenscreen1.bigwig --binSize 10 -l LMI2_Dex LMI2_Mock -o LMI2_bw_corr.npz &
+
+plotCorrelation --corData LMI2_bw_corr.npz -o LMI2_bw_pearson.png -c pearson -p scatterplot -T=LMI2Correaltion_pearson --outFileCorMatrix LMI2_pearson.xls
+plotCorrelation --corData LMI2_bw_corr.npz -o LMI2_bw_spearman.png -c pearson -p scatterplot -T=LMI2Correaltion_spearman --outFileCorMatrix LMI2_spearman.xls
+SPLIT WORKSPACE
