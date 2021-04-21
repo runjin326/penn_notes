@@ -1,0 +1,925 @@
+#Parsing RNA data
+
+Ways to plot and facet the grids based on B/F -- differnet ways to separate the groups:
+> ggplot(Plot_DvM_full, aes(x = RNAtimepoint, y = RNAlogFC)) + geom_boxplot() + facet_grid(. ~ LM_30)
+
+> ggplot(Plot_DvM_full, aes(x = RNAtimepoint, y = RNAlogFC, fill = LM_30)) + geom_boxplot() 
+
+ggplot(Plot_DvM_full, aes(x = RNAtimepoint, y = RNAlogFC, color = LM_30)) +
+    geom_jitter() +
+    stat_boxplot(fill = NA)
+
+#Ways to gather certain columns not others:
+Plot_DvM_full <- gather(DvM_full_RNAFC, 'RNA2_callus_t1hr.log2FoldChange', 'RNA2_callus_t6hr.log2FoldChange', 'RNA2_callus_t24hr.log2FoldChange', key = "RNAtimepoint", value = "RNAlogFC")
+
+#Way to transform data and get another column:
+Plot_DvM_full <- mutate(Plot_DvM_full, absRNAlogFC = abs(RNAlogFC))
+
+#The way the files are generated are noted in CIM_LDL3_041619 entry:
+C14_H3K27me3_all <-read.table(file = "Col_C14_H3K27me3_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3K27me3_all) <- c("chromosome","start","end","gene_id","score","strand","raw_counts")
+
+C14_H3_all <-read.table(file = "Col_C14_H3_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3_all) <- c("chromosome","start","end","gene_id","score","strand","raw_counts")
+
+colnames(C14_H3_all) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts")
+colnames(C14_H3K4me3_all) <- c("chromosome","start","end","gene_id","score","strand","H3K4me3_raw_counts")
+colnames(C14_H3K4me2_all) <- c("chromosome","start","end","gene_id","score","strand","H3K4me2_raw_counts")
+colnames(C14_H3K4me1_all) <- c("chromosome","start","end","gene_id","score","strand","H3K4me1_raw_counts")
+
+C14_H3K27me3_LM30B_flower <-read.table(file = "Col_C14_H3K27me3_LM30B_flower_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3K27me3_LM30B_flower) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+
+C14_H3_LM30F <-read.table(file = "Col_C14_H3_LM30F_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3_LM30F) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts")
+C14_histone_mod_LM30B_flower <- cbind(C14_H3_LM30B_flower, C14_H3K4me1_LM30B_flower$H3K4me1_raw_counts, C14_H3K4me2_LM30B_flower$H3K4me2_raw_counts, C14_H3K4me3_LM30B_flower$H3K4me3_raw_counts, C14_H3K27me3_LM30B_flower$H3K27me3_raw_counts)
+
+C14_H3_all <-read.table(file = "Col_C14_H3_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3_all) <- c("chromosome","start","end","gene_id","score","strand","raw_counts")
+
+colnames(C14_H3_all) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts")
+colnames(C14_H3K4me3_all) <- c("chromosome","start","end","gene_id","score","strand","H3K4me3_raw_counts")
+colnames(C14_H3K4me2_all) <- c("chromosome","start","end","gene_id","score","strand","H3K4me2_raw_counts")
+colnames(C14_H3K4me1_all) <- c("chromosome","start","end","gene_id","score","strand","H3K4me1_raw_counts")
+
+colnames(C14_histone_mod_DE24LM30B) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts")
+
+
+aa <- aa %>% mutate(z = x+y-2)
+
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3_RPKM = H3_raw_counts*1000000*1000/(35812219*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me1_RPKM = H3K4me1_raw_counts*1000000*1000/(44255671*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me2_RPKM = H3K4me2_raw_counts*1000000*1000/(48709501*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me3_RPKM = H3K4me3_raw_counts*1000000*1000/(49361631*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K27me3_RPKM = H3K27me3_raw_counts*1000000*1000/(20134818*(end-start)))
+
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me1overH3 = H3K4me1_RPKM/H3_RPKM)
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me2overH3 = H3K4me2_RPKM/H3_RPKM)
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me3overH3 = H3K4me3_RPKM/H3_RPKM)
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K27me3overH3 = H3K27me3_RPKM/H3_RPKM)
+
+C14_histone_mod_all <- mutate(C14_histone_mod_all, category = "background")
+
+C14_histone_mod_LM30B <- subset(C14_histone_mod_LM30B, select = -c(12:20))
+C14_histone_mod_all <- subset(C14_histone_mod_all, select = -c(12))
+
+histonemod_RPKMratio_df <- rbind(C14_histone_mod_all[ ,c(17:21)], C14_histone_mod_LM30B[ ,c(17:21)], C14_histone_mod_LM30F[ ,c(17:21)], C14_histone_mod_DE24LM30B[ ,c(17:21)], C14_histone_mod_DE24LM30F[ ,c(17:21)], C14_histone_mod_LM30B_flower[ ,c(17:21)])
+
+#Callus_modification	Reads 
+#H3	35812219
+#H3K4me1	44255671
+#H3K4me2	48709501
+#H3K4me3	49361631
+#H3K27me3	20134818
+
+ggplot(histonemod_RPKMratio_df, aes(x = category, y = H3K4me2overH3, fill = category)) + geom_boxplot() 
+
+data %>% pickRandomRows(7)
+data %>% sample_n(10)
+
+histonemod_RPKMratio_sample_df <- rbind(sample_n(C14_histone_mod_all[ ,c(17:21)], 200), sample_n(C14_histone_mod_LM30B[ ,c(17:21)], 200), sample_n(C14_histone_mod_LM30F[ ,c(17:21)], 200), C14_histone_mod_DE24LM30B[ ,c(17:21)], C14_histone_mod_DE24LM30F[ ,c(17:21)], C14_histone_mod_LM30B_flower[ ,c(17:21)])
+
+#sampled 
+histonemod_RPKMratio_sample_df <- rbind(sample_n(C14_histone_mod_all[ ,c(17:21)], 200), sample_n(C14_histone_mod_LM30B[ ,c(17:21)], 200), sample_n(C14_histone_mod_LM30F[ ,c(17:21)], 200), C14_histone_mod_DE24LM30B[ ,c(17:21)], C14_histone_mod_DE24LM30F[ ,c(17:21)], C14_histone_mod_LM30B_flower[ ,c(17:21)])
+
+> View(histonemod_RPKMratio_sample_df)
+
+ggplot(histonemod_RPKMratio_sample_df, aes(x = category, y = H3K4me1overH3, fill = category)) + geom_boxplot() 
+
+ggplot(histonemod_RPKMratio_sample_df, aes(x = category, y = H3K4me2overH3, fill = category)) + geom_boxplot() 
+
+ggplot(histonemod_RPKMratio_sample_df, aes(x = category, y = H3K4me3overH3, fill = category)) + geom_boxplot() 
+
+ggplot(histonemod_RPKMratio_sample_df, aes(x = category, y = H3K27me3overH3, fill = category)) + geom_boxplot() 
+
+
+
+DvM_final_df <-read.csv(file = "DvM_final_DANPOS_genewise_ann.tsv", header = TRUE, sep = "\t")
+
+Plot_DvM_final <- gather(DvM_final_df, 'RNA2_callus_t1hr.log2FoldChange', 'RNA2_callus_t6hr.log2FoldChange', 'RNA2_callus_t24hr.log2FoldChange', key = "RNAtimepoint", value = "RNAlogFC") %>% mutate(absRANlogFC = abs(RNAlogFC))
+
+ggplot(Plot_DvM_full, aes(x = RNAtimepoint, y = absRNAlogFC)) + geom_boxplot() + facet_grid(. ~ LM_30)
+
+Plot_DvM_final <- gather(DvM_final_df, 'RNA2_callus_one.log2FoldChange', 'RNA2_callus_six.log2FoldChange', 'RNA2_callus_twentyfour.log2FoldChange', key = "RNAtimepoint", value = "RNAlogFC") %>% mutate(absRANlogFC = abs(RNAlogFC))
+
+setnames(DvM_final_df, "RNA2_callus_t1hr.log2FoldChange", "RNA2_callus_one.log2FoldChange")
+setnames(DvM_final_df, "RNA2_callus_t6hr.log2FoldChange", "RNA2_callus_six.log2FoldChange")
+setnames(DvM_final_df, "RNA2_callus_t24hr.log2FoldChange", "RNA2_callus_twentyfour.log2FoldChange")
+
+Plot_DvM_final <- gather(DvM_final_df, 'RNA2_callus_one.log2FoldChange', 'RNA2_callus_six.log2FoldChange', 'RNA2_callus_twentyfour.log2FoldChange', key = "RNAtimepoint", value = "RNAlogFC") %>% mutate(absRNAlogFC = abs(RNAlogFC))
+
+ggplot(Plot_DvM_final, aes(x = RNAtimepoint, y = absRNAlogFC)) + geom_boxplot() + facet_grid(. ~ LM_30)
+
+ggplot(Plot_DvM_final, aes(x = RNAtimepoint, y = absRNAlogFC, fill = LM_30)) + geom_boxplot()
+ggplot(Plot_DvM_final, aes(x = RNAtimepoint, y = RNAlogFC)) + geom_violin(aes(fill = LM_30)) + scale_x_discrete(labels = c("1hrDex","6hrDex","24hrDex"))
+
+ggplot(Plot_DvM_final, aes(x = RNAtimepoint, y = absRNAlogFC)) + geom_violin(aes(fill = LM_30)) + facet_grid(. ~ LM_30)
+
+labs(title = "MAIN TITLE", x = "X-AXIS TITLE", y = "Y-AXIS TITLE")
+
+
+image.png
+image.png
+
+#Redid all the files for the histone modifications: again, using the violin plot this time: 
+C14_H3K27me3_all <-read.table(file = "Col_C14_H3K27me3_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3K27me3_all) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+
+C14_H3_all <-read.table(file = "Col_C14_H3_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3_all) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts")
+
+C14_H3K27me3_DE24LM30B <-read.table(file = "Col_C14_H3K27me3_DE24LM30B_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_H3K27me3_DE24LM30B) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+
+C14_histone_mod_DE24LM30B <- cbind(C14_H3_DE24LM30B, C14_H3K4me1_DE24LM30B$H3K4me1_raw_counts, C14_H3K4me2_DE24LM30B$H3K4me2_raw_counts, C14_H3K4me3_DE24LM30B$H3K4me3_raw_counts, C14_H3K27me3_DE24LM30B$H3K27me3_raw_counts)
+
+colnames(C14_histone_mod_DE24LM30B) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts")
+
+
+aa <- aa %>% mutate(z = x+y-2)
+
+rm(list = apropos("C14_histone_mod_"))
+
+#calculate RPKM over H3 for each gene list:
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3_RPKM = H3_raw_counts*1000000*1000/(35812219*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me1_RPKM = H3K4me1_raw_counts*1000000*1000/(44255671*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me2_RPKM = H3K4me2_raw_counts*1000000*1000/(48709501*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me3_RPKM = H3K4me3_raw_counts*1000000*1000/(49361631*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K27me3_RPKM = H3K27me3_raw_counts*1000000*1000/(20134818*(end-start)))
+
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me1overH3 = H3K4me1_RPKM/H3_RPKM)
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me2overH3 = H3K4me2_RPKM/H3_RPKM)
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me3overH3 = H3K4me3_RPKM/H3_RPKM)
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K27me3overH3 = H3K27me3_RPKM/H3_RPKM)
+
+#add category column to each gene list:
+C14_histone_mod_all <- mutate(C14_histone_mod_all, category = "background")
+
+#Combine everything:
+histonemod_RPKMratio_df <- rbind(C14_histone_mod_all[ ,c(17:21)], C14_histone_mod_LM30B[ ,c(17:21)], C14_histone_mod_LM30F[ ,c(17:21)], C14_histone_mod_DE24LM30B[ ,c(17:21)], C14_histone_mod_DE24LM30F[ ,c(17:21)])
+
+#sample 200 from the background:
+histonemod_RPKMratio_sample_df <- rbind(sample_n(C14_histone_mod_all[ ,c(17:21)], 200), C14_histone_mod_LM30B[ ,c(17:21)], C14_histone_mod_LM30F[ ,c(17:21)], C14_histone_mod_DE24LM30B[ ,c(17:21)], C14_histone_mod_DE24LM30F[ ,c(17:21)])
+
+#gather the histone modification signals to make one single plot:
+histonemod_RPKMratio_final <- gather(histonemod_RPKMratio_df, 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', key = "HistoneMarks", value = "RPKMoverH3") 
+
+histonemod_RPKMratio_sample_final <- gather(histonemod_RPKMratio_sample_df , 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', key = "HistoneMarks", value = "RPKMoverH3") 
+
+#generate plots with limits and adjusted x labels:
+ggplot(histonemod_RPKMratio_final, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = HistoneMarks)) + facet_grid(. ~ HistoneMarks) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + ylim(0, 10)
+
+ggplot(histonemod_RPKMratio_sample_final, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = HistoneMarks)) + facet_grid(. ~ HistoneMarks) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + scale_color_gradient()
+
+
+
+image.png
+
+
+image.png
+
+image.png
+
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me1_RPM = H3K4me1_raw_counts*1000000)
+
+
+#generage the same files for input as well: 
+C14_input_all <-read.table(file = "LFY1HrDexInput_ProteinCodingANDmiRNA_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_input_all) <- c("chromosome","start","end","gene_id","score","strand","input_raw_counts")
+
+C14_input_DE24LM30B <-read.table(file = "Col_input_DE24LM30B_counts.bed", header = FALSE, sep = "\t")
+colnames(C14_input_DE24LM30B) <- c("chromosome","start","end","gene_id","score","strand","input_raw_counts")
+
+C14_histone_mod_DE24LM30B <- cbind(C14_H3_DE24LM30B, C14_H3K4me1_DE24LM30B$H3K4me1_raw_counts, C14_H3K4me2_DE24LM30B$H3K4me2_raw_counts, C14_H3K4me3_DE24LM30B$H3K4me3_raw_counts, C14_H3K27me3_DE24LM30B$H3K27me3_raw_counts)
+
+C14_histone_all_all <- cbind(C14_histone_mod_all, C14_input_all$input_raw_counts)
+setnames(C14_histone_all_all, "C14_input_all$input_raw_counts", "input_raw_counts")
+
+
+#read depth for input files 
+#40737302
+
+aa <- aa %>% mutate(z = x+y-2)
+
+rm(list = apropos("C14_histone_mod_"))
+
+#calculate RPKM over H3 for each gene list:
+C14_histone_all_all <- C14_histone_all_all %>% mutate(input_RPKM = input_raw_counts*1000000*1000/(40737302 *(end-start)))
+C14_histone_all_DE24LM30B <- C14_histone_all_DE24LM30B %>% mutate(input_RPKM = input_raw_counts*1000000*1000/(40737302 *(end-start)))
+C14_histone_all_DE24LM30F <- C14_histone_all_DE24LM30F %>% mutate(input_RPKM = input_raw_counts*1000000*1000/(40737302 *(end-start)))
+C14_histone_all_LM30B <- C14_histone_all_LM30B %>% mutate(input_RPKM = input_raw_counts*1000000*1000/(40737302 *(end-start)))
+C14_histone_all_LM30F <- C14_histone_all_LM30F %>% mutate(input_RPKM = input_raw_counts*1000000*1000/(40737302 *(end-start)))
+
+C14_histone_all_all <- C14_histone_all_all %>% mutate(inputoverH3 = input_RPKM/H3_RPKM)
+C14_histone_all_DE24LM30B <- C14_histone_all_DE24LM30B %>% mutate(inputoverH3 = input_RPKM/H3_RPKM)
+C14_histone_all_DE24LM30F <- C14_histone_all_DE24LM30F %>% mutate(inputoverH3 = input_RPKM/H3_RPKM)
+C14_histone_all_LM30B <- C14_histone_all_LM30B %>% mutate(inputoverH3 = input_RPKM/H3_RPKM)
+C14_histone_all_LM30F <- C14_histone_all_LM30F %>% mutate(inputoverH3 = input_RPKM/H3_RPKM)
+
+#Combine everything:
+histoneall_RPKMratio_df <- rbind(C14_histone_all_all[ ,c(17:21, 24)], C14_histone_all_LM30B[ ,c(17:21, 24)], C14_histone_all_LM30F[ ,c(17:21, 24)], C14_histone_all_DE24LM30B[ ,c(17:21, 24)], C14_histone_all_DE24LM30F[ ,c(17:21,24)])
+
+#sample 200 from the background:
+histoneall_RPKMratio_sample_df <- rbind(sample_n(C14_histone_all_all[ ,c(17:21, 24)], 200), C14_histone_all_LM30B[ ,c(17:21, 24)], C14_histone_all_LM30F[ ,c(17:21, 24)], C14_histone_all_DE24LM30B[ ,c(17:21, 24)], C14_histone_all_DE24LM30F[ ,c(17:21,24)])
+
+#gather the histone modification signals to make one single plot:
+histoneall_RPKMratio_final <- gather(histoneall_RPKMratio_df, 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', 'inputoverH3', key = "MarksnInput", value = "RPKMoverH3") 
+
+histoneall_RPKMratio_sample_final <- gather(histoneall_RPKMratio_sample_df , 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', 'inputoverH3', key = "MarksnInput", value = "RPKMoverH3") 
+
+#generate plots with limits and adjusted x labels:
+ggplot(histoneall_RPKMratio_final, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = MarksnInput), trim = TRUE) + facet_grid(. ~ MarksnInput) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + ylim(0, 8) + geom_boxplot(width = 0.1, outlier.shape=NA)
+
+ggplot(histoneall_RPKMratio_sample_final, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = MarksnInput), trim = TRUE) + facet_grid(. ~ MarksnInput) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), ) + geom_boxplot(width = 0.1, outlier.shape=NA) + ylim(0, 8)
+
+histoneall_RPKMratio_sample_final$category <- factor(histoneall_RPKMratio_sample_final$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+histoneall_RPKMratio_final$category <- factor(histoneall_RPKMratio_final$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+
+#ways to make the labels a certain seuqence as I want:
+histoneall_RPKMratio_sample_final$category <- factor(histoneall_RPKMratio_sample_final$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+histoneall_RPKMratio_final$category <- factor(histoneall_RPKMratio_final$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+write.csv(histoneall_RPKMratio_sample_df, file = "histoneall_RPKMratio_sample.csv")
+
+#clear R environment & garbage in memory:
+rm(list=ls())
+gc()
+
+Now starting to look at the 3kb upstream region and generate the files for the
+
+ProteinANDmiRNA_araport11 <- read.table(file = "Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed", header = FALSE, sep = "\t")
+colnames(ProteinANDmiRNA_araport11) <- c("chromosome","start","end","gene_id","score","strand")
+
+positive_gene_miRNA <- filter(ProteinANDmiRNA_araport11, strand == "+")
+negative_gene_miRNA <- filter(ProteinANDmiRNA_araport11, strand == "-")
+
+positive_3kbup_gene_miRNA <- mutate(positive_gene_miRNA, start = start - 3000)
+negative_3kbup_gene_miRNA <- mutate(negative_gene_miRNA, end = end + 3000)
+
+up3kb_only_araport11 <- rbind(positive_3kbup_gene_miRNA, negative_3kbup_gene_miRNA)
+
+#and then view the files to make sure and sort on the start to make sure they are all positive --> and then use the assign functions from R if they are actually negative - assign 1 to them:
+
+genic_3kb_araport11$start[3643] <- 1
+genic_3kb_araport11$start[3644] <- 1
+
+up3kb_only_araport11$start[3643] <- 1
+up3kb_only_araport11$start[3644] <- 1
+
+write.table(genic_3kb_araport11, file = "genic_3kb_araport11.bed", append = FALSE, quote = FALSE, sep = "\t")
+write.table(up3kb_only_araport11, file = "up3kb_only_araport11.bed", append = FALSE, quote = FALSE, sep = "\t")
+
+#remember to use nano to remove the header and then use the "cut" in awk to generate a real bed file:
+cut -f2- genic_3kb_araport11.bed > genic_3kb_araport11_final.bed
+cut -f2- up3kb_only_araport11.bed > up3kb_araport11_final.bed
+
+#sort the bed files for overlap
+bedtools sort -i genic_3kb_araport11_final.bed > genic_3kb_araport11.bed
+bedtools sort -i up3kb_araport11_final.bed > up3kb_only_araport11.bed
+
+#final names of the files being used:
+genic_3kb_araport11.bed
+up3kb_only_araport11.bed
+
+#do the violin plot for the up3kb only region:
+H3K27me3_up3kb_all <-read.table(file = "H3K27me3_all_up3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_up3kb_all) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_LM30B_3kbOnly <-read.table(file = "H3K27me3_LM30B_3kbOnly_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_LM30B_3kbOnly) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_LM30F_3kbOnly <-read.table(file = "H3K27me3_LM30F_3kbOnly_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_LM30F_3kbOnly) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_DE24LM30B_3kbOnly <-read.table(file = "H3K27me3_DE24LM30B_3kbOnly_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_DE24LM30B_3kbOnly) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_DE24LM30F_3kbOnly <-read.table(file = "H3K27me3_DE24LM30F_3kbOnly_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_DE24LM30F_3kbOnly) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+
+LFYDexinput_up3kb_all <-read.table(file = "LFY1HrDexInput_all_up3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(LFYDexinput_up3kb_all) <- c("chromosome","start","end","gene_id","score","strand","input_raw_counts")
+LFYDexinput_DE24LM30B_3kbOnly <-read.table(file = "LFY1HrDexInput_DE24LM30B_3kbOnly_counts.bed", header = FALSE, sep = "\t")
+colnames(LFYDexinput_DE24LM30B_3kbOnly) <- c("chromosome","start","end","gene_id","score","strand","input_raw_counts")
+
+callus_markninput_LM30B_3kbOnly <- cbind(H3_LM30B_3kbOnly, H3K4me1_LM30B_3kbOnly$H3K4me1_raw_counts, H3K4me2_LM30B_3kbOnly$H3K4me2_raw_counts, H3K4me3_LM30B_3kbOnly$H3K4me3_raw_counts, H3K27me3_LM30B_3kbOnly$H3K27me3_raw_counts, LFYDexinput_LM30B_3kbOnly$input_raw_counts)
+
+colnames(callus_markninput_LM30B_3kbOnly) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts","input_raw_counts")
+
+#next calculate the RPKM:
+aa <- aa %>% mutate(z = x+y-2)
+
+rm(list = apropos("C14_histone_mod_"))
+
+callus_markninput_3kbOnly_all
+callus_markninput_DE24LM30B_3kbOnly
+callus_markninput_DE24LM30F_3kbOnly
+callus_markninput_LM30B_3kbOnly
+callus_markninput_LM30F_3kbOnly
+
+#calculate RPKM over H3 for each gene list:
+
+callus_markninput_DE24LM30F_3kbOnly <- callus_markninput_DE24LM30F_3kbOnly %>% mutate(input_RPKM = input_raw_counts*1000000*1000/(40737302 *(end-start))) %>% mutate(H3_RPKM = H3_raw_counts*1000000*1000/(35812219*(end-start))) %>% mutate(H3K4me1_RPKM = H3K4me1_raw_counts*1000000*1000/(44255671*(end-start))) %>% mutate(H3K4me2_RPKM = H3K4me2_raw_counts*1000000*1000/(48709501*(end-start))) %>% mutate(H3K4me3_RPKM = H3K4me3_raw_counts*1000000*1000/(49361631*(end-start))) %>% mutate(H3K27me3_RPKM = H3K27me3_raw_counts*1000000*1000/(20134818*(end-start))) %>% mutate(inputoverH3 = input_RPKM/H3_RPKM) %>% mutate(H3K4me1overH3 = H3K4me1_RPKM/H3_RPKM) %>% mutate(H3K4me2overH3 = H3K4me2_RPKM/H3_RPKM) %>% mutate(H3K4me3overH3 = H3K4me3_RPKM/H3_RPKM) %>% mutate(H3K27me3overH3 = H3K27me3_RPKM/H3_RPKM) %>% mutate(category = "DE24LM30F")
+
+#Combine everything:
+histoneall_RPKMratio_3kbOnly <- rbind(callus_markninput_3kbOnly_all[ ,c(19:24)], callus_markninput_LM30B_3kbOnly[ ,c(19:24)], callus_markninput_LM30F_3kbOnly[ ,c(19:24)], callus_markninput_DE24LM30B_3kbOnly[ ,c(19:24)], callus_markninput_DE24LM30F_3kbOnly[ ,c(19:24)])
+
+#sample 200 from the background:
+histoneall_RPKMratio_sample_3kbOnly <- rbind(sample_n(callus_markninput_3kbOnly_all[ ,c(19:24)], 200), callus_markninput_LM30B_3kbOnly[ ,c(19:24)], callus_markninput_LM30F_3kbOnly[ ,c(19:24)], callus_markninput_DE24LM30B_3kbOnly[ ,c(19:24)], callus_markninput_DE24LM30F_3kbOnly[ ,c(19:24)])
+
+#gather the histone modification signals to make one single plot:
+histoneall_RPKMratio_sample_3kbOnly <- gather(histoneall_RPKMratio_sample_3kbOnly, 'inputoverH3', 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', key = "MarksnInput", value = "RPKMoverH3") 
+
+histoneall_RPKMratio_3kbOnly <- gather(histoneall_RPKMratio_3kbOnly, 'inputoverH3', 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', key = "MarksnInput", value = "RPKMoverH3") 
+
+#generate plots with limits and adjusted x labels:
+histoneall_RPKMratio_sample_3kbOnly$category <- factor(histoneall_RPKMratio_sample_3kbOnly$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+ggplot(histoneall_RPKMratio_sample_3kbOnly, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = MarksnInput), trim = TRUE) + facet_grid(. ~ MarksnInput) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + ylim(0, 8) + geom_boxplot(width = 0.1, outlier.shape=NA)
+
+ggplot(histoneall_RPKMratio_3kbOnly, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = MarksnInput), trim = TRUE) + facet_grid(. ~ MarksnInput) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), ) + geom_boxplot(width = 0.1, outlier.shape=NA) + ylim(0, 8)
+
+ggplot(histoneall_RPKMratio_3kbOnly, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = MarksnInput), trim = TRUE) + facet_grid(. ~ MarksnInput) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + ylim(0, 6) + geom_boxplot(width = 0.1, outlier.shape=NA)
+
+ggplot(H3_all_RPKM, aes(x = category, y = V7)) + geom_violin(aes(fill = Category), trim = TRUE) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5), ) + geom_boxplot(width = 0.1, outlier.shape=NA) 
+
+
+
+#do the violin plot for genic&3kb only region:
+H3K27me3_genen3kb_all <-read.table(file = "H3K27me3_all_genen3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_genen3kb_all) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_LM30B_genen3kb <-read.table(file = "H3K27me3_LM30B_genen3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_LM30B_genen3kb) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_LM30F_genen3kb <-read.table(file = "H3K27me3_LM30F_genen3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_LM30F_genen3kb) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_DE24LM30B_genen3kb <-read.table(file = "H3K27me3_DE24LM30B_genen3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_DE24LM30B_genen3kb) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+H3K27me3_DE24LM30F_genen3kb <-read.table(file = "H3K27me3_DE24LM30F_genen3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(H3K27me3_DE24LM30F_genen3kb) <- c("chromosome","start","end","gene_id","score","strand","H3K27me3_raw_counts")
+
+LFYDexinput_genen3kb_all <-read.table(file = "LFY1HrDexInput_all_genen3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(LFYDexinput_genen3kb_all) <- c("chromosome","start","end","gene_id","score","strand","input_raw_counts")
+LFY1HrDexInput_DE24LM30B_genen3kb <-read.table(file = "LFY1HrDexInput_DE24LM30B_genen3kb_counts.bed", header = FALSE, sep = "\t")
+colnames(LFY1HrDexInput_DE24LM30B_genen3kb) <- c("chromosome","start","end","gene_id","score","strand","input_raw_counts")
+
+callus_markninput_DE24LM30B_genen3kb <- cbind(H3_DE24LM30B_genen3kb, H3K4me1_DE24LM30B_genen3kb$H3K4me1_raw_counts, H3K4me2_DE24LM30B_genen3kb$H3K4me2_raw_counts, H3K4me3_DE24LM30B_genen3kb$H3K4me3_raw_counts, H3K27me3_DE24LM30B_genen3kb$H3K27me3_raw_counts, LFY1HrDexInput_DE24LM30B_genen3kb$input_raw_counts)
+
+colnames(callus_markninput_DE24LM30B_genen3kb) <- c("chromosome","start","end","gene_id","score","strand","H3_raw_counts","H3K4me1_raw_counts","H3K4me2_raw_counts","H3K4me3_raw_counts","H3K27me3_raw_counts","input_raw_counts")
+
+#next calculate the RPKM:
+aa <- aa %>% mutate(z = x+y-2)
+
+rm(list = apropos("C14_histone_mod_"))
+
+callus_markninput_3kbOnly_all
+callus_markninput_DE24LM30B_3kbOnly
+callus_markninput_DE24LM30F_3kbOnly
+callus_markninput_LM30B_3kbOnly
+callus_markninput_LM30F_3kbOnly
+
+#calculate RPKM over H3 for each gene list:3
+
+callus_markninput_genen3kb_all <- callus_markninput_genen3kb_all %>% mutate(input_RPKM = input_raw_counts*1000000*1000/(40737302 *(end-start))) %>% mutate(H3_RPKM = H3_raw_counts*1000000*1000/(35812219*(end-start))) %>% mutate(H3K4me1_RPKM = H3K4me1_raw_counts*1000000*1000/(44255671*(end-start))) %>% mutate(H3K4me2_RPKM = H3K4me2_raw_counts*1000000*1000/(48709501*(end-start))) %>% mutate(H3K4me3_RPKM = H3K4me3_raw_counts*1000000*1000/(49361631*(end-start))) %>% mutate(H3K27me3_RPKM = H3K27me3_raw_counts*1000000*1000/(20134818*(end-start))) %>% mutate(inputoverH3 = input_RPKM/H3_RPKM) %>% mutate(H3K4me1overH3 = H3K4me1_RPKM/H3_RPKM) %>% mutate(H3K4me2overH3 = H3K4me2_RPKM/H3_RPKM) %>% mutate(H3K4me3overH3 = H3K4me3_RPKM/H3_RPKM) %>% mutate(H3K27me3overH3 = H3K27me3_RPKM/H3_RPKM) %>% mutate(category = "background")
+
+#Combine everything:
+histoneall_RPKMratio_genen3kb <- rbind(callus_markninput_genen3kb_all[ ,c(19:24)], callus_markninput_LM30B_genen3kb[ ,c(19:24)], callus_markninput_LM30F_genen3kb[ ,c(19:24)], callus_markninput_DE24LM30B_genen3kb[ ,c(19:24)], callus_markninput_DE24LM30F_genen3kb[ ,c(19:24)])
+
+#sample 200 from the background:
+histoneall_RPKMratio_sample_genen3kb <- rbind(sample_n(callus_markninput_genen3kb_all[ ,c(19:24)], 200), callus_markninput_LM30B_genen3kb[ ,c(19:24)], callus_markninput_LM30F_genen3kb[ ,c(19:24)], callus_markninput_DE24LM30B_genen3kb[ ,c(19:24)], callus_markninput_DE24LM30F_genen3kb[ ,c(19:24)])
+
+#generate plots with limits and adjusted x labels:
+histoneall_RPKMratio_sample_genen3kb$category <- factor(histoneall_RPKMratio_sample_genen3kb$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+histoneall_RPKMratio_genen3kb$category <- factor(histoneall_RPKMratio_genen3kb$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+#gather the histone modification signals to make one single plot:
+histoneall_RPKMratio_sample_genen3kb <- gather(histoneall_RPKMratio_sample_genen3kb, 'inputoverH3', 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', key = "MarksnInput", value = "RPKMoverH3") 
+
+histoneall_RPKMratio_genen3kb <- gather(histoneall_RPKMratio_genen3kb, 'inputoverH3', 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', key = "MarksnInput", value = "RPKMoverH3") 
+
+ggplot(histoneall_RPKMratio_sample_genen3kb, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = MarksnInput), trim = TRUE) + facet_grid(. ~ MarksnInput) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(width = 0.1, outlier.shape=NA)
+
+ggplot(histoneall_RPKMratio_genen3kb, aes(x = category, y = RPKMoverH3)) + geom_violin(aes(fill = MarksnInput), trim = TRUE) + facet_grid(. ~ MarksnInput) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(width = 0.1, outlier.shape=NA) + ylim(0, 6) 
+
+write.table(histoneall_RPKMratio_sample_genen3kb, file = "histoneall_RPKMratio_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+write.table(histoneall_RPKMratio_sample_genen3kb, file = "histoneall_RPKMratio_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+
+dexVmock_t1hr_all <-read.delim(file = "dexVmock_t1hr.txt", header = TRUE, sep = "\t")
+dexVmock_t6hr_all <-read.delim(file = "dexVmock_t6hr.txt", header = TRUE, sep = "\t")
+dexVmock_t24hr_all <-read.delim(file = "dexVmock_t24hr.txt", header = TRUE, sep = "\t")
+
+dexVmock_t1hr_all <- mutate(dexVmock_t1hr_all, RNAtimepoint = "RNA2_callus_one.log2FoldChange", LM_30 = "background")
+dexVmock_t6hr_all <- mutate(dexVmock_t6hr_all, RNAtimepoint = "RNA2_callus_six.log2FoldChange", LM_30 = "background")
+dexVmock_t24hr_all <- mutate(dexVmock_t24hr_all, RNAtimepoint = "RNA2_callus_twentyfour.log2FoldChange", LM_30 = "background")
+
+colnames(dexVmock_t1hr_all) <- c("gene_id", "gene_name", "baseMean", "RNAlogFC", "lfcSE", "stat", "pvalue", "padj", "RNAtimepoint", "LM_30")
+colnames(dexVmock_t6hr_all) <- c("gene_id", "gene_name", "baseMean", "RNAlogFC", "lfcSE", "stat", "pvalue", "padj", "RNAtimepoint", "LM_30")
+colnames(dexVmock_t24hr_all) <- c("gene_id", "gene_name", "baseMean", "RNAlogFC", "lfcSE", "stat", "pvalue", "padj", "RNAtimepoint", "LM_30")
+
+Plot_DvM_final <- read.csv(file = "Plot_DvM_final.csv", header = TRUE, sep = ",")
+DvM_LFY_DE <- Plot_DvM_final %>% select(RNAlogFC, RNAtimepoint, LM_30)
+
+DvMDE_all_logFC <- rbind(DvM_LFY_DE, dexVmock_t1hr_all[ ,c(4,9,10)], dexVmock_t6hr_all[ ,c(4,9,10)], dexVmock_t24hr_all[ ,c(4,9,10)]) %>% mutate(absRNAlogFC = abs(RNAlogFC))
+DvMDE_sample_logFC <- rbind(DvM_LFY_DE, sample_n(dexVmock_t1hr_all[ ,c(4,9,10)], 6), sample_n(dexVmock_t6hr_all[ ,c(4,9,10)], 33), sample_n(dexVmock_t24hr_all[ ,c(4,9,10)], 303)) %>% mutate(absRNAlogFC = abs(RNAlogFC))
+
+ggplot(DvMDE_sample_logFC, aes(x = LM_30, y = absRNAlogFC)) + geom_violin(aes(fill = LM_30), trim = TRUE) + facet_grid(. ~ RNAtimepoint) + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+ggplot(DvMDE_all_logFC, aes(x = LM_30, y = absRNAlogFC)) + geom_violin(aes(fill = LM_30), trim = TRUE) + facet_grid(. ~ RNAtimepoint) + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+ggplot(DvMDE_sample_logFC, aes(x = RNAtimepoint, y = RNAlogFC, fill = LM_30)) + geom_boxplot(outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + scale_x_discrete(labels=c("RNA2_callus_one.log2FoldChange" = "RNAlogFC 1hr", "RNA2_callus_six.log2FoldChange" = "RNAlogFC 6hr", "RNA2_callus_twentyfour.log2FoldChange" = "RNAlogFC 24hr")) + ylim(-2.5, 3)
+
+
+
+write.table(DvMDE_all_logFC, file = "DvMDE_all_logFC.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(DvMDE_sample_logFC, file = "DvMDE_sample_logFC.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+rm(list = ls())
+gc()
+
+
+
+
+leafDHS_DE24LM30B <-read.table(file = "leafDHS_DE24LM30B_genen3kb_signalmean.tsv", header = FALSE, sep = "\t")
+colnames(leafDHS_DE24LM30B) <- c("chromosome","start","end","gene_id","quanlity","strand","signal")
+
+leafDHS_all <-read.table(file = "leafDHS_ProteinCodingANDmiRNAgenes_signalmean.tsv", header = FALSE, sep = "\t")
+colnames(leafDHS_all) <- c("chromosome","start","end","gene_id","quanlity","strand","signal")
+
+
+flower_leaf_DHS_all <- cbind(flowerDHS_all, leafDHS_all$signal)
+colnames(flower_leaf_DHS_all) <- c("chromosome","start","end","gene_id","quanlity","strand","flower_signal", "leaf_signal")
+
+flower_leaf_DHS_all <- flower_leaf_DHS_all %>% mutate(flower_no_leaf = flower_signal - leaf_signal, category = "background")
+
+flower_leaf_DHS_all_graph <- rbind(flower_leaf_DHS_all[ ,c(1:4,7:10)], flower_leaf_DHS_LM30F[ ,c(1:4,7:10)], flower_leaf_DHS_LM30B[ ,c(1:4,7:10)], flower_leaf_DHS_DE24LM30F[ ,c(1:4,7:10)], flower_leaf_DHS_DE24LM30B[ ,c(1:4,7:10)])
+
+flower_leaf_DHS_sample_all_graph <- rbind(sample_n(flower_leaf_DHS_all[ ,c(1:4,7:10)],694), flower_leaf_DHS_LM30F[ ,c(1:4,7:10)], flower_leaf_DHS_LM30B[ ,c(1:4,7:10)], flower_leaf_DHS_DE24LM30F[ ,c(1:4,7:10)], flower_leaf_DHS_DE24LM30B[ ,c(1:4,7:10)])
+
+flower_leaf_DHS_all_graph <- flower_leaf_DHS_all_graph %>% mutate(leaf_RPKM = leaf_signal*1000/(end-start), flower_RPKM = flower_signal*1000/(end-start), flower_no_leaf_RPKM = flower_no_leaf*1000/(end-start))
+
+flower_leaf_DHS_sample_all_graph <- flower_leaf_DHS_sample_all_graph %>% mutate(leaf_RPKM = leaf_signal*1000/(end-start), flower_RPKM = flower_signal*1000/(end-start), flower_no_leaf_RPKM = flower_no_leaf*1000/(end-start))
+
+Plot_DHS_all <- gather(flower_leaf_DHS_all_graph, 'flower_signal', 'leaf_signal', 'flower_no_leaf', key = "DHScondition", value = "DHSsignal")
+
+Plot_DHS_sample_all <- gather(flower_leaf_DHS_sample_all_graph, 'flower_signal', 'leaf_signal', 'flower_no_leaf', key = "DHScondition", value = "DHSsignal")
+
+Plot_DHS_RPKM_all <- gather(flower_leaf_DHS_all_graph, 'leaf_RPKM', 'flower_RPKM', 'flower_no_leaf_RPKM', key = "DHScondition", value = "DHS_RPKM")
+
+Plot_DHS_RPKM_sample_all <- gather(flower_leaf_DHS_sample_all_graph, 'leaf_RPKM', 'flower_RPKM', 'flower_no_leaf_RPKM', key = "DHScondition", value = "DHS_RPKM")
+
+Plot_DHS_RPKM_sample_all$category <- factor(Plot_DHS_RPKM_sample_all$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+Plot_DHS_RPKM_sample_all$DHScondition <- factor(Plot_DHS_RPKM_sample_all$DHScondition, levels=c("leaf_RPKM", "flower_RPKM", "flower_no_leaf_RPKM"))
+
+ggplot(Plot_DHS_RPKM_all, aes(x = category, y = DHS_RPKM)) + geom_violin(aes(fill = DHScondition)) + facet_grid(. ~ DHScondition) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(width = 0.1, outlier.shape=NA) + ylim(-1,2)
+
+ggplot(Plot_DHS_RPKM_all, aes(x = DHScondition, y = DHS_RPKM)) + geom_violin(aes(fill = category)) + facet_grid(. ~ category) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(width = 0.1, outlier.shape=NA) + ylim(-1,2)
+
+res.aov <- aov(category ~ DHS_RPKM, data = Plot_DHS_RPKM_all)
+
+flower_leaf_DHS_all_graph$category <- factor(flower_leaf_DHS_all_graph$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+flower_leaf_DHS_all_graph$flower_RPKM <- as.numeric(as.character(flower_leaf_DHS_all_graph$flower_RPKM))
+flower_leaf_DHS_all_graph$leaf_RPKM <- as.numeric(as.character(flower_leaf_DHS_all_graph$leaf_RPKM))
+
+res.aov <- aov(category ~ flower_RPKM, data = flower_leaf_DHS_all_graph)
+res.aov <- aov(flower_RPKM ~ category, data = flower_leaf_DHS_sample_all_graph)
+summary(res.aov)
+
+levels(flower_leaf_DHS_all_graph$category)
+summary(res.aov)
+
+write.table(Plot_DHS_RPKM_all, file = "Plot_DHS_RPKM_all.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(Plot_DHS_RPKM_sample_all, file = "Plot_DHS_RPKM_sample_all.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+rm(list = ls())
+
+
+#Now trying to figure out the qval for the histone modification:
+histoneall_RPKMratio_genen3kb <-read.table(file = "histoneall_RPKMratio_genen3kb.tsv", header = TRUE, sep = "\t")
+histoneall_RPKMratio_genic <-read.table(file = "histoneall_RPKMratio.csv", header = TRUE, sep = ",")
+
+histonemod_RPKMratio_final <- spread(histoneall_RPKMratio_genen3kb, 'H3K4me1overH3', 'H3K4me2overH3', 'H3K4me3overH3', 'H3K27me3overH3', key = "MarksnInput", value = "RPKMoverH3") 
+
+histoneall_RPKMratio_genen3kb_spread <- histoneall_RPKMratio_genen3kb %>% group_by(category) %>% tibble::rowid_to_column() %>% spread(key = MarksnInput, value = RPKMoverH3)
+
+histoneall_RPKMratio_genic <-read.table(file = "histoneall_RPKMratio.csv", header = TRUE, sep = ",")
+print(summary(aov(H3K4me1overH3 ~ category, data = histoneall_RPKMratio_genic)))
+
+histoneall_RPKMratio_genic$category <- factor(histoneall_RPKMratio_genic$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+print(summary(aov(H3K4me1overH3 ~ category, data = histoneall_RPKMratio_genic), na.action=na.omit))
+
+histoneall_RPKMratio_genic_inputfinite <- histoneall_RPKMratio_genic[is.finite(histoneall_RPKMratio_genic$inputoverH3),]
+print(summary(aov(inputoverH3 ~ category, data = histoneall_RPKMratio_genic_inputfinite)))
+
+
+image.png
+
+#Use the following commands to find the average signals only from flower specific DHS: 
+python3 ~/custom_scripts/chromo/run.py -d leaf_DHS.bedgraph -q flowerSpecificDHS_bp.bed -v -a leaf_flowerSpecificDHS.bedgraph
+
+python3 ~/custom_scripts/chromo/run.py -d leaf_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -a leaf_flowerSpecificDHS_allgenes.bedgraph
+
+#first find the signals for just the flower specific region:
+python3 ~/custom_scripts/chromo/run.py -d leaf_DHS.bedgraph -q flowerSpecificDHS_bp.bed -a leaf_flowerSpecificDHS.bedgraph
+
+python3 ~/custom_scripts/chromo/run.py -d flower_DHS.bedgraph -q flowerSpecificDHS_bp.bed -a flower_flowerSpecificDHS.bedgraph
+
+#then calculate the mean for each specific region -- first calculate the signals in all the genes and later calculate the signals in the gene lists that I am interested in:
+
+python3 ~/custom_scripts/chromo/run.py -d leaf_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -a ./Rplot_tsv/leaf_flowerSpecificDHS_allgenes.bedgraph
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/genic_3kb_araport11.bed -a ./Rplot_tsv/flower_flowerSpecificDHS_allgenes.bedgraph
+
+LM30F_genen3kb_araport11.bed
+LM30B_genen3kb_araport11.bed
+DE24LM30F_genen3kb_araport11.bed
+DE24LM30B_genen3kb_araport11.bed
+
+python3 ~/custom_scripts/chromo/run.py -d leaf_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -a ./Rplot_tsv/leaf_flowerSpecificDHS_DE24LM30F.bedgraph
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -a ./Rplot_tsv/flower_flowerSpecificDHS_DE24LM30F.bedgraph
+
+mv ./Rplot_tsv/flower_flowerSpecificDHS_DE24LM30B.bedgraph ./Rplot_tsv/flower_flowerSpecificDHS_DE24LM30B.tsv
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -v -a ./Rplot_tsv/flower_flowerSpecificDHS_DE24LM30F.bedgraph
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q flowersNotLeafsDHS.bed -v -a ./Rplot_tsv/flower_flowerSpecificDHS_mean.bedgraph
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$7}' ./Rplot_tsv/flower_flowerSpecificDHS_mean.bedgraph > flower_flowerSpecificDHS_mean.bedgraph 
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS_mean.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -v -a ./Rplot_tsv/flower_flowerSpecificDHS_DE24L0F_mean.tsv
+
+
+#Now try to figure out how the flower specific DHS looks:
+leaf_fsDHS_allgenes <-read.table(file = "leaf_flowerSpecificDHS_allgenes.tsv", header = FALSE, sep = "\t")
+colnames(leaf_fsDHS_DE24LM30B) <- c("chromosome","start","end","gene_id","quality","strand","signal")
+
+
+flower_leaf_fsDHS_DE24LM30B <- cbind(flower_fsDHS_DE24LM30B, leaf_fsDHS_DE24LM30B$signal)
+colnames(flower_leaf_fsDHS_DE24LM30B) <- c("chromosome","start","end","gene_id","quanlity","strand","flower_signal", "leaf_signal")
+flower_leaf_fsDHS_LM30F <- flower_leaf_fsDHS_LM30F %>% mutate(flower_no_leaf = flower_signal - leaf_signal, category = "LM30F")
+
+flower_leaf_fsDHS_all_graph <- rbind(flower_leaf_fsDHS_all[ ,c(1:4,7:10)], flower_leaf_fsDHS_LM30F[ ,c(1:4,7:10)], flower_leaf_fsDHS_LM30B[ ,c(1:4,7:10)], flower_leaf_fsDHS_DE24LM30F[ ,c(1:4,7:10)], flower_leaf_fsDHS_DE24LM30B[ ,c(1:4,7:10)])
+
+flower_leaf_fsDHS_sample_all_graph <- rbind(sample_n(flower_leaf_fsDHS_all[ ,c(1:4,7:10)],101), sample_n(flower_leaf_fsDHS_LM30F[ ,c(1:4,7:10)], 101), sample_n(flower_leaf_fsDHS_LM30B[ ,c(1:4,7:10)], 101), sample_n(flower_leaf_fsDHS_DE24LM30F[ ,c(1:4,7:10)], 101), sample_n(flower_leaf_fsDHS_DE24LM30B[ ,c(1:4,7:10)], 101))
+
+flower_leaf_fsDHS_all_graph <- flower_leaf_fsDHS_all_graph %>% mutate(leaf_RPKM = leaf_signal*1000/(end-start), flower_RPKM = flower_signal*1000/(end-start), flower_no_leaf_RPKM = flower_no_leaf*1000/(end-start))
+
+flower_leaf_fsDHS_sample_all_graph <- flower_leaf_fsDHS_sample_all_graph %>% mutate(leaf_RPKM = leaf_signal*1000/(end-start), flower_RPKM = flower_signal*1000/(end-start), flower_no_leaf_RPKM = flower_no_leaf*1000/(end-start))
+
+Plot_fsDHS_all <- gather(flower_leaf_fsDHS_all_graph, 'flower_signal', 'leaf_signal', 'flower_no_leaf', key = "DHScondition", value = "DHSsignal")
+
+Plot_fsDHS_sample_all <- gather(flower_leaf_fsDHS_sample_all_graph, 'flower_signal', 'leaf_signal', 'flower_no_leaf', key = "DHScondition", value = "DHSsignal")
+
+Plot_fsDHS_RPKM_all <- gather(flower_leaf_fsDHS_all_graph, 'leaf_RPKM', 'flower_RPKM', 'flower_no_leaf_RPKM', key = "DHScondition", value = "DHS_RPKM")
+
+Plot_fsDHS_RPKM_sample_all <- gather(flower_leaf_fsDHS_sample_all_graph, 'leaf_RPKM', 'flower_RPKM', 'flower_no_leaf_RPKM', key = "DHScondition", value = "DHS_RPKM")
+
+Plot_fsDHS_RPKM_all$category <- factor(Plot_fsDHS_all$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+Plot_fsDHS_RPKM_all$DHScondition <- factor(Plot_fsDHS_RPKM_all$DHScondition, levels=c("leaf_RPKM", "flower_RPKM", "flower_no_leaf_RPKM"))
+
+Plot_fsDHS_sample_all_finite <- Plot_fsDHS_sample_all[is.finite(Plot_fsDHS_sample_all$DHSsignal),]
+Plot_fsDHS_RPKM_sample_all_finite <- Plot_fsDHS_RPKM_sample_all[is.finite(Plot_fsDHS_sample_all$DHSsignal),]
+
+ggplot(Plot_fsDHS_RPKM_sample_all_finite, aes(x = category, y = DHS_RPKM)) + geom_violin(aes(fill = category)) + facet_grid(. ~ DHScondition) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(width = 0.1, outlier.shape=NA) + ylim(0, 0.02)
+
+ggplot(Plot_fsDHS_RPKM_sample_all_finite, aes(x = category, y = DHS_RPKM)) + facet_grid(. ~ DHScondition) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(aes(fill = category)) + ylim(0, 0.025) 
+
+res.aov <- aov(category ~ DHS_RPKM, data = Plot_DHS_RPKM_all)
+
+flower_leaf_DHS_all_graph$category <- factor(flower_leaf_DHS_all_graph$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+flower_leaf_DHS_all_graph$flower_RPKM <- as.numeric(as.character(flower_leaf_DHS_all_graph$flower_RPKM))
+flower_leaf_DHS_all_graph$leaf_RPKM <- as.numeric(as.character(flower_leaf_DHS_all_graph$leaf_RPKM))
+
+res.aov <- aov(category ~ flower_RPKM, data = flower_leaf_DHS_all_graph)
+res.aov <- aov(flower_RPKM ~ category, data = flower_leaf_DHS_sample_all_graph)
+summary(res.aov)
+
+levels(flower_leaf_DHS_all_graph$category)
+summary(res.aov)
+
+write.table(Plot_DHS_RPKM_all, file = "Plot_DHS_RPKM_all.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(Plot_DHS_RPKM_sample_all, file = "Plot_DHS_RPKM_sample_all.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+rm(list = ls())
+
+#Based on the behavior of David's code, need to multiple by the gene length first to get the sum of the signals:
+flower_leaf_fsDHS_all_graph <- flower_leaf_fsDHS_all_graph %>% mutate(leaf_coverage = leaf_signal*(end-start), flower_coverage = flower_signal*(end-start), flower_no_leaf_coverage = flower_no_leaf*(end-start))
+
+flower_leaf_fsDHS_sample_all_graph <- flower_leaf_fsDHS_sample_all_graph %>% mutate(leaf_coverage = leaf_signal*(end-start), flower_coverage = flower_signal*(end-start), flower_no_leaf_coverage = flower_no_leaf*(end-start))
+
+Plot_fsDHS_coverage_all <- gather(flower_leaf_fsDHS_all_graph, 'flower_coverage', 'leaf_coverage', 'flower_no_leaf_coverage', key = "DHScondition", value = "DHS_coverage")
+
+Plot_fsDHS_sample_coverage_all <- gather(flower_leaf_fsDHS_sample_all_graph, 'flower_coverage', 'leaf_coverage', 'flower_no_leaf_coverage', key = "DHScondition", value = "DHS_coverage")
+
+ggplot(Plot_fsDHS_coverage_all, aes(x = category, y = DHS_coverage)) + facet_grid(. ~ DHScondition) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(aes(fill = category), outlier.shape=NA) + ylim(0,500)
+
+Plot_fsDHS_coverage_all$category <- factor(Plot_fsDHS_coverage_all$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+Plot_fsDHS_coverage_all$DHScondition <- factor(Plot_fsDHS_coverage_all$DHScondition, levels=c("leaf_coverage", "flower_coverage", "flower_no_leaf_coverage"))
+
+
+flower_leaf_fsDHS_flower_finite <- flower_leaf_fsDHS_all_graph[is.finite(flower_leaf_fsDHS_all_graph$flower_coverage),]
+print(summary(aov(category ~ flower_coverage, data = flower_leaf_fsDHS_flower_finite)))
+
+
+python3 ~/custom_scripts/chromo/run.py -d leaf_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -a leaf_flowerSpecificDHS_allgenes.bedgraph -v -j 
+
+./run.py -d eg_data_disjoint.tsv -q eg_query_disjoint.tsv -v -j
+
+<solve.answer_query:83> queried region-length: nominal - null = 8107 - 7886 = 221
+<solve.answer_query:87> ('Chr1', 23120, 31227) -> 252.906 / 221 ~ 1.144
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed -a flower_flowerSpecificDHS_allgenes.bedgraph -v -j 
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30F_genen3kb_araport11.bed -a flower_flowerSpecificDHS_DE24LM30F.bedgraph -v -j 
+
+python3 ~/custom_scripts/chromo/run.py -d flower_flowerSpecificDHS.bedgraph -q ~/CIM_LDL3/useful_files/DE24LM30B_genen3kb_araport11.bed -a flower_flowerSpecificDHS_DE24LM30B.bedgraph -v -j 
+
+
+#Read samples into R first
+
+flower_fsDHS_allgenes <-read.table(file = "flower_flowerSpecificDHS_allgenes.bedgraph", header = FALSE, sep = "\t")
+colnames(flower_fsDHS_allgenes) <- c("chromosome","start","end","gene_id","quality","strand","flower_signal")
+
+flower_leaf_fsDHS_allgenes <- cbind(flower_fsDHS_allgenes, leaf_fsDHS_allgenes$leaf_signal)
+colnames(flower_leaf_fsDHS_allgenes) <- c("chromosome","start","end","gene_id","quality","strand","flower_signal", "leaf_signal")
+
+flower_leaf_fsDHS_LM30B <- flower_leaf_fsDHS_LM30B %>% mutate(flowernoleaf_signal = flower_signal- leaf_signal) %>% mutate(category = "LM30B")
+
+flower_leaf_fsDHS_full <- rbind(flower_leaf_fsDHS_allgenes, flower_leaf_fsDHS_LM30B, flower_leaf_fsDHS_LM30F, flower_leaf_fsDHS_DE24LM30B, flower_leaf_fsDHS_DE24LM30F)
+
+flower_leaf_fsDHS_sample_full <- rbind(sample_n(flower_leaf_fsDHS_allgenes, 674), flower_leaf_fsDHS_LM30B, flower_leaf_fsDHS_LM30F, flower_leaf_fsDHS_DE24LM30B, flower_leaf_fsDHS_DE24LM30F)
+
+plot_flower_leaf_fsDHS_sample_full <- gather(flower_leaf_fsDHS_sample_full, "flower_signal", "leaf_signal", "flowernoleaf_signal", key = "DHSconditions", value = "coverage")
+
+ggplot(flower_leaf_fsDHS_full, aes(x = category, y = flower_signal)) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(aes(fill = category), outlier.shape=NA) 
+
+ggplot(flower_leaf_fsDHS_full, aes(x = category, y = leaf_signal)) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(aes(fill = category), outlier.shape=NA) 
+
+flower_leaf_fsDHS_sample_full$category <- factor(flower_leaf_fsDHS_sample_full$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+plot_flower_leaf_fsDHS_full <- gather(flower_leaf_fsDHS_full, "flower_signal", "leaf_signal", "flowernoleaf_signal", key = "DHSconditions", value = "coverage")
+
+plot_flower_leaf_fsDHS_sample_full$DHSconditions <- factor(plot_flower_leaf_fsDHS_sample_full$DHSconditions, levels=c("leaf_signal", "flower_signal", "flowernoleaf_signal"))
+
+ggplot(plot_flower_leaf_fsDHS_sample_full, aes(x = category, y = coverage)) + facet_grid(. ~ DHSconditions) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_violin(aes(fill = category)) + geom_boxplot(width = 0.1, outlier.shape=NA) 
+
+plot_flower_leaf_fsDHS_full[, 9][plot_flower_leaf_fsDHS_full[, 9] == 0] <- NA
+plot_flower_leaf_fsDHS_sample_full[, 9][plot_flower_leaf_fsDHS_sample_full[, 9] == 0] <- NA
+
+
+image.png
+
+
+image.png
+
+image.png
+
+
+image.png
+
+
+
+write.table(flower_leaf_fsDHS_sample_full, file = "flower_leaf_fsDHS_sample_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(flower_leaf_fsDHS_full, file = "flower_leaf_fsDHS_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+leaf_fsDHS_allgenes_sum <-read.table(file = "leaf_flowerSpecificDHS_allgenes.tsv", header = FALSE, sep = "\t")
+colnames(leaf_fsDHS_allgenes_sum) <- c("chromosome","start","end","gene_id","score","strand","leaf_signal")
+
+leaf_fsDHS_DE24LM30B_sum <-read.table(file = "leaf_flowerSpecificDHS_DE24LM30B.tsv", header = FALSE, sep = "\t")
+colnames(leaf_fsDHS_DE24LM30B_sum) <- c("chromosome","start","end","gene_id","score","strand","leaf_signal")
+
+flower_leaf_fsDHS_LM30B_sum <- cbind(flower_fsDHS_LM30B_sum, leaf_fsDHS_LM30B_sum$leaf_signal)
+colnames(flower_leaf_fsDHS_LM30B_sum) <- c("chromosome","start","end","gene_id","quality","strand","flower_signal", "leaf_signal")
+
+flower_leaf_fsDHS_allgenes_sum <- flower_leaf_fsDHS_allgenes_sum %>% mutate(flowernoleaf_signal = flower_signal- leaf_signal) %>% mutate(category = "background")
+
+flower_leaf_fsDHS_sample_sum <- rbind(sample_n(flower_leaf_fsDHS_allgenes_sum, 674), flower_leaf_fsDHS_LM30B_sum, flower_leaf_fsDHS_LM30F_sum, flower_leaf_fsDHS_DE24LM30B_sum, flower_leaf_fsDHS_DE24LM30F_sum)
+
+flower_leaf_fsDHS_sum <- rbind(flower_leaf_fsDHS_allgenes_sum, flower_leaf_fsDHS_LM30B_sum, flower_leaf_fsDHS_LM30F_sum, flower_leaf_fsDHS_DE24LM30B_sum, flower_leaf_fsDHS_DE24LM30F_sum)
+
+plot_flower_leaf_fsDHS_sample_sum <- gather(flower_leaf_fsDHS_sample_sum, "flower_signal", "leaf_signal", "flowernoleaf_signal", key = "DHSconditions", value = "coverage")
+
+plot_flower_leaf_fsDHS_sum <- gather(flower_leaf_fsDHS_sum, "flower_signal", "leaf_signal", "flowernoleaf_signal", key = "DHSconditions", value = "coverage")
+
+plot_flower_leaf_fsDHS_sum$category <- factor(plot_flower_leaf_fsDHS_sum$category, levels=c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+plot_flower_leaf_fsDHS_sum$DHSconditions <- factor(plot_flower_leaf_fsDHS_sum$DHSconditions, levels=c("leaf_signal", "flower_signal", "flowernoleaf_signal"))
+
+plot_flower_leaf_fsDHS_sum[, 9][plot_flower_leaf_fsDHS_sum[, 9] == 0] <- NA
+plot_flower_leaf_fsDHS_sample_sum[, 9][plot_flower_leaf_fsDHS_sample_sum[, 9] == 0] <- NA
+
+plot_flower_leaf_fsDHS_sum <- plot_flower_leaf_fsDHS_sum %>% mutate(sum = coverage*(end-start))
+plot_flower_leaf_fsDHS_sample_sum <- plot_flower_leaf_fsDHS_sample_sum %>% mutate(sum = coverage*(end-start))
+
+ggplot(plot_flower_leaf_fsDHS_sample_sum, aes(x = category, y = sum)) + facet_grid(. ~ DHSconditions) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_violin(aes(fill = category)) + geom_boxplot(width = 0.1, outlier.shape=NA) 
+
+print(summary(aov(flowernoleaf_signal ~ category, flower_leaf_fsDHS_sample_sum), na.action=na.omit))
+
+write.table(flower_leaf_fsDHS_sample_full, file = "flower_leaf_fsDHS_sample_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(flower_leaf_fsDHS_full, file = "flower_leaf_fsDHS_genen3kb.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+flower_leaf_fsDHS_sample_genen3kb <-read.table(file = "flower_leaf_fsDHS_sample_genen3kb.tsv", header = TRUE, sep = "\t")
+flower_leaf_fsDHS_genen3kb <-read.table(file = "flower_leaf_fsDHS_genen3kb.tsv", header = TRUE, sep = "\t")
+
+print(summary(aov(leaf_signal ~ category, flower_leaf_fsDHS_sample_genen3kb), na.action=na.omit))
+
+flower_leaf_fsDHS_sum[, 7:9][flower_leaf_fsDHS_sum[, 7:9] == 0] <- NA
+flower_leaf_fsDHS_sample_sum[, 7:9][flower_leaf_fsDHS_sample_sum[, 7:9] == 0] <- NA
+
+
+
+
+ggplot(RNA_plots, aes(x = RNAtimepoint, y = absRNAlogFC)) + geom_violin(aes(fill = LM_30)) + geom_boxplot(aes(fill = LM_30), width = 0.03, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + stat_summary(fun.y=mean, geom="point", shape=23, size=2)
+
+ggplot(RNA_plots, aes(x = LM_30, y = absRNAlogFC, fill = LM_30)) + facet_grid(. ~ RNAtimepoint) + geom_violin() + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + geom_boxplot(width = 0.03, outlier.shape=NA)
+
+ggplot(RNA_plots, aes(x = RNAtimepoint, y = absRNAlogFC)) + geom_boxplot(width = 0.03, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+histone_all_filtered$category <- factor(histone_all_filtered$category, levels=c("background", "DE24LM30F", "DE24LM30B"))
+
+input_background <- input_background %>% mutate(input_RPKM = V7*1000000*1000/(40737302*(V3-V2)))
+input_DE24LM30F <- input_DE24LM30F %>% mutate(input_RPKM = V7*1000000*1000/(40737302*(V3-V2)))
+
+input_all <- rbind(sample_n(input_background, 201), input_DE24LM30F, input_DE24LM30B)
+
+input_all$category <- factor(input_all$category, levels=c("background", "DE24LM30F", "DE24LM30B"))
+
+H3_combine <- rbind(sample_n(H3_all, 201), H3_DE24LM30B, H3_DE24LM30F)
+H3K27me3_combine <- rbind(sample_n(H3K27me3_all, 201), H3K27me3_DE24LM30B, H3K27me3_DE24LM30F)
+H3K4me3_combine <- rbind(sample_n(H3K4me3_all, 201), H3K4me3_DE24LM30B, H3K4me3_DE24LM30F)
+H3K4me2_combine <- rbind(sample_n(H3K4me2_all, 201), H3K4me2_DE24LM30B, H3K4me2_DE24LM30F)
+H3K4me1_combine <- rbind(sample_n(H3K4me1_all, 201), H3K4me1_DE24LM30B, H3K4me1_DE24LM30F)
+
+H3_combine <- H3_combine %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+H3K27me3_combine <- H3K27me3_combine %>% mutate(RPKM = V7*1000000*1000/(20134818*(V3-V2)))
+H3K4me3_combine <- H3K4me3_combine %>% mutate(RPKM = V7*1000000*1000/(49361631*(V3-V2)))
+H3K4me2_combine <- H3K4me2_combine %>% mutate(RPKM = V7*1000000*1000/(48709501*(V3-V2)))
+H3K4me1_combine <- H3K4me1_combine %>% mutate(RPKM = V7*1000000*1000/(44255671*(V3-V2)))
+
+histone_mod_all <- rbind(H3_combine, H3K27me3_combine, H3K4me3_combine, H3K4me2_combine, H3K4me1_combine)
+
+histone_genic_mod_all$category <- factor(histone_genic_mod_all$category, levels=c("background", "DE24LM30F", "DE24LM30B"))
+
+ggplot(histone_mod_all, aes(x = category, y = RPKM, fill = mark)) + facet_grid(. ~ mark) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3_RPKM = H3_raw_counts*1000000*1000/(35812219*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me1_RPKM = H3K4me1_raw_counts*1000000*1000/(44255671*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me2_RPKM = H3K4me2_raw_counts*1000000*1000/(48709501*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K4me3_RPKM = H3K4me3_raw_counts*1000000*1000/(49361631*(end-start)))
+C14_histone_mod_all <- C14_histone_mod_all %>% mutate(H3K27me3_RPKM = H3K27me3_raw_counts*1000000*1000/(20134818*(end-start)))
+
+ggplot(histone_genic_mod_all, aes(x = category, y = RPKM, fill = mark)) + facet_grid(. ~ mark) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+write.table(histone_genic_mod_all, file = "histone_genic_mod_all_RPKM_sampled.tsv", append = FALSE, quote = FALSE, sep = "\t")
+write.table(histone_mod_all, file = "histone_genen3kb_mod_all_RPKM_sampled.tsv", append = FALSE, quote = FALSE, sep = "\t")
+
+
+DHS_plot_filter$DHScondition <- factor(DHS_plot_filter$DHScondition, levels=c("leaf_signal", "flower_signal"))
+
+res.aov <- aov(RPKM ~ category, data = histone_mod)
+
+summary(res.aov)
+
+levels(flower_leaf_DHS_all_graph$category)
+summary(res.aov)
+
+wilcox.test(x, y, alternative = "g")
+t.test(x, y, paired = TRUE)
+
+
+histone_mod$category <- as.factor(histone_mod$category)
+histone_mod$category = factor(histone_mod$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+
+histone_mod_H3K4me3 <- filter(histone_mod, mark == "H3K4me3")
+
+kruskal.test(RPKM ~ category, data = histone_mod_H3K4me3)
+DT = dunnTest(RPKM ~ category, data = histone_mod_H3K4me3, method = "bh")
+DT
+PT = DT$res
+
+cldList(P.adj ~ Comparison, data = PT, threshold = 0.05)
+
+
+RNA_logFC <-read.table(file = "DvMDE_all_logFC.tsv", header = TRUE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+
+res.aov <- aov(absRNAlogFC ~ LM_30, data = RNA_6hr_abslogFC)
+summary(res.aov)
+
+wilcox.test(LM_30, absRNAlogFC, data = RNA_6hr_abslogFC)
+t.test(x, y, paired = TRUE)
+
+RNA_6hr_abslogFC$LM_30 = factor(RNA_6hr_abslogFC$LM_30, levels = c("True", "False"))
+
+rm(list = ls())
+ctrl + shift + W
+
+image.png
+image.png
+image.png
+image.png
+
+
+H3_genic_DE24LM30B <-read.table(file = "Col_C14_H3_DE24LM30B_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+H3_genic_DE24LM30F <-read.table(file = "Col_C14_H3_DE24LM30F_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+H3_genic_background <-read.table(file = "Col_C14_H3_all_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+
+H3_combined_3 <- rbind(sample_n(H3_background[ ,c(7:8)], 201), H3_DE24LM30B[ ,c(7:8)], H3_DE24LM30F[ ,c(7:8)])
+
+H3_combined_3$category = factor(H3_combined_3$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+
+kruskal.test(V7 ~ category, data = H3_combined_3)
+
+ggplot(H3_combined_2, aes(x = category, y = V7, fill = mark)) + facet_grid(. ~ mark) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+
+H3_DE24LM30B <- H3_DE24LM30B %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+H3_DE24LM30F <- H3_DE24LM30F %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+H3_background <- H3_background %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+
+H3_combined_8 <- rbind(sample_n(H3_background[ ,c(8:9)], 20), H3_DE24LM30B[ ,c(8:9)], H3_DE24LM30F[ ,c(8:9)])
+H3_combined_8$category = factor(H3_combined_8$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+kruskal.test(RPKM ~ category, data = H3_combined_8)
+
+ggplot(H3_combined_7, aes(x = category, y = RPKM)) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+Col_C14_H3_all_counts.bed
+
+H3_genic_combined_1 <- rbind(sample_n(H3_genic_background[ ,c(8:9)], 20), H3_genic_DE24LM30B[ ,c(8:9)], H3_genic_DE24LM30F[ ,c(8:9)])
+H3_genic_combined_1$category = factor(H3_genic_combined_1$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+kruskal.test(RPKM ~ category, data = H3_genic_combined_1)
+
+
+image.png
+
+
+Input_all <-read.table(file = "Col_input_all_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+Input_DE24LM30F <-read.table(file = "Col_input_DE24LM30F_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+Input_DE24LM30B <-read.table(file = "Col_input_DE24LM30B_counts.bed", header = FALSE, sep = "\t",na.strings=c(""," ","NA"), stringsAsFactors = FALSE)
+
+input_combined_3 <- rbind(sample_n(H3_background[ ,c(7:8)], 201), H3_DE24LM30B[ ,c(7:8)], H3_DE24LM30F[ ,c(7:8)])
+
+H3_combined_3$category = factor(H3_combined_3$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+
+kruskal.test(V7 ~ category, data = H3_combined_3)
+
+ggplot(H3_combined_2, aes(x = category, y = V7, fill = mark)) + facet_grid(. ~ mark) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+Input_all <- Input_all %>% mutate(category = "background") %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+Input_DE24LM30F <- Input_DE24LM30F %>% mutate(category = "DE24LM30F") %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+Input_DE24LM30B <- Input_DE24LM30B %>% mutate(category = "DE24LM30B") %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+
+H3_combined_8 <- rbind(sample_n(H3_background[ ,c(8:9)], 50), H3_DE24LM30B[ ,c(8:9)], H3_DE24LM30F[ ,c(8:9)])
+H3_combined_8$category = factor(H3_combined_8$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+kruskal.test(RPKM ~ category, data = H3_combined_8)
+
+Input_combined <- rbind(sample_n(Input_all[ ,c(8:9)], 201), Input_DE24LM30B[ ,c(8:9)], Input_DE24LM30F[ ,c(8:9)])
+Input_combined$category = factor(Input_combined$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+kruskal.test(RPKM ~ category, data = Input_combined)
+
+ggplot(Input_combined, aes(x = category, y = RPKM)) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+ggplot(H3_genic_combined_2, aes(x = category, y = RPKM)) + geom_violin() + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+Col_C14_H3_all_counts.bed
+
+H3_genic_combined_3 <- rbind(sample_n(H3_genic_background[ ,c(8:9)], 101), H3_genic_DE24LM30B[ ,c(8:9)], H3_genic_DE24LM30F[ ,c(8:9)])
+H3_genic_combined_3$category = factor(H3_genic_combined_3$category, levels = c("background", "DE24LM30F", "DE24LM30B"))
+kruskal.test(RPKM ~ category, data = H3_genic_combined_3)
+
+
+
+image.png
+
+
+nohup multiBigwigSummary bins -b RNA1HrDexA.bigwig RNA1HrMockB.bigwig RNA24hrMockA.bigwig RNA6HrDexB.bigwig RNA1HrDexB.bigwig RNA24hrDexA.bigwig RNA24hrMockB.bigwig RNA6HrMockA.bigwig RNA1HrMockA.bigwig RNA24hrDexB.bigwig RNA6HrDexA.bigwig RNA6HrMockB.bigwig -o RNA_PCA_summary.npz &
+
+
+
+image.png
+
+
+
+H3_all_RPKM <- H3_all_RPKM %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+Input_DE24LM30F <-read.table(file = "Col_input_DE24LM30F_counts.bed", header = FALSE, sep = "\t")
+Input_background <- Input_background %>% mutate(category = "background") %>% mutate(RPKM = V7*1000000*1000/(35812219*(V3-V2)))
+
+Input_allcombined_raw_RPKM <- rbind(Input_background, Input_LM30F, Input_LM30B, Input_DE24LM30F, Input_DE24LM30B)
+
+Input_allcombined_raw_RPKM$category = factor(Input_allcombined_raw_RPKM$category, levels = c("background", "LM30F", "LM30B", "DE24LM30F", "DE24LM30B"))
+
+kruskal.test(RPKM ~ category, data = Input_allcombined_raw_RPKM)
+
+write.table(Input_allcombined_raw_RPKM, file = "Input_allcombined_raw_RPKM.tsv", append = FALSE, quote = FALSE, row.names = FALSE, sep = "\t")
+
+ggplot(Input_allcombined_raw_RPKM, aes(x = category, y = RPKM)) + geom_violin(fill = "grey", trim = TRUE) + geom_boxplot(width = 0.1, outlier.shape=NA) + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + ylim(0,15)
+
+
+image.png
+
+image.png
+
+
+image.png
