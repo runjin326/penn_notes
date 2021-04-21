@@ -1,0 +1,1434 @@
+LFY_ATAC_Downstream Analysis
+FRIDAY, 11/9/2018
+●
+Started doing peak calling with different MAC2 parameters
+●
+Decided to look at the peak regions no matter what -- compare the Dex vs. mock to see whehter I get some peaks
+SATURDAY, 11/10/2018×
+#first try to find peaks with the --extsize 200 and --shift 100
+
+macs2 callpeak -t mapping_2k/ATAC-6hrDexA.final.bam mapping_2k/ATAC-6hrDexB.final.bam -c mapping_2k/ATAC-6hrMockA.final.bam mapping_2k/ATAC-6hrMockB.final.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all --min-length 50 --outdir ATAC_downstream -n ATAC-6hr-DiffPeak
+
+macs2 callpeak -t mapping_2k/6hrDexA.final.bam mapping_2k/6hrDexB.final.bam -c mapping_2k/6hrMockA.final.bam mapping_2k/6hrMockB.final.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all --min-length 50 --outdir ATAC_downstream -n 6hr-DiffPeak
+
+macs2 callpeak -t mapping_2k/ATAC-24hrDexA-Spikein.final.bam mapping_2k/ATAC-24hrDexB-Spikein.final.bam -c mapping_2k/ATAC-24hrMockA-Spikein.final.bam mapping_2k/ATAC-24hrMockB-Spikein.final.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all --min-length 50 --outdir ATAC_downstream -n ATAC-24hr-Spikein-DiffPeak
+
+macs2 callpeak -t mapping_2k/ATAC-24hrDexA.final.bam mapping_2k/ATAC-24hrDexB.final.bam -c mapping_2k/ATAC-24hrMockA.final.bam mapping_2k/ATAC-24hrMockB.final.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all --min-length 50 --outdir ATAC_downstream -n ATAC-24hr-DiffPeak
+●
+To check the # of peaks that it gets:
+wc -l ATAC_downstream/*.narrowPeak
+
+# $9 is the qval column and that selects for the qval > -10 -- getting qval peaks for all of them:
+awk '$9>=10' ATAC_downstream/ATAC-6hr-DiffPeak_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC_downstream/ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC_downstream/6hr-DiffPeak_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC_downstream/ATAC-24hr-DiffPeak_peaks.narrowPeak| wc -l
+●
+No matter which extension or shift that I use -- they all give the SAME number of peaks 
+A
+B
+C
+1
+Total	qval<10 
+2
+6HrDexvsMock	5,630	2,036
+3
+ATAC_6hrDexvsMock	7,210	1,628
+4
+ATAC_24hrSpikein_DexvsMock	5,446	1,619
+5
+ATAC_24hrDexvsMock	10,208	1,647
+Table2
+
+
+
+●
+Then try to find peaks with the --extsize 150 and --shift 75
+○
+For all these commands -- give .narrowPeak, .xls, & .bed 
+macs2 callpeak -t mapping_2k/ATAC-6hrDexA.final.bam mapping_2k/ATAC-6hrDexB.final.bam -c mapping_2k/ATAC-6hrMockA.final.bam mapping_2k/ATAC-6hrMockB.final.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --SPMR --min-length 50 --outdir ATAC_downstream -n ATAC-6hr-DiffPeak
+
+macs2 callpeak -t mapping_2k/6hrDexA.final.bam mapping_2k/6hrDexB.final.bam -c mapping_2k/6hrMockA.final.bam mapping_2k/6hrMockB.final.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --SPMR --min-length 50 --outdir ATAC_downstream -n 6hr-DiffPeak
+
+macs2 callpeak -t mapping_2k/ATAC-24hrDexA-Spikein.final.bam mapping_2k/ATAC-24hrDexB-Spikein.final.bam -c mapping_2k/ATAC-24hrMockA-Spikein.final.bam mapping_2k/ATAC-24hrMockB-Spikein.final.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --SPMR --min-length 50 --outdir ATAC_downstream -n ATAC-24hr-Spikein-DiffPeak
+
+macs2 callpeak -t mapping_2k/ATAC-24hrDexA.final.bam mapping_2k/ATAC-24hrDexB.final.bam -c mapping_2k/ATAC-24hrMockA.final.bam mapping_2k/ATAC-24hrMockB.final.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --SPMR --min-length 50 --outdir ATAC_downstream -n ATAC-24hr-DiffPeak
+●
+All possible things to try with MAC2:
+○
+bdgcmp -- this can be done with the bedGraph format which is good: indicate that we can compare normalized reads after the final bam file 
+A
+B
+1
+Subcommand	Description
+2
+callpeak	Main MACS2 Function to call peaksfrom alignment results.
+3
+bdgpeakcall	Call peaks from bedGraph output.
+4
+bdgbroadcall	Call broad peaks from bedGraph output.
+5
+bdgcmp	Comparing two signal tracks in bedGraph format.
+6
+bdgopt	Operate the score column of bedGraph file.
+7
+cmbreps	Combine BEDGraphs of scores from replicates.
+8
+bdgdiff	Differential peak detection based on paired four bedgraph files.
+9
+filterdup	Remove duplicate reads, then save in BED/BEDPE format.
+10
+predictd	Predict d or fragment size from alignment results.
+11
+pileup	Pileup aligned reads (single end) or fragments (paired-end)
+12
+randsample	Randomly choose a number/percentage of total reads.
+13
+refinepeak	Take raw reads alignment, refine peak summits.
+Table1
+
+
+
+●
+The following commands are used to combine the two bedgraphs for the union of the replicates -- there are two ways: take the average or getting the maximum -- not sure which ways are better so tried both:
+#sample calculation command looks like this:
+macs2 cmbreps -i ATAC-24hrMockA-Spikein.final.bg ATAC-24hrMockB-Spikein.final.bg -m max --outdir ./mac2_cmbrep --ofile ATAC-24hrMock-Spikein_max
+macs2 cmbreps -i ATAC-24hrDexA-Spikein.final.bg ATAC-24hrDexB-Spikein.final.bg -m mean --outdir ./mac2_cmbrep --ofile ATAC-24hrMock-Spikein_mean
+●
+First need to generate .lambda and .pileup file with the callpeak command: 
+-B --SPMR
+#commands added after the callpeak command to generate the two files 
+●
+Try comparing the bedgraph by the following commands:
+○
+This will give files for logLR and fold enrichment bedGraph files
+#command format:
+macs2 bdgcmp -t ./ATAC_downstream/6hr-DiffPeak_treat_pileup.bdg -c ./ATAC_downstream/6hr-DiffPeak_control_lambda.bdg -m logLR -p 0.00001 --outdir ATAC_downstream --o-prefix ATAC-6hr
+macs2 bdgcmp -t ./ATAC_downstream/6hr-DiffPeak_treat_pileup.bdg -c ./ATAC_downstream/6hr-DiffPeak_control_lambda.bdg -m FE --outdir ATAC_downstream --o-prefix ATAC-6hr
+
+macs2 bdgcmp -t ./ATAC_downstream/ATAC-6hr-DiffPeak_treat_pileup.bdg -c ./ATAC_downstream/ATAC-6hr-DiffPeak_control_lambda.bdg -m logLR -p 0.00001 --outdir ATAC_downstream --o-prefix ATACnew-6hr
+macs2 bdgcmp -t ./ATAC_downstream/ATAC-6hr-DiffPeak_treat_pileup.bdg -c ./ATAC_downstream/ATAC-6hr-DiffPeak_control_lambda.bdg -m FE --outdir ATAC_downstream --o-prefix ATACnew-6hr
+
+macs2 bdgcmp -t ./ATAC_downstream/ATAC-24hr-DiffPeak_treat_pileup.bdg -c ./ATAC_downstream/ATAC-24hr-DiffPeak_control_lambda.bdg -m logLR -p 0.00001 --outdir ATAC_downstream --o-prefix ATAC-24hr
+macs2 bdgcmp -t ./ATAC_downstream/ATAC-24hr-DiffPeak_treat_pileup.bdg -c ./ATAC_downstream/ATAC-24hr-DiffPeak_control_lambda.bdg -m FE --outdir ATAC_downstream --o-prefix ATAC-24hr
+
+macs2 bdgcmp -t ./ATAC_downstream/ATAC-24hr-Spikein-DiffPeak_treat_pileup.bdg -c ./ATAC_downstream/ATAC-24hr-Spikein-DiffPeak_control_lambda.bdg -m logLR -p 0.00001 --outdir ATAC_downstream --o-prefix ATAC-24hr-Spikein
+macs2 bdgcmp -t ATAC-24hr-Spikein-DiffPeak_treat_pileup.bdg -c ATAC-24hr-Spikein-DiffPeak_control_lambda.bdg -m FE --outdir ./ --o-prefix ATAC-24hr-Spikein
+
+#Doing comparison for all 6hrDex vs. 6hrMock & all 24hrDex vs. 24hrMock:
+macs2 bdgcmp -t ATAC_6hr_Dex_all_treat_pileup.bdg -c ATAC_6hr_Dex_all_control_lambda.bdg --t2 ATAC-6hr_Mock_all_treat_pileup.bdg --c2 ATAC-6hr_Mock_all_control_lambda.bdg --d1 21346112 --d2 19128950 -g 50 -l 100 --o-prefix diff_ATAC6hrall_DvM
+
+macs2 bdgcmp --t1 ATAC-24hr_Dex_all_treat_pileup.bdg --c1 ATAC-24hr_Dex_all_control_lambda.bdg --t2 ATAC-24hr_Mock_all_treat_pileup.bdg --c2 ATAC-24hr_Mock_all_control_lambda.bdg --d1 21572733 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC24hrall_DvM
+
+#Doing comparison for all 6hrDex-specific open region vs. 24hrDex-specific open region:
+macs2 bdgcmp --t1 ATAC_6hrdiff_all_treat_pileup.bdg --c1 ATAC_6hrdiff_all_control_lambda.bdg --t2 ATAC-24hrdiff_all_treat_pileup.bdg --c2 ATAC-24hrdiff_all_control_lambda.bdg --d1 19128950 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC_DexSpecific_6v24
+●
+Make all of them bigwig files so that i can see visualize them:
+bedGraphToBigWig ATAC-24hr-Spikein_FE.bdg ~/Araport11/TAIR10_chr_count.txt ./IGV/ATAC-24hr-Spikein_FE.bw
+bedGraphToBigWig ATAC-24hr-Spikein_logLR.bdg ~/Araport11/TAIR10_chr_count.txt ./IGV/ATAC-24hr-Spikein_logLR.bw
+●
+Try to use the different binding conditions using the following method:
+○
+First, calculated the predictd (fragment size) for all the files -- when comparing, need to use the SAME -extendsize when doing the peak calling method 
+macs2 predictd -i 6hrDexA.final.bam 6hrDexB.final.bam 
+macs2 predictd -i 6hrMockA.final.bam 6hrMockB.final.bam
+macs2 predictd -i ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam
+macs2 predictd -i ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam
+macs2 predictd -i ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam
+macs2 predictd -i ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam
+macs2 predictd -i ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam
+macs2 predictd -i ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam
+This is the FIRST TRIAL for bdgdiff!!
+●
+Call peaks for all the different conditions -- for the mock, I am just not giving anything as control files so that different conditions are calculated:
+○
+Still these are giving peak-summit-narrowPeak files 
+macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam -n 6hr_Dex --nomodel --extsize 82 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff
+macs2 callpeak -B -t 6hrMockA.final.bam 6hrMockB.final.bam -n 6hr_Mock --nomodel --extsize 82 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff
+
+macs2 callpeak -B -t ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -n ATAC-6hr_Dex --nomodel --extsize 187 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+macs2 callpeak -B -t ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam -n ATAC-6hr_Mock --nomodel --extsize 187 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+
+macs2 callpeak -B -t ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam -n ATAC-24hr_Dex --nomodel --extsize 158 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+macs2 callpeak -B -t ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam -n ATAC-24hr_Mock --nomodel --extsize 158 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -n ATAC-24hr-Spikein_Dex --nomodel --extsize 289 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+macs2 callpeak -B -t ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC-24hr-Spikein_Mock --nomodel --extsize 289 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+1
+Sample	predictD	summit #	tag #	Redundant rate		tag #	summit #	Redundant rate		tag #	summit #	Redundant rate
+2
+6hr_Dex	80	38786	8481746	0.31	ATAC-6hr_Dex_all	21346112	28624	0.35	ATAC_6hrdiff_all	19128950	0	0.34
+3
+6hr_Mock	83	42363	7797425	0.32		
+4
+ATAC-6hr_Dex	186	15332	15679999	0.24	ATAC-6hr_Mock_all	19128950	31674	0.34	
+5
+ATAC-6hr_Mock	187	15598	13711511	0.22		
+6
+ATAC-24hr_Dex	148	25208	11500925	0.21	ATAC-24hr_Dex_all	21572733	26121	0.32	ATAC-24hrdiff_all	18372475	0	0.28
+7
+ATAC-24hr_Mock	168	17242	10967886	0.19		
+8
+ATAC-24hr-Spikein_Dex	289	11170	13335217	0.22	ATAC-24hr_Mock_all	18372475	22054	0.28	
+9
+ATAC-24hr-Spikein_Mock	289	8624	9822273	0.18		
+Table3
+
+
+
+●
+predictD: I used extend size for their individual compares but whenever I combind two time points, I used 150bp as I did when I call the peaks for individual samples
+●
+Use ALL 6hr Dex as condition 1 and ALL 6hr Mock as condition 2: 
+macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -n ATAC_6hr_Dex_all --nomodel --extsize 150 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+macs2 callpeak -B -t ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam 6hrMockA.final.bam 6hrMockB.final.bam -n ATAC-6hr_Mock_all --nomodel --extsize 150 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff
+
+macs2 callpeak -B -t ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -n ATAC-24hr_Dex_all --nomodel --extsize 150 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+macs2 callpeak -B -t ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC-24hr_Mock_all --nomodel --extsize 150 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+●
+Use ALL 6hr DexvsMock as condition 1 and ALL 24hrDexvsMock as condition 2:
+macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -c ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam 6hrMockA.final.bam 6hrMockB.final.bam -n ATAC_6hrdiff_all --nomodel --extsize 150 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+
+macs2 callpeak -B -t ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -c ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC-24hrdiff_all --nomodel --extsize 150 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff 
+●
+Start calling differential regions with macs2 files:
+macs2 bdgdiff --t1 6hr_Dex_treat_pileup.bdg --c1 6hr_Dex_control_lambda.bdg --t2 6hr_Mock_treat_pileup.bdg --c2 6hr_Mock_control_lambda.bdg --d1 8481746 --d2 7797425 -g 50 -l 100 --o-prefix diff_6hrDvM
+
+macs2 bdgdiff --t1 ATAC-6hr_Dex_treat_pileup.bdg --c1 ATAC-6hr_Dex_control_lambda.bdg --t2 ATAC-6hr_Mock_treat_pileup.bdg --c2 ATAC-6hr_Mock_control_lambda.bdg --d1 15679999 --d2 13711511 -g 50 -l 100 --o-prefix diff_ATAC6hrDvM
+
+macs2 bdgdiff --t1 ATAC-24hr_Dex_treat_pileup.bdg --c1 ATAC-24hr_Dex_control_lambda.bdg --t2 ATAC-24hr_Mock_treat_pileup.bdg --c2 ATAC-24hr_Mock_control_lambda.bdg --d1 11500925 --d2 10967886 -g 50 -l 100 --o-prefix diff_ATAC24hrDvM
+
+macs2 bdgdiff --t1 ATAC-24hr-Spikein_Dex_treat_pileup.bdg --c1 ATAC-24hr-Spikein_Dex_control_lambda.bdg --t2 ATAC-24hr-Spikein_Mock_treat_pileup.bdg --c2 ATAC-24hr-Spikein_Mock_control_lambda.bdg --d1 13335217 --d2 9822273 -g 50 -l 100 --o-prefix diff_ATAC24hrSpikein_DvM
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+P
+1
+Name of output	c1>c2	c2>c1	c1 = c2	Condition1	d1	Condition2	d2							
+2
+Each Dex vs. Mock -- individual compare 	diff_6hrDvM	23	994	10424	6hr_Dex	8481746	6hr_Mock	7797425							
+3
+diff_ATAC6hrDvM	11	51	5770	ATAC-6hr_Dex	15679999	ATAC-6hr_Mock	13711511							
+4
+diff_ATAC24hrDvM	118	55	4902	ATAC-24hr_Dex	11500925	ATAC-24hr_Mock	10967886							
+5
+diff_ATAC24hrSpikein_DvM	74	100	3328	ATAC-24hr-Spikein_Dex	13335217	ATAC-24hr-Spikein_Mock	9822273							
+6
+All 6hr DexvsM. & all 24hr DexvsM.	diff_ATAC6hrall_DvM	26	876	13427	ATAC-6hr_Dex_all	21346112	ATAC-6hr_Mock_all	19128950							
+7
+diff_ATAC24hrall_DvM	12	13	6413	ATAC-24hr_Dex_all	21572733	ATAC-24hr_Mock_all	18372475							
+8
+All 6hrDex specific & all 24hrDex specific	diff_ATAC_DexSpecific_6v24	1	3	1	ATAC-6hrdiff_all	19128950	ATAC-24hrdiff_all	18372475							
+Table4
+
+
+
+●
+Doing comparison for all 6hrDex vs. 6hrMock & all 24hrDex vs. 24hrMock:
+macs2 bdgdiff --t1 ATAC_6hr_Dex_all_treat_pileup.bdg --c1 ATAC_6hr_Dex_all_control_lambda.bdg --t2 ATAC-6hr_Mock_all_treat_pileup.bdg --c2 ATAC-6hr_Mock_all_control_lambda.bdg --d1 21346112 --d2 19128950 -g 50 -l 100 --o-prefix diff_ATAC6hrall_DvM
+
+macs2 bdgdiff --t1 ATAC-24hr_Dex_all_treat_pileup.bdg --c1 ATAC-24hr_Dex_all_control_lambda.bdg --t2 ATAC-24hr_Mock_all_treat_pileup.bdg --c2 ATAC-24hr_Mock_all_control_lambda.bdg --d1 21572733 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC24hrall_DvM
+●
+Doing comparison for all 6hrDex-specific open region vs. 24hrDex-specific open region:
+macs2 bdgdiff --t1 ATAC_6hrdiff_all_treat_pileup.bdg --c1 ATAC_6hrdiff_all_control_lambda.bdg --t2 ATAC-24hrdiff_all_treat_pileup.bdg --c2 ATAC-24hrdiff_all_control_lambda.bdg --d1 19128950 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC_DexSpecific_6v24
+●
+For each BED graph, if I want color, need to add the following to the bed files
+○
+Use nano and add to the header the following to have color when visualizing in IGV -- then use the graph 
+track name=diff_6hrDvM_common useScore=1
+track name=diff_ATAC6hrDvM_common useScore=1
+track name=diff_ATAC24hrDvM_c1 useScore=1
+track name=diff_ATAC24hrSpikein_DvM_common useScore=1
+track name=diff_ATAC6hrall_DvM_common useScore=1
+track name=diff_ATAC24hrall_DvM_c2 useScore=1
+track name=diff_ATAC_DexSpecific_6v24_c1 useScore=1
+track name=diff_ATAC_DexSpecific_6v2
+
+4_c2 useScore=1
+track name=diff_ATAC_DexSpecific_6v24_common useScore=1
+●
+HOMER takes txt files for input:
+Example command lines:
+findMotifsGenome.pl peaks.txt mm8r peakAnalysis -size 200 -len 8
+SUNDAY, 11/11/2018×
+●
+GOAL:
+○
+Look at summit in IGV -- and look at all the bed files in IGV
+○
+Use the following prameters for mapping again -- hopefully this will give more peaks - those parameters are picked specifically for ATAC-seq data set 
+■
+Also: regardless of the fragment size -- decided to use the same extent size parameter
+-f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 
+●
+Use HOMER to find motifs that might be interesting 
+●
+Overlap the ATAC-seq regions with the LFY peaks and see how that works 
+This is the SECOND TRIAL for bdgdiff!!
+●
+Call peaks for all the different conditions -- for the mock, I am just not giving anything as control files so that different conditions are calculated:
+○
+Still these are giving peak-summit-narrowPeak files 
+macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam -n 6hr_Dex -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+macs2 callpeak -B -t 6hrMockA.final.bam 6hrMockB.final.bam -n 6hr_Mock -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+
+macs2 callpeak -B -t ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -n ATAC-6hr_Dex -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+macs2 callpeak -B -t ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam -n ATAC-6hr_Mock -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+
+macs2 callpeak -B -t ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam -n ATAC-24hr_Dex -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+macs2 callpeak -B -t ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam -n ATAC-24hr_Mock -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -n ATAC-24hr-Spikein_Dex -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd 
+macs2 callpeak -B -t ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC-24hr-Spikein_Mock -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+A
+B
+C
+D
+E
+F
+G
+H
+I
+1
+Sample	summit #	tag #		tag #	summit #		tag #	summit #
+2
+6hr_Dex	24876	12247712	ATAC-6hr_Dex_all	32952998	34334	ATAC_6hrdiff_all	29043934	2488
+3
+6hr_Mock	34999	11402986		
+4
+ATAC-6hr_Dex	26106	20705286	ATAC-6hr_Mock_all	29043934	37204
+5
+ATAC-6hr_Mock	27020	17640948		
+6
+ATAC-24hr_Dex	18171	14522680	ATAC-24hr_Dex_all	31668664	25891	ATAC-24hrdiff_all	25528533	4599
+7
+ATAC-24hr_Mock	13031	13616985		
+8
+ATAC-24hr-Spikein_Dex	15618	17145984	ATAC-24hr_Mock_all	25528533	22493
+9
+ATAC-24hr-Spikein_Mock	11780	11911548		
+Table5
+
+
+
+●
+edictD: I used extension of 150 and shift of -75 to call peaks for all of them 
+●
+Use ALL 6hr Dex as condition 1 and ALL 6hr Mock as condition 2: 
+macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -n ATAC_6hr_Dex_all -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+macs2 callpeak -B -t ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam 6hrMockA.final.bam 6hrMockB.final.bam -n ATAC-6hr_Mock_all -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+
+macs2 callpeak -B -t ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -n ATAC-24hr_Dex_all -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+macs2 callpeak -B -t ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC-24hr_Mock_all -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+●
+Use ALL 6hr DexvsMock as condition 1 and ALL 24hrDexvsMock as condition 2:
+macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -c ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam 6hrMockA.final.bam 6hrMockB.final.bam -n ATAC_6hrdiff_all -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+
+macs2 callpeak -B -t ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -c ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC-24hrdiff_all -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+P
+1
+Name of output	c1>c2	c2>c1	c1 = c2	Condition1	d1	Condition2	d2							
+2
+Each Dex vs. Mock -- individual compare 	diff_6hrDvM	505	11514	5179	6hr_Dex	12247712	6hr_Mock	11402986							
+3
+diff_ATAC6hrDvM	61	341	5764	ATAC-6hr_Dex	20705286	ATAC-6hr_Mock	17640948							
+4
+diff_ATAC24hrDvM	362	80	2296	ATAC-24hr_Dex	14522680	ATAC-24hr_Mock	13616985							
+5
+diff_ATAC24hrSpikein_DvM	278	33	1979	ATAC-24hr-Spikein_Dex	17145984	ATAC-24hr-Spikein_Mock	11911548							
+6
+All 6hr DexvsM. & all 24hr DexvsM.	diff_ATAC6hrall_DvM	195	7770	9738	ATAC-6hr_Dex_all	32952998	ATAC-6hr_Mock_all	29043934							
+7
+diff_ATAC24hrall_DvM	706	16	4760	ATAC-24hr_Dex_all	31668664	ATAC-24hr_Mock_all	25528533							
+8
+All 6hrDex specific & all 24hrDex specific	diff_ATAC_DexSpecific_6v24	40	640	402	ATAC-6hrdiff_all	29043934	ATAC-24hrdiff_all	25528533							
+Table6
+
+
+
+●
+Start calling differential regions with macs2 files:
+macs2 bdgdiff --t1 6hr_Dex_treat_pileup.bdg --c1 6hr_Dex_control_lambda.bdg --t2 6hr_Mock_treat_pileup.bdg --c2 6hr_Mock_control_lambda.bdg --d1 12247712 --d2 11402986 -g 50 -l 100 --o-prefix diff_6hrDvM
+
+macs2 bdgdiff --t1 ATAC-6hr_Dex_treat_pileup.bdg --c1 ATAC-6hr_Dex_control_lambda.bdg --t2 ATAC-6hr_Mock_treat_pileup.bdg --c2 ATAC-6hr_Mock_control_lambda.bdg --d1 20705286 --d2 17640948 -g 50 -l 100 --o-prefix diff_ATAC6hrDvM
+
+macs2 bdgdiff --t1 ATAC-24hr_Dex_treat_pileup.bdg --c1 ATAC-24hr_Dex_control_lambda.bdg --t2 ATAC-24hr_Mock_treat_pileup.bdg --c2 ATAC-24hr_Mock_control_lambda.bdg --d1 14522680 --d2 13616985 -g 50 -l 100 --o-prefix diff_ATAC24hrDvM
+
+macs2 bdgdiff --t1 ATAC-24hr-Spikein_Dex_treat_pileup.bdg --c1 ATAC-24hr-Spikein_Dex_control_lambda.bdg --t2 ATAC-24hr-Spikein_Mock_treat_pileup.bdg --c2 ATAC-24hr-Spikein_Mock_control_lambda.bdg --d1 17145984 --d2 11911548 -g 50 -l 100 --o-prefix diff_ATAC24hrSpikein_DvM
+●
+Doing comparison for all 6hrDex vs. 6hrMock & all 24hrDex vs. 24hrMock:
+macs2 bdgdiff --t1 ATAC_6hr_Dex_all_treat_pileup.bdg --c1 ATAC_6hr_Dex_all_control_lambda.bdg --t2 ATAC-6hr_Mock_all_treat_pileup.bdg --c2 ATAC-6hr_Mock_all_control_lambda.bdg --d1 32952998 --d2 29043934 -g 50 -l 100 --o-prefix diff_ATAC6hrall_DvM
+
+macs2 bdgdiff --t1 ATAC-24hr_Dex_all_treat_pileup.bdg --c1 ATAC-24hr_Dex_all_control_lambda.bdg --t2 ATAC-24hr_Mock_all_treat_pileup.bdg --c2 ATAC-24hr_Mock_all_control_lambda.bdg --d1 21572733 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC24hrall_DvM
+●
+Doing comparison for all 6hrDex-specific open region vs. 24hrDex-specific open region:
+macs2 bdgdiff --t1 ATAC_6hrdiff_all_treat_pileup.bdg --c1 ATAC_6hrdiff_all_control_lambda.bdg --t2 ATAC-24hrdiff_all_treat_pileup.bdg --c2 ATAC-24hrdiff_all_control_lambda.bdg --d1 19128950 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC_DexSpecific_6v24
+●
+HOMER takes bed files for input:
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' 6hr-DiffPeak_peaks.narrowPeak > 6hr-DiffPeak_peaks.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' ATAC-6hr-DiffPeak_peaks.narrowPeak > ATAC-6hr-DiffPeak_peaks.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' ATAC-24hr-DiffPeak_peaks.narrowPeak > ATAC-24hr-DiffPeak_peaks.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak > ATAC-24hr-Spikein-DiffPeak_peaks.bed
+
+Example command lines:
+findMotifsGenome.pl ATAC-6hr-DiffPeak_peaks.bed tair10 ATAC_MotifOutput/ -size 200 
+#current directory to homer:
+/home/runjin/Downloads/homer/bin/
+#available organism: arabidopsis-o v6.0
+#available promoter: arabidopsis-p v5.0
+#available genomes: tair10	v6.0 
+
+cut -f 1-6 InflLFYTAIR10.narrowPeak > InflLFYTAIR10.bed
+cut -f 1-6 SeedlingLFYTAIR10.narrowPeak > SeedlingLFYTAIR10.bed
+cut -f 1-6 chipSampleRepAll_postFilter.narrowPeak > chipSampleRepAll_postFilter.bed
+Convert narrowpeaks to bedgraph:
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$9}' 6hr-DiffPeak_peaks.narrowPeak > 6hr-DiffPeak_peaks.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$9}' 6hr-DiffPeak_peaks.narrowPeak > 6hr-DiffPeak_peaks.bed
+In case the BED file was not sorted properly:
+sort -k1,1 -k2,2n 6hr-DiffPeak_peaks.bedgraph > 6hr-DiffPeak_peaks.bedgraph
+sort -k1,1 -k2,2n ATAC-6hr-DiffPeak_peaks.bedgraph > ATAC-6hr-DiffPeak_peaks.bedgraph
+sort -k1,1 -k2,2n ATAC-24hr-DiffPeak_peaks.bedgraph > ATAC-24hr-DiffPeak_peaks.bedgraph
+sort -k1,1 -k2,2n ATAC-24hr-Spikein-DiffPeak_peaks.bedgraph > ATAC-24hr-Spikein-DiffPeak_peaks.bedgraph
+Finally, use the UCSC bedGraphToBigWig tool:
+bedGraphToBigWig 6hr-DiffPeak_peaks.bed ~/Araport11/TAIR10_chr_count.txt 6hr-DiffPeak_peaks.bw
+bedGraphToBigWig ATAC-6hr-DiffPeak_peaks.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-6hr-DiffPeak_peaks.bw
+bedGraphToBigWig ATAC-24hr-DiffPeak_peaks.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hr-DiffPeak_peaks.bw
+bedGraphToBigWig ATAC-24hr-Spikein-DiffPeak_peaks.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hr-Spikein-DiffPeak_peaks.bw
+●
+Tried to map LFY peaks with the summits -- but it seems like the bed files (which are ATAC peaks in my case) does not exist in the bigwig (the LFY peaks) 
+○
+So decide to look at MNase vs. ATAC vs. LFY instead 
+■
+To see whehter LFY binding sites have nucleosome occupancy before
+■
+To see whether LFY induced ATAC regions are 
+●
+Seems like there is something wrong with the ATAC bigwig files since it never gives any results:
+6hr-DiffPeak_summits.bed
+ATAC-24hr-DiffPeak_summits.bed
+ATAC-6hr-DiffPeak_summits.bed
+ATAC-24hr-Spikein-DiffPeak_summits.bed
+
+bamCoverage -b LFY1HrDexA.filter.bam -o LFY1HrDexA.bw
+bamCoverage -b LFY1HrDexB.filter.bam -o LFY1HrDexB.bw
+bamCoverage -b LFY1HrDexC.filter.bam -o LFY1HrDexC.bw
+
+#didn't work: 
+nohup computeMatrix reference-point -S 6hrMock.bigwig ATAC-24hrMock.bigwig ATAC-24hrMock-Spikein.bigwig ATAC-6hrMock.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsATACmock.tab.gz &
+
+#also didn't work:
+nohup computeMatrix reference-point -S 6hrMock.bigwig ATAC-24hrMock.bigwig ATAC-24hrMock-Spikein.bigwig ATAC-6hrMock.bigwig -R ~/LFY/visualization/MNase/MNase_old/HighMOCK_DANPOS_peaks.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsATACmock.tab.gz &
+
+nohup computeMatrix reference-point -S 6hrDex.bigwig ATAC-24hrDex.bigwig ATAC-24hrDex-Spikein.bigwig ATAC-6hrDex.bigwig -R ~/LFY/visualization/MNase/MNase_old/HighMOCK_DANPOS_peaks.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o highMockvsATACdex.tab.gz &
+
+bedGraphToBigWig 6hrMock_mean.bg ~/Araport11/TAIR10_chr_count.txt 6hrMock_mean.bigwig
+bedGraphToBigWig ATAC-6hrMock_mean.bg ~/Araport11/TAIR10_chr_count.txt ATAC-6hrMock_mean.bigwig
+bedGraphToBigWig ATAC-24hrMock_mean.bg ~/Araport11/TAIR10_chr_count.txt ATAC-24hrMock_mean.bigwig
+bedGraphToBigWig ATAC-24hrMock-Spikein_mean.bg ~/Araport11/TAIR10_chr_count.txt ATAC-24hrMock-Spikein_mean.bigwig
+MONDAY, 11/12/2018×
+●
+Use the matrix done before and see which ones give better results:
+plotHeatmap --matrixFile ChIPvsMNase.tab.gz --outFileName ../../graphs/ChIPvsMNase.png &
+cd ~/LFY/visualization/MNase/MNase_old/
+
+nohup multiBigwigSummary bins -b mapping_HighDEX.Fnor.smooth.bigwig mapping_HighMOCK.Fnor.smooth.bigwig mapping_LowMOCK.Fnor.smooth.bigwig -bs 50 -o MNase_correlation.npz &
+
+nohup multiBigwigSummary BED-file -b mapping_HighDEX.Fnor.smooth.bigwig mapping_HighMOCK.Fnor.smooth.bigwig mapping_LowMOCK.Fnor.smooth.bigwig -o MNase_LFYbed_correlation.npz --BED ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter.bed & 
+
+plotCorrelation -in MNase_LFYbed_correlation.npz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of LFY peaks vs. MNase" --whatToPlot scatterplot -o ~/LFY/graphs/LFYvsMNase_scatterplot_pearson.png  
+
+plotCorrelation -in MNase_LFYbed_correlation.npz --corMethod spearman --skipZeros --plotTitle "Pearson Correlation of LFY peaks vs. MNase" --whatToPlot scatterplot -o ~/LFY/graphs/LFYvsMNase_scatterplot_spearman.png 
+
+plotCorrelation -in MNase_correlation.npz --corMethod spearman --skipZeros --plotTitle "Pearson Correlation of MNase" --whatToPlot scatterplot -o ~/LFY/graphs/MNase_scatterplot_spearman.png 
+plotCorrelation -in MNase_correlation.npz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of MNase" --whatToPlot scatterplot -o ~/LFY/graphs/MNase_scatterplot_pearson.png 
+
+plotCorrelation -in MNase_correlation.npz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of MNase" --whatToPlot heatmap -o ~/LFY/graphs/MNase_heatmap_pearson.png 
+
+ChIPvsMNase.png
+thumbnail
+
+●
+Finally HOMER works by deleting and re-installing: 
+findMotifsGenome.pl 6hr-DiffPeak_maxpeaks.bed tair10 ATAC6hr_MotifOutput/ -size 50
+findMotifsGenome.pl ATAC-6hr-DiffPeak_peaks.bedgraph tair10 ATAC6h4_MotifOutput/ -size 200
+
+awk '{printf "%s\t%d\t%d\t%2.3f\n", $1,$2,$3,$5}'' myBed.bed > myFile.bedgraph
+●
+Convert the narrowPeak file into 
+●
+To make a 4 column bed files into a 6 column bed file and selecting unique regions with higher score
+~/custom_scripts/scoreFile2uniqueBed.py 6hr-DiffPeak_peaks.bed > 6hr-DiffPeak_maxpeaks.bed 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' 6hr-DiffPeak_maxpeaks.bed > 6hr-DiffPeak_maxpeaks.bedgraph
+bedGraphToBigWig 6hr-DiffPeak_maxpeaks.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hr-DiffPeak_maxpeaks.bigwig
+nohup computeMatrix reference-point -S 6hrMock.bigwig ATAC-24hrMock.bigwig ATAC-24hrMock-Spikein.bigwig ATAC-6hrMock.bigwig -R ~/LFY/visualization/MNase/MNase_old/HighMOCK_DANPOS_peaks.bed --referencePoint center -b 2000 -a 2000 --binSize 20 --sortRegions keep -o ChIPvsATACmock.tab.gz &
+
+nohup computeMatrix reference-point -S LFY1HrDex_filter.bigwig LFY1HrMock_filter.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPheatmap.tab.gz &
+
+plotHeatmap --matrixFile ChIPheatmap.tab.gz --outFileName ../../graphs/ChIPheatmap.png &
+plotHeatmap --matrixFile ChIPDexheatmap.tab.gz --outFileName ../../graphs/ChIPDexheatmap.png &
+
+nohup computeMatrix reference-point -S LFY1HrDex_filter.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPDexheatmap.tab.gz &
+
+nohup computeMatrix scale-regions -S LFY1HrDex_filter.bigwig LFY1HrMock_filter.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 2000 -m 5000 -a 2000 --binSize 20 --sortRegions keep -o ChIPprofile.mat.gz &
+
+MNase_scatterplot_pearson.png
+thumbnail
+
+●
+Add Chr to the start of a bed file - Sammy already has it!!!
+LFY1HrDexInput.filter.Araport11.bam
+cd ~/LFY/visualization/ATAC_2k/sammy_way
+nohup multiBigwigSummary BED-file -b 6hrMock.bigwig ATAC-24hrMock.bigwig ATAC-24hrMock-Spikein.bigwig ATAC-6hrMock.bigwig -o ATAC_LFYbed_correlation.npz --BED ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter.bed & 
+
+nohup multiBigwigSummary BED-file -b 6hrMock.bigwig ATAC-24hrMock.bigwig ATAC-24hrMock-Spikein.bigwig ATAC-6hrMock.bigwig 6hrDex.bigwig ATAC-24hrDex.bigwig ATAC-24hrDex-Spikein.bigwig ATAC-6hrDex.bigwig -o ATAC_all_CDSbed_correlation.npz --BED ~/Araport11/Araport11_protein_coding.201606.bed & 
+
+nohup multiBamSummary 6hrDexA.final.bam 6hrDexB.final.bam 6hrMockA.final.bam 6hrMockB.final.bam
+plotCorrelation -in ATAC_CDSbed_correlation.npz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of ATACmock in CDS" --removeOutliers --whatToPlot scatterplot -o ~/LFY/graphs/ATACCDS_scatterplot_pearson.png 
+
+plotCorrelation -in ATAC_CDSbed_correlation.npz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of ATACmock in CDS" --removeOutliers --whatToPlot heatmap -o ~/LFY/graphs/ATACCDS_heatmap_pearson.png 
+
+plotCorrelation -in ATAC_all_CDSbed_correlation.npz --corMethod pearson --skipZeros --plotTitle "Pearson Correlation of ATAC all in CDS" --removeOutliers --whatToPlot heatmap -o ~/LFY/graphs/ATACCDSall_heatmap_pearson.png
+
+
+
+ATACCDSall_heatmap_pearson.png
+thumbnail
+
+cd ~/LFY/ATAC_downstream/e150s75
+findMotifsGenome.pl 6hr-DiffPeak_maxpeaks.bed tair10 6hrMotifOutput/
+TUESDAY, 11/13/2018×
+computeMatrix scale-regions -S LFY1HrDex_filter.bigwig LFY1HrMock_filter.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 2000 -m 5000 -a 2000 --binSize 20 --sortRegions keep -o ChIPprofile.mat.gz 
+
+#error: "need at least one array to concatenate"
+#corrected by adding the Chr in front of the number !
+cd ~/LFY/visualization/ATAC_2k/sammy_way
+nohup computeMatrix reference-point -S 6hrMock.bigwig ATAC-24hrMock.bigwig ATAC-24hrMock-Spikein.bigwig ATAC-6hrMock.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 20 --sortRegions keep -o ChIPvsATACmock.tab.gz &
+
+plotHeatmap --matrixFile ChIPvsATACmock.tab.gz --outFileName ~/LFY/graphs/ChIPvsATACmock.png &
+
+#error: no input: 
+cd ~/LFY/ATAC_downstream/e150s75
+sed -e "s/Chr//g" 6hr-DiffPeak_maxpeaks.bed > 6hr-DiffPeak_maxpeaks_num.bed
+findMotifsGenome.pl 6hr-DiffPeak_maxpeaks_num.bed tair10 6hrMotifOutput/
+
+●
+HINT: 
+○
+For all the motif analysis -- need bed file with "1" instead of "Chr1" 
+○
+For all compute matrix file -- need bed file with "Chr1" instead of "1"
+●
+Accidentally deleted the 24hr narrowPeak file -- re-call that again:
+macs2 callpeak -t mapping_2k/ATAC-24hrDexA.final.bam mapping_2k/ATAC-24hrDexB.final.bam -c mapping_2k/ATAC-24hrMockA.final.bam mapping_2k/ATAC-24hrMockB.final.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all --min-length 50 --outdir ATAC_downstream/e150s75 -n ATAC-24hr-DiffPeak
+●
+Next: do motif analysis for all the diff-peaks -- and generate bigwig files for compuateMatrix and compare that with LFY bindings -- might want to do that with new greenscreened-samples 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$9}' 6hr-DiffPeak_peaks.narrowPeak > 6hr-DiffPeak_peaks.bed
+~/custom_scripts/scoreFile2uniqueBed.py 6hr-DiffPeak_peaks.bed > 6hr-DiffPeak_maxpeaks.bed 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' 6hr-DiffPeak_maxpeaks.bed > 6hr-DiffPeak_maxpeaks.bedgraph
+bedGraphToBigWig 6hr-DiffPeak_maxpeaks.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hr-DiffPeak_maxpeaks.bigwig
+sed -e "s/Chr//g" 6hr-DiffPeak_maxpeaks.bed > 6hr-DiffPeak_maxpeaks_num.bed
+findMotifsGenome.pl 6hr-DiffPeak_maxpeaks_num.bed tair10 6hrMotifOutput/
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$9}' ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak > ATAC-24hr-Spikein-DiffPeak_peaks.bed
+~/custom_scripts/scoreFile2uniqueBed.py ATAC-24hr-Spikein-DiffPeak_peaks.bed > ATAC-24hr-Spikein-DiffPeak_maxpeaks.bed 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' ATAC-24hr-Spikein-DiffPeak_maxpeaks.bed > ATAC-24hr-Spikein-DiffPeak_maxpeaks.bedgraph
+bedGraphToBigWig ATAC-24hr-Spikein-DiffPeak_maxpeaks.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hr-Spikein-DiffPeak_maxpeaks.bigwig
+sed -e "s/Chr//g" ATAC-24hr-Spikein-DiffPeak_maxpeaks.bed > ATAC-24hr-Spikein-DiffPeak_maxpeaks_num.bed
+findMotifsGenome.pl ATAC-24hr-Spikein-DiffPeak_maxpeaks_num.bed tair10 ATAC24hr_spikein_MotifOutput/
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$9}' ATAC-24hr-DiffPeak_peaks.narrowPeak > ATAC-24hr-DiffPeak_peaks.bed
+~/custom_scripts/scoreFile2uniqueBed.py ATAC-24hr-DiffPeak_peaks.bed > ATAC-24hr-DiffPeak_maxpeaks.bed 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' ATAC-24hr-DiffPeak_maxpeaks.bed > ATAC-24hr-DiffPeak_maxpeaks.bedgraph
+bedGraphToBigWig ATAC-24hr-DiffPeak_maxpeaks.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hr-DiffPeak_maxpeaks.bigwig
+sed -e "s/Chr//g" ATAC-24hr-DiffPeak_maxpeaks.bed > ATAC-24hr-DiffPeak_maxpeaks_num.bed
+nohup findMotifsGenome.pl ATAC-24hr-DiffPeak_maxpeaks_num.bed tair10 ATAC24hrMotifOutput/ &
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$9}' ATAC-6hr-DiffPeak_peaks.narrowPeak > ATAC-6hr-DiffPeak_peaks.bed
+~/custom_scripts/scoreFile2uniqueBed.py ATAC-6hr-DiffPeak_peaks.bed > ATAC-6hr-DiffPeak_maxpeaks.bed 
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$5}' ATAC-6hr-DiffPeak_maxpeaks.bed > ATAC-6hr-DiffPeak_maxpeaks.bedgraph
+bedGraphToBigWig ATAC-6hr-DiffPeak_maxpeaks.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-6hr-DiffPeak_maxpeaks.bigwig
+sed -e "s/Chr//g" ATAC-6hr-DiffPeak_maxpeaks.bed > ATAC-6hr-DiffPeak_maxpeaks_num.bed
+nohup findMotifsGenome.pl ATAC-6hr-DiffPeak_maxpeaks_num.bed tair10 ATAC6hrMotifOutput/ &
+
+●
+Decided to compute matrix to see how the peaks compare with LFY binding sites: whether they are enriched and whether they correlate:
+nohup computeMatrix reference-point -S 6hr-DiffPeak_maxpeaks.bigwig ATAC-6hr-DiffPeak_maxpeaks.bigwig ATAC-24hr-DiffPeak_maxpeaks.bigwig ATAC-24hr-Spikein-DiffPeak_maxpeaks.bigwig -R ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed --referencePoint center -b 2000 -a 2000 --binSize 20 --sortRegions keep -o ChIPvsATACdiff.tab.gz &
+
+plotHeatmap --matrixFile ChIPvsATACdiff.tab.gz --missingDataColor 0.5 --colorMap winter --refPointLabel LFY_summit --kmeans 4 --outFileName ~/LFY/graphs/ChIPvsATACdiff_kmeans.png &
+
+ChIPvsATACmock.png
+thumbnail
+
+
+ChIPvsATACdiff_kmeans.png
+thumbnail
+
+
+ChIPvsATACdiff.png
+thumbnail
+
+WEDNESDAY, 11/14/2018×
+●
+Interset Schmit's peaks with my peaks: 
+bedtools intersect -wa -a greenscreen1_filter_noModel138_pooled/qval10/FDChIP1n2_peaks.narrowPeak -b annotations/qval10/FDChIP_qval10_peaks.Araport11.bed | wc -l
+
+macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam -n 6hr_Dex -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+
+cd ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd
+6hr_Mock_peaks.narrowPeak 
+6hr_Dex_peaks.narrowPeak
+ATAC-6hr_Mock_peaks.narrowPeak
+ATAC-6hr_Dex_peaks.narrowPeak
+ATAC-24hr_Mock_peaks.narrowPeak    
+ATAC-24hr_Dex_peaks.narrowPeak  
+ATAC-24hr-Spikein_Mock_peaks.narrowPeak
+ATAC-24hr-Spikein_Dex_peaks.narrowPeak 
+
+#bed files to compare to are in the following directory: /home/runjin/LFY/mapping_Schmits
+bedtools intersect -wa -a ~/LFY/mapping_Schmits/Col-0_50k_seedling_nuclei_pooled.bed -b ~/LFY/mapping_Schmits/Col-0_50k_root_nuclei_pooled.bed -u > Schmit_seedlingroot.bed
+16850
+bedtools intersect -wa -a ~/LFY/mapping_Schmits/Col-0_50k_crude_nuclei_pooled.bed -b Schmit_seedlingroot.bed -u > Schmit_all.bed
+16417
+
+bedtools intersect -wa -b Schmit_seedlingroot.bed -a 6hr_Mock_peaks.narrowPeak -u | wc -l 
+bedtools intersect -v -a Schmit_seedlingroot.bed -b 6hr_Mock_peaks.narrowPeak | wc -l 
+bedtools intersect -wa -a Schmit_seedlingroot.bed -b 6hr_Mock_peaks.narrowPeak | wc -l 
+6hr_Mock_peaks.narrowPeak 
+6hr_Dex_peaks.narrowPeak
+ATAC-6hr_Mock_peaks.narrowPeak
+ATAC-6hr_Dex_peaks.narrowPeak
+ATAC-24hr_Mock_peaks.narrowPeak    
+ATAC-24hr_Dex_peaks.narrowPeak  
+ATAC-24hr-Spikein_Mock_peaks.narrowPeak
+ATAC-24hr-Spikein_Dex_peaks.narrowPeak 
+
+bedtools intersect -wa -a Schmit_all.bed -b ATAC-24hr-Spikein_Dex_peaks.narrowPeak -u | wc -l 
+
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+P
+Q
+R
+S
+T
+1
+# of peaks  	# of peaks overlap w/ root	% found in Schmit root	Schmit root (17771)	% Schmit root found in ours	# of peaks overlap w/ seedling	% found in Schmit seedling	Schmit seedling (19683)	% Schmit seedling in our samples	# of peaks that overlap w/ their samples	% found in Schmit	Schmit seed-root (16850)	% Schmit that we are able to detect	# of peaks overlap with common peaks in all 3 schmit	% found in Schmit - all	Schmit all (16417)	% Schmit all in our samples		
+2
+6hrMock	34999	28590	81.6880482299	13406	75.4375105509	28147	80.4222977799	14225	72.2704872225	26949	76.9993428384	13289	78.8664688427	25749	73.5706734478	13166	80.1973563989		
+3
+6hrDex	24876	19412	78.0350538672	10383	58.4266501604	19054	76.5959157421	10846	55.1033887111	18440	74.1276732594	10344	61.3887240356	18002	72.3669400225	10350	63.0444051897		
+4
+6hrMock_new	27020	21847	80.8549222798	8929	50.2447808227	21634	80.0666173205	9350	47.5029213026	21141	78.2420429312	9001	53.4183976261	20365	75.370096225	8911	54.279100932		
+5
+6hrDex_new	26106	21019	80.5140580709	8586	48.3146699679	20841	79.8322224776	8921	45.3233755017	20364	78.0050563089	8606	51.0741839763	19670	75.3466636022	8546	52.0557958214		
+6
+24hrMock	13031	7335	56.2888496662	4462	25.108322548	7155	54.907528202	4503	22.8776101204	7011	53.8024710306	4400	26.1127596439	6628	50.8633259151	4143	25.2360358165		
+7
+24hrDex	18171	7051	38.8035881349	4231	23.8084519723	6692	36.827912608	4191	21.2924859015	6512	35.8373232073	4059	24.0890207715	6943	38.2092344945	4438	27.0329536456		
+8
+24hrMock_spiken	11780	8465	71.8590831919	4834	27.2016206179	8387	71.1969439728	4945	25.1232027638	8280	70.2886247878	4839	28.7181008902	8074	68.5398981324	4804	29.262350003		
+9
+24hrDex_spikein	15618	10936	70.0217697528	5506	30.9830622925	10877	69.6440005122	5702	28.9691612051	10675	68.3506210782	5566	33.0326409496	10353	66.288897426	5512	33.5749527928		
+Table7
+
+
+
+bedtools intersect -wa -a ~/LFY/mapping_Schmits/Col-0_50k_root_nuclei_pooled.bed -b ATAC-24hr-Spikein_Dex_peaks.narrowPeak -u | wc -l 
+
+wc -l ~/LFY/mapping_Schmits/Col-0_50k_root_nuclei_pooled.bed
+THURSDAY, 11/15/2018×
+bedtools intersect -wa -b ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed -a 6hr-DiffPeak_peaks.narrowPeak -u | wc -l
+
+bedtools intersect -wa -b ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed -a ATAC-6hr-DiffPeak_peaks.narrowPeak -u | wc -l
+
+bedtools intersect -wa -b ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed -a ATAC-24hr-DiffPeak_peaks.narrowPeak -u | wc -l
+
+bedtools intersect -wa -b ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed -a ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak -u | wc -l
+
+bedtools intersect -wa -a ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed -b diff_ATAC6hrDvM_c3.0_cond1.bed -u | wc -l
+bedtools intersect -wa -a ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed -b diff_ATAC6hrall_DvM_c3.0_cond1.bed -u | wc -l
+diff_6hrDvM_c3.0_cond1.bed
+diff_ATAC24hrall_DvM_c3.0_cond1.bed
+diff_ATAC24hrDvM_c3.0_cond1.bed
+diff_ATAC24hrSpikein_DvM_c3.0_cond1.bed
+diff_ATAC6hrall_DvM_c3.0_cond1.bed
+diff_ATAC6hrDvM_c3.0_cond1.bed
+diff_ATAC_DexSpecific_6v24_c3.0_cond1.bed
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+1
+# LFY peaks (2149) found in Dex open 	% LFY peaks overlap with ATAC diff peak	# LFY peaks (2149) found in Dex close	% LFY peaks (2149) found in Dex close	#LFY peaks (2149) in common open region	%LFY peaks found in common 	# of ATAC dex peaks in LFY peaks	# of ATAC mock peaks in LFY peaks	# of ATAC common peaks in LFY peaks	Total # of ATAC peaks	% ATAC dex peaks in LFY ChIP seq
+2
+6hrDexdiff	459	21.3587715216	N/A	1453			5630	25.8081705151
+3
+ATAC-6hrDexdiff	248	11.5402512797	844			7210	11.705963939
+4
+ATAC-24hrDexdiff	362	16.8450442066	980			10208	9.6003134796
+5
+ATAC-24hrSpikein-Dexdiff	317	14.7510469986	956			5446	17.5541681968
+6
+diff_6hrDvM	198	9.2135877152	409		226		121	389	242	505	23.9603960396
+7
+diff_ATAC6hrDvM	4	0.1861330852	26		393		4	24	484	61	6.5573770492
+8
+diff_ATAC6hrall_DvM	88	4.0949278734					49			195	25.1282051282
+9
+diff_ATAC24hrDvM	81	3.7691949744					46			362	12.7071823204
+10
+diff_ATAC24hrSpikein_DvM	109	5.0721265705					64			278	23.0215827338
+11
+diff_ATAC24hrall_DvM	201	9.3531875291					122			706	17.2804532578
+12
+diff_ATAC_DexSpecific_6v24	0	na					0			40	na
+Table8
+
+
+
+bedtools intersect -wa -a ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed -b diff_6hrDvM_c3.0_common.bed -u | wc -l
+
+diff_6hrDvM_c3.0_cond2.bed
+diff_ATAC24hrall_DvM_c3.0_cond2.bed
+diff_ATAC24hrDvM_c3.0_cond2.bed
+diff_ATAC24hrSpikein_DvM_c3.0_cond2.bed
+diff_ATAC6hrall_DvM_c3.0_cond2.bed
+diff_ATAC6hrDvM_c3.0_cond2.bed
+diff_ATAC_DexSpecific_6v24_c3.0_cond2.bed
+A
+B
+C
+D
+E
+1
+Name of output	c1>c2	c2>c1	c1 = c2
+2
+Each Dex vs. Mock -- individual compare 	diff_6hrDvM	505	11514	5179
+3
+diff_ATAC6hrDvM	61	341	5764
+4
+diff_ATAC24hrDvM	362	80	2296
+5
+diff_ATAC24hrSpikein_DvM	278	33	1979
+6
+All 6hr DexvsM. & all 24hr DexvsM.	diff_ATAC6hrall_DvM	195	7770	9738
+7
+diff_ATAC24hrall_DvM	706	16	4760
+8
+All 6hrDex specific & all 24hrDex specific	diff_ATAC_DexSpecific_6v24	40	640	402
+Table9
+
+
+
+FRIDAY, 11/16/2018×
+Start calling differential regions with macs2 files:
+macs2 bdgdiff --t1 6hr_Dex_treat_pileup.bdg --c1 6hr_Dex_control_lambda.bdg --t2 6hr_Mock_treat_pileup.bdg --c2 6hr_Mock_control_lambda.bdg --d1 12247712 --d2 11402986 -g 50 -l 100 --o-prefix diff_6hrDvM
+
+macs2 bdgdiff --t1 ATAC-6hr_Dex_treat_pileup.bdg --c1 ATAC-6hr_Dex_control_lambda.bdg --t2 ATAC-6hr_Mock_treat_pileup.bdg --c2 ATAC-6hr_Mock_control_lambda.bdg --d1 20705286 --d2 17640948 -g 50 -l 100 --o-prefix diff_ATAC6hrDvM
+
+macs2 bdgdiff --t1 ATAC-24hr_Dex_treat_pileup.bdg --c1 ATAC-24hr_Dex_control_lambda.bdg --t2 ATAC-24hr_Mock_treat_pileup.bdg --c2 ATAC-24hr_Mock_control_lambda.bdg --d1 14522680 --d2 13616985 -g 50 -l 100 --o-prefix diff_ATAC24hrDvM
+
+macs2 bdgdiff --t1 ATAC-24hr-Spikein_Dex_treat_pileup.bdg --c1 ATAC-24hr-Spikein_Dex_control_lambda.bdg --t2 ATAC-24hr-Spikein_Mock_treat_pileup.bdg --c2 ATAC-24hr-Spikein_Mock_control_lambda.bdg --d1 17145984 --d2 11911548 -g 50 -l 100 --o-prefix diff_ATAC24hrSpikein_DvM
+Doing comparison for all 6hrDex vs. 6hrMock & all 24hrDex vs. 24hrMock:
+macs2 bdgdiff --t1 ATAC_6hr_Dex_all_treat_pileup.bdg --c1 ATAC_6hr_Dex_all_control_lambda.bdg --t2 ATAC-6hr_Mock_all_treat_pileup.bdg --c2 ATAC-6hr_Mock_all_control_lambda.bdg --d1 32952998 --d2 29043934 -g 50 -l 100 --o-prefix diff_ATAC6hrall_DvM
+
+macs2 bdgdiff --t1 ATAC-24hr_Dex_all_treat_pileup.bdg --c1 ATAC-24hr_Dex_all_control_lambda.bdg --t2 ATAC-24hr_Mock_all_treat_pileup.bdg --c2 ATAC-24hr_Mock_all_control_lambda.bdg --d1 21572733 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC24hrall_DvM
+
+Doing comparison for all 6hrDex-specific open region vs. 24hrDex-specific open region:
+macs2 bdgdiff --t1 ATAC_6hrdiff_all_treat_pileup.bdg --c1 ATAC_6hrdiff_all_control_lambda.bdg --t2 ATAC-24hrdiff_all_treat_pileup.bdg --c2 ATAC-24hrdiff_all_control_lambda.bdg --d1 19128950 --d2 18372475 -g 50 -l 100 --o-prefix diff_ATAC_DexSpecific_6v24
+FRIDAY, 1/11/2019×
+●
+Next step will be to filter the files and see whether that gives better results: 
+○
+First conver the final files into sam files
+○
+And then filter manually by using the samtools view selection 
+awk '{print "samtools view -h -o "$0".final.sam "$0".final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtosam.sh
+chmod 775 ~/LFY/scripts/bamtosam.sh
+nohup ~/LFY/scripts/bamtosam.sh > ~/LFY/log_files/bamtosam.log 2>&1 &
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+ATAC-24hrDexA-Spikein
+ATAC-24hrDexB-Spikein
+ATAC-24hrMockA-Spikein
+ATAC-24hrMockB-Spikein
+
+#only showing the sample command in here: 
+awk '$9<=130' ATAC-24hrDexA-Spikein.final.sam > ATAC-24hrDexA-Spikein.open.final.sam 
+samtools view -b -S ATAC-24hrDexA-Spikein.open.final.sam > ATAC-24hrDexA-Spikein.open.final.bam
+
+samtools view -H ATAC-24hrDexA-Spikein.final.sam > ATAC-24hrDexA-Spikein.mono.final.sam
+awk '$9<=170 && $9>130' ATAC-24hrDexA-Spikein.final.sam >> ATAC-24hrDexA-Spikein.mono.final.sam
+samtools view -b -S ATAC-24hrDexA-Spikein.mono.final.sam > ATAC-24hrDexA-Spikein.mono.final.bam
+
+awk '{print "samtools view -H "$0".final.sam > "$0".mono.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/headerATAC.sh
+awk '{print "awk \47$9<=170 && $9>130\47 "$0".final.sam >> "$0".mono.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/filterATAC.sh
+chmod 775 ~/LFY/scripts/headerATAC.sh
+nohup ~/LFY/scripts/headerATAC.sh > ~/LFY/log_files/headerATAC.log 2>&1 &
+chmod 775 ~/LFY/scripts/filterATAC.sh
+nohup ~/LFY/scripts/filterATAC.sh > ~/LFY/log_files/filterATAC.log 2>&1 &
+
+awk '{print "samtools view -b -S "$0".mono.final.sam > "$0".mono.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/samtobam_ATAC.sh
+chmod 775 ~/LFY/scripts/samtobam_ATAC.sh
+nohup ~/LFY/scripts/samtobam_ATAC.sh > ~/LFY/log_files/samtobam_ATAC.log 2>&1 &
+●
+Make normalized bigwig files for profile plotting to see whether it makes better results: 
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".open.final.bam -o "$0".open.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_open.sh
+chmod 755 ~/LFY/scripts/bamtobg_open.sh
+nohup ~/LFY/scripts/bamtobg_open.sh > ~/LFY/log_files/bamtobg_open.log 2>&1 &
+
+awk '{print "bamCoverage -b "$0".mono.final.bam -o "$0".mono.final.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_mono.sh
+chmod 755 ~/LFY/scripts/bamtobg_mono.sh
+nohup ~/LFY/scripts/bamtobg_mono.sh > ~/LFY/log_files/bamtobg_mono.log 2>&1 &
+
+bamCoverage -b ATAC-24hrDexB-Spikein.mono.final.bam -o ATAC-24hrDexB-Spikein.mono.final.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30
+●
+merge the 2 replicates of the open region sizes:
+nohup bedtools unionbedg -header -i ATAC-24hrDexA-Spikein.open.bg ATAC-24hrDexB-Spikein.open.bg > ATAC-24hrDex-Spikein.open.unionbedg &
+nohup bedtools unionbedg -header -i ATAC-24hrMockA-Spikein.open.bg ATAC-24hrMockB-Spikein.open.bg > ATAC-24hrMock-Spikein.open.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex-Spikein.open.unionbedg > ATAC24hrDex_SI_pooled.open.bg
+sort -k1,1 -k2,2n ATAC24hrDex_SI_pooled.open.bg > ATAC24hrDex_SI_pooled_sorted.open.bg
+bedGraphToBigWig ATAC24hrDex_SI_pooled_sorted.open.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrDex_SI_pooled_sorted.open.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock-Spikein.open.unionbedg > ATAC24hrMock_SI_pooled.open.bg
+sort -k1,1 -k2,2n ATAC24hrMock_SI_pooled.open.bg > ATAC24hrMock_SI_pooled_sorted.open.bg
+bedGraphToBigWig ATAC24hrMock_SI_pooled_sorted.open.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrMock_SI_pooled_sorted.open.bigwig
+●
+Make TSS profile for the new ATAC files that filter for the fragment sizes: 
+nohup computeMatrix scale-regions -S ATAC24hrDex_SI_pooled_sorted.open.bigwig ATAC24hrMock_SI_pooled_sorted.open.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 1000 -m 5000 -bs 10 -o ATAC24hrSpikein.open.mat.gz &
+
+plotProfile --matrixFile ATAC24hrSpikein.open.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC24hrSpikein.open.png 
+●
+merge the 2 replicates of monomer-size signals:
+nohup bedtools unionbedg -header -i ATAC-24hrDexA-Spikein.mono.final.bg ATAC-24hrDexB-Spikein.mono.final.bg > ATAC-24hrDex-Spikein.mono.unionbedg &
+nohup bedtools unionbedg -header -i ATAC-24hrMockA-Spikein.mono.final.bg ATAC-24hrMockB-Spikein.mono.final.bg > ATAC-24hrMock-Spikein.mono.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex-Spikein.mono.unionbedg > ATAC24hrDex_SI_pooled.mono.bg
+sort -k1,1 -k2,2n ATAC24hrDex_SI_pooled.mono.bg > ATAC24hrDex_SI_pooled_sorted.mono.bg
+bedGraphToBigWig ATAC24hrDex_SI_pooled_sorted.mono.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrDex_SI_pooled_sorted.mono.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock-Spikein.mono.unionbedg > ATAC24hrMock_SI_pooled.mono.bg
+sort -k1,1 -k2,2n ATAC24hrMock_SI_pooled.mono.bg > ATAC24hrMock_SI_pooled_sorted.mono.bg
+bedGraphToBigWig ATAC24hrMock_SI_pooled_sorted.mono.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrMock_SI_pooled_sorted.mono.bigwig
+nohup computeMatrix reference-point -S ATAC24hrDex_SI_pooled_sorted.mono.bigwig ATAC24hrMock_SI_pooled_sorted.mono.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ATAC24hrSpikein.mono.mat.gz &
+
+plotProfile --matrixFile ATAC24hrSpikein.mono.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC24hrSpikein.mono.png 
+
+ATAC24hrSpikein.open.png
+thumbnail
+
+
+ATAC24hrSpikein.mono.png
+thumbnail
+
+●
+Make TSS profile for the new ATAC files that filter for the fragment sizes: 
+nohup computeMatrix scale-regions -S ATAC24hrDex_SI_pooled_sorted.open.bigwig ATAC24hrMock_SI_pooled_sorted.open.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 20 -o ATAC24hrSpikein_bs20.open.mat.gz &
+
+plotProfile --matrixFile ATAC24hrSpikein_bs20.open.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC24hrSpikein_bs20.open.png 
+MONDAY, 1/14/2019×
+●
+Now trying out size of 110bp and then even 90bp to see whether it makes any difference:
+awk '{print "samtools view -h -o "$0".final.sam "$0".final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtosam.sh
+chmod 775 ~/LFY/scripts/bamtosam.sh
+nohup ~/LFY/scripts/bamtosam.sh > ~/LFY/log_files/bamtosam.log 2>&1 &
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+ATAC-24hrDexA-Spikein
+ATAC-24hrDexB-Spikein
+ATAC-24hrMockA-Spikein
+ATAC-24hrMockB-Spikein
+
+#only showing the sample command in here: 
+awk '$9<=110' ATAC-24hrDexA-Spikein.final.sam > ATAC-24hrDexA-Spikein.open.final.sam 
+samtools view -b -S ATAC-24hrDexA-Spikein.open.final.sam > ATAC-24hrDexA-Spikein.open.final.bam
+
+#batch script here:
+awk '{print "awk \47$9<=110\47 "$0".final.sam > "$0".open110.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/filterATAC.sh
+chmod 775 ~/LFY/scripts/filterATAC.sh
+nohup ~/LFY/scripts/filterATAC.sh > ~/LFY/log_files/filterATAC.log 2>&1 &
+
+awk '{print "samtools view -b -S "$0".open110.final.sam > "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/samtobam_ATAC.sh
+chmod 775 ~/LFY/scripts/samtobam_ATAC.sh
+nohup ~/LFY/scripts/samtobam_ATAC.sh > ~/LFY/log_files/samtobam_ATAC.log 2>&1 &
+
+awk '{print "samtools index "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_open.sh
+chmod 775 ~/LFY/scripts/index_open.sh
+nohup ~/LFY/scripts/index_open.sh > ~/LFY/log_files/index_open.log 2>&1 &
+●
+Make normalized bigwig files for profile plotting to see whether it makes better results: 
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".open110.final.bam -o "$0".open110.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_open.sh
+chmod 755 ~/LFY/scripts/bamtobg_open.sh
+nohup ~/LFY/scripts/bamtobg_open.sh > ~/LFY/log_files/bamtobg_open.log 2>&1 &
+●
+merge the 2 replicates of the open region sizes:
+nohup bedtools unionbedg -header -i ATAC-24hrDexA-Spikein.open110.bg ATAC-24hrDexB-Spikein.open110.bg > ATAC-24hrDex-Spikein.open110.unionbedg &
+nohup bedtools unionbedg -header -i ATAC-24hrMockA-Spikein.open110.bg ATAC-24hrMockB-Spikein.open110.bg > ATAC-24hrMock-Spikein.open110.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex-Spikein.open110.unionbedg > ATAC24hrDex_SI_pooled.open110.bg
+sort -k1,1 -k2,2n ATAC24hrDex_SI_pooled.open110.bg > ATAC24hrDex_SI_pooled_sorted.open110.bg
+bedGraphToBigWig ATAC24hrDex_SI_pooled_sorted.open110.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrDex_SI_pooled_sorted.open110.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock-Spikein.open110.unionbedg > ATAC24hrMock_SI_pooled.open110.bg
+sort -k1,1 -k2,2n ATAC24hrMock_SI_pooled.open110.bg > ATAC24hrMock_SI_pooled_sorted.open110.bg
+bedGraphToBigWig ATAC24hrMock_SI_pooled_sorted.open110.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrMock_SI_pooled_sorted.open110.bigwig
+●
+Make TSS profile for the new ATAC files that filter for the fragment sizes: 
+nohup computeMatrix scale-regions -S ATAC24hrDex_SI_pooled_sorted.open110.bigwig ATAC24hrMock_SI_pooled_sorted.open110.bigwig ATAC24hrDex_SI_pooled_sorted.open.bigwig ATAC24hrMock_SI_pooled_sorted.open.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC24hrSpikein.open110130.mat.gz &
+
+plotProfile --matrixFile ATAC24hrSpikein.open110130.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC24hrSpikein.open110130.png 
+●
+Now do the exact same things with the fragment size being 90bp:
+awk '{print "samtools view -h -o "$0".final.sam "$0".final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtosam.sh
+chmod 775 ~/LFY/scripts/bamtosam.sh
+nohup ~/LFY/scripts/bamtosam.sh > ~/LFY/log_files/bamtosam.log 2>&1 &
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+ATAC-24hrDexA-Spikein
+ATAC-24hrDexB-Spikein
+ATAC-24hrMockA-Spikein
+ATAC-24hrMockB-Spikein
+
+#only showing the sample command in here: 
+awk '$9<=110' ATAC-24hrDexA-Spikein.final.sam > ATAC-24hrDexA-Spikein.open.final.sam 
+samtools view -b -S ATAC-24hrDexA-Spikein.open.final.sam > ATAC-24hrDexA-Spikein.open.final.bam
+
+#batch script here:
+awk '{print "awk \47$9<=90\47 "$0".final.sam > "$0".open90.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/filterATAC.sh
+chmod 775 ~/LFY/scripts/filterATAC.sh
+nohup ~/LFY/scripts/filterATAC.sh > ~/LFY/log_files/filterATAC.log 2>&1 &
+
+awk '{print "samtools view -b -S "$0".open90.final.sam > "$0".open90.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/samtobam_ATAC.sh
+chmod 775 ~/LFY/scripts/samtobam_ATAC.sh
+nohup ~/LFY/scripts/samtobam_ATAC.sh > ~/LFY/log_files/samtobam_ATAC.log 2>&1 &
+
+awk '{print "samtools index "$0".open90.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_open.sh
+chmod 775 ~/LFY/scripts/index_open.sh
+nohup ~/LFY/scripts/index_open.sh > ~/LFY/log_files/index_open.log 2>&1 &
+●
+Make normalized bigwig files for profile plotting to see whether it makes better results: 
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".open90.final.bam -o "$0".open90.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_open.sh
+chmod 755 ~/LFY/scripts/bamtobg_open.sh
+nohup ~/LFY/scripts/bamtobg_open.sh > ~/LFY/log_files/bamtobg_open.log 2>&1 &
+●
+merge the 2 replicates of the open region sizes:
+nohup bedtools unionbedg -header -i ATAC-24hrDexA-Spikein.open90.bg ATAC-24hrDexB-Spikein.open90.bg > ATAC-24hrDex-Spikein.open90.unionbedg &
+nohup bedtools unionbedg -header -i ATAC-24hrMockA-Spikein.open90.bg ATAC-24hrMockB-Spikein.open90.bg > ATAC-24hrMock-Spikein.open90.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex-Spikein.open90.unionbedg > ATAC24hrDex_SI_pooled.open90.bg
+sort -k1,1 -k2,2n ATAC24hrDex_SI_pooled.open90.bg > ATAC24hrDex_SI_pooled_sorted.open90.bg
+bedGraphToBigWig ATAC24hrDex_SI_pooled_sorted.open90.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrDex_SI_pooled_sorted.open90.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock-Spikein.open90.unionbedg > ATAC24hrMock_SI_pooled.open90.bg
+sort -k1,1 -k2,2n ATAC24hrMock_SI_pooled.open90.bg > ATAC24hrMock_SI_pooled_sorted.open90.bg
+bedGraphToBigWig ATAC24hrMock_SI_pooled_sorted.open90.bg ~/Araport11/TAIR10_chr_count.txt ATAC24hrMock_SI_pooled_sorted.open90.bigwig
+●
+Make TSS profile for the new ATAC files that filter for the fragment sizes: 
+nohup computeMatrix scale-regions -S ATAC24hrDex_SI_pooled_sorted.open110.bigwig ATAC24hrMock_SI_pooled_sorted.open110.bigwig ATAC24hrDex_SI_pooled_sorted.open90.bigwig ATAC24hrMock_SI_pooled_sorted.open90.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC24hrSpikein.open90110.mat.gz &
+
+plotProfile --matrixFile ATAC24hrSpikein.open90110.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC24hrSpikein.open90110.png 
+
+MNaseOldvsLFY1k_heatmap.png
+ATAC24hrSpikein.open90110.png
+ATAC24hrSpikein.open110130.png
+
+ATAC24hrSpikein.open90110.png
+thumbnail
+
+
+ATAC24hrSpikein.open110130.png
+thumbnail
+
+TUESDAY, 1/15/2019×
+●
+Try to get previous ATAC without any filtering and compare that with current one:
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open.final.bam ATAC-24hrDexB-Spikein.open.final.bam -c ATAC-24hrMockA-Spikein.open.final.bam ATAC-24hrMockB-Spikein.open.final.bam -n SI_open130 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/ATAC_downstream/macs2_DvM_SI_130
+
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open110.final.bam ATAC-24hrDexB-Spikein.open110.final.bam -c ATAC-24hrMockA-Spikein.open110.final.bam ATAC-24hrMockB-Spikein.open110.final.bam -n SI_open110 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/ATAC_downstream/macs2_DvM_SI_110
+
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open90.final.bam ATAC-24hrDexB-Spikein.open90.final.bam -c ATAC-24hrMockA-Spikein.open90.final.bam ATAC-24hrMockB-Spikein.open90.final.bam -n SI_open90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 50 --outdir ~/LFY/ATAC_downstream/macs2_DvM_SI_90
+●
+Visualize them on IGV and see how that looks
+A
+B
+C
+D
+E
+F
+G
+H
+I
+1
+# of peaks	Min-length	# ATAC in LFY	#LFY in ATAC	% LFY in ATAC	#in Schmit all 	% in Schmit	#Schmit in Us
+2
+DvM_SI_130	2776	90	49	79	6.4%	635	0.228746398	566
+3
+DvM_SI_110	3663	70	72	54	4.4%	938	0.256074256	848
+4
+DvM_SI_90	3881	50	75	72	5.8%	1010	0.260242206	882
+Table10
+
+
+
+●
+Also try a bunch of intersection with LFY ChIP data:
+bedtools intersect -wa -a SI_open110_peaks.narrowPeak -b ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed | sort -u | wc -l (72)
+bedtools intersect -wa -b SI_open110_peaks.narrowPeak -a ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10_chr.bed | sort -u | wc -l (79)
+●
+Intersect Schmit's peaks with my peaks -- need to call real peaks -- not DvM peaks
+A
+B
+C
+D
+E
+F
+G
+H
+1
+# of peaks 	# peaks found in Schmits all	% ours found in Schmit	#Schmit in ours	% Schmits found in ours		
+2
+SI_Mock_90	9788	6507	66.47936248	4099	24.96802095		
+3
+SI_Mock_110	9578	6613	69.04364168	4348	26.48474143		
+4
+SI_Mock_130	8870	6287	70.87936866	4446	27.08168362		
+5
+SI_Dex_90	13115	8331	63.52268395	5005	30.48669063		
+6
+SI_Dex_110	13996	9185	65.62589311	5233	31.87549491		
+7
+SI_Dex_130	13622	9092	66.74497137	5251	31.98513736		
+Table11
+
+
+
+●
+Previous results looks something like this:
+A
+B
+C
+1
+% ours found in Schmit	% Schmits found in ours
+2
+SI_Mock_nofilter	50.86332592	25.2360358165
+3
+SI_Dex_nofilter	38.20923449	27.0329536456
+Table12
+
+
+
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open90.final.bam ATAC-24hrDexB-Spikein.open90.final.bam -n SI_Dex_open90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 50 --outdir ~/LFY/ATAC_downstream/macs2_Dex_SI_90
+
+macs2 callpeak -B -t ATAC-24hrMockA-Spikein.open90.final.bam ATAC-24hrMockB-Spikein.open90.final.bam -n SI_Mock_open90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 50 --outdir ~/LFY/ATAC_downstream/macs2_Mock_SI_90
+
+#bed files to compare to are in the following directory: /home/runjin/LFY/mapping_Schmits
+bedtools intersect -wa -a ~/LFY/mapping_Schmits/Col-0_50k_seedling_nuclei_pooled.bed -b ~/LFY/mapping_Schmits/Col-0_50k_root_nuclei_pooled.bed -u > Schmit_seedlingroot.bed
+bedtools intersect -wa -a ~/LFY/mapping_Schmits/Col-0_50k_crude_nuclei_pooled.bed -b Schmit_seedlingroot.bed -u > Schmit_all.bed
+
+~/LFY/ATAC_downstream/macs2_narrowPeak_all
+
+bedtools intersect -wa -b Schmit_all.bed -a SI_Dex_open90_peaks.narrowPeak -u | wc -l 
+bedtools intersect -wa -a Schmit_all.bed -b SI_Dex_open90_peaks.narrowPeak -u | wc -l 
+
+bedtools intersect -wa -b Schmit_all.bed -a SI_open110_peaks.narrowPeak -u | wc -l 
+bedtools intersect -wa -a Schmit_all.bed -b SI_open110_peaks.narrowPeak -u | wc -l 
+
+bedtools intersect -wa -b Schmit_all.bed -a SI_open130_peaks.narrowPeak -u | wc -l 
+bedtools intersect -wa -a Schmit_all.bed -b SI_open130_peaks.narrowPeak -u | wc -l 
+WEDNESDAY, 1/16/2019×
+●
+Try calling peaks with the different parameters and take a look at them with IGV 
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open.final.bam ATAC-24hrDexB-Spikein.open.final.bam -c ATAC-24hrMockA-Spikein.open.final.bam ATAC-24hrMockB-Spikein.open.final.bam -n SI_open130_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/ATAC_downstream/macs2_DvM_SI_130_70_75150
+
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open.final.bam ATAC-24hrDexB-Spikein.open.final.bam -c ATAC-24hrMockA-Spikein.open.final.bam ATAC-24hrMockB-Spikein.open.final.bam -n SI_open130_70_100200 -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/ATAC_downstream/macs2_DvM_SI_130_70_100200
+
+macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open.final.bam ATAC-24hrDexB-Spikein.open.final.bam -c ATAC-24hrMockA-Spikein.open.final.bam ATAC-24hrMockB-Spikein.open.final.bam -n SI_open130_100_100200 -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 100 --outdir ~/LFY/ATAC_downstream/macs2_DvM_SI_130_100_100200
+●
+Extend and Shift do not effect the peaks called 
+A
+B
+1
+peak number 
+2
+SI_90_FS50_e150s75	3881
+3
+SI_110_FS70_e150s75	3663
+4
+SI_130_FS90_e150s75	2776
+5
+SI_130_FS70_e150s75	3596
+6
+SI_130_FS70_e200s100	3596
+7
+SI_130_FS100_e200s100	2483
+Table13
+
+
+
+●
+For the old 6hr ATAC - I will use the same exact method -- but ignore the 90 - just the 130 and 110 
+awk '{print "samtools view -h -o "$0".final.sam "$0".final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtosam.sh
+chmod 775 ~/LFY/scripts/bamtosam.sh
+nohup ~/LFY/scripts/bamtosam.sh > ~/LFY/log_files/bamtosam.log 2>&1 &
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+6hrDexA
+6hrDexB
+6hrMockA
+6hrMockB
+
+#batch script here:
+awk '{print "awk \47$9<=110\47 "$0".final.sam > "$0".open110.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/filterATAC.sh
+chmod 775 ~/LFY/scripts/filterATAC.sh
+nohup ~/LFY/scripts/filterATAC.sh > ~/LFY/log_files/filterATAC.log 2>&1 &
+
+awk '{print "samtools view -b -S "$0".open110.final.sam > "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/samtobam_ATAC.sh
+chmod 775 ~/LFY/scripts/samtobam_ATAC.sh
+nohup ~/LFY/scripts/samtobam_ATAC.sh > ~/LFY/log_files/samtobam_ATAC.log 2>&1 &
+
+awk '{print "samtools index "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_open.sh
+chmod 775 ~/LFY/scripts/index_open.sh
+nohup ~/LFY/scripts/index_open.sh > ~/LFY/log_files/index_open.log 2>&1 &
+●
+Make normalized bigwig files for profile plotting to see whether it makes better results: 
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".open110.final.bam -o "$0".open110.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_open.sh
+chmod 755 ~/LFY/scripts/bamtobg_open.sh
+nohup ~/LFY/scripts/bamtobg_open.sh > ~/LFY/log_files/bamtobg_open.log 2>&1 &
+●
+merge the 2 replicates of the open region sizes:
+nohup bedtools unionbedg -header -i 6hrDexA.open110.bg 6hrDexB.open110.bg > 6HrDex.open110.unionbedg &
+nohup bedtools unionbedg -header -i 6hrMockA.open110.bg 6hrMockB.open110.bg > 6hrMock.open110.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' 6HrDex.open110.unionbedg > 6hrDex_pooled.open110.bg
+sort -k1,1 -k2,2n 6hrDex_pooled.open110.bg > 6hrDex_pooled.sorted.open110.bg
+bedGraphToBigWig 6hrDex_pooled.sorted.open110.bg ~/Araport11/TAIR10_chr_count.txt 6hrDex_pooled.open110.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrMock.open110.unionbedg > 6hrMock_pooled.open110.bg
+sort -k1,1 -k2,2n 6hrMock_pooled.open110.bg > 6hrMock_pooled.sorted.open110.bg
+bedGraphToBigWig 6hrMock_pooled.sorted.open110.bg ~/Araport11/TAIR10_chr_count.txt 6hrMock_pooled.open110.bigwig
+●
+For the old ATAC files, also make union:
+nohup bedtools unionbedg -header -i 6hrDexA.final.bg 6hrDexB.final.bg > 6HrDex.final.unionbedg &
+nohup bedtools unionbedg -header -i 6hrMockA.final.bg 6hrMockB.final.bg > 6hrMock.final.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' 6HrDex.final.unionbedg > 6hrDex_pooled.final.bg
+sort -k1,1 -k2,2n 6hrDex_pooled.final.bg > 6hrDex_pooled.sorted.final.bg
+bedGraphToBigWig 6hrDex_pooled.sorted.final.bg ~/Araport11/TAIR10_chr_count.txt 6hrDex_pooled.final.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrMock.final.unionbedg > 6hrMock_pooled.final.bg
+sort -k1,1 -k2,2n 6hrMock_pooled.final.bg > 6hrMock_pooled.sorted.final.bg
+bedGraphToBigWig 6hrMock_pooled.sorted.final.bg ~/Araport11/TAIR10_chr_count.txt 6hrMock_pooled.final.bigwig
+
+nohup computeMatrix scale-regions -S 6hrMock_pooled.final.bigwig 6hrDex_pooled.final.bigwig  -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC6hrOld.mat.gz &
+●
+Make TSS profile for the new ATAC files that filter for the fragment sizes: 
+nohup computeMatrix scale-regions -S 6hrMock_pooled.open110.bigwig 6hrDex_pooled.open110.bigwig 6hrMock_pooled.final.bigwig 6hrDex_pooled.final.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC6hrOld.open110NF.mat.gz &
+
+plotProfile --matrixFile ATAC6hrOld.open110NF.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC6hrOld.open110NF.png 
+●
+Repeat the exact same for 130bp:
+awk '{print "samtools view -h -o "$0".final.sam "$0".final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtosam.sh
+chmod 775 ~/LFY/scripts/bamtosam.sh
+nohup ~/LFY/scripts/bamtosam.sh > ~/LFY/log_files/bamtosam.log 2>&1 &
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+6hrDexA
+6hrDexB
+6hrMockA
+6hrMockB
+
+#batch script here:
+awk '{print "awk \47$9<=130\47 "$0".final.sam > "$0".open130.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/filterATAC.sh
+chmod 775 ~/LFY/scripts/filterATAC.sh
+nohup ~/LFY/scripts/filterATAC.sh > ~/LFY/log_files/filterATAC.log 2>&1 &
+
+awk '{print "samtools view -b -S "$0".open130.final.sam > "$0".open130.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/samtobam_ATAC.sh
+chmod 775 ~/LFY/scripts/samtobam_ATAC.sh
+nohup ~/LFY/scripts/samtobam_ATAC.sh > ~/LFY/log_files/samtobam_ATAC.log 2>&1 &
+
+awk '{print "samtools index "$0".open130.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_open.sh
+chmod 775 ~/LFY/scripts/index_open.sh
+nohup ~/LFY/scripts/index_open.sh > ~/LFY/log_files/index_open.log 2>&1 &
+●
+Make normalized bigwig files for profile plotting to see whether it makes better results: 
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".open130.final.bam -o "$0".open130.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_open.sh
+chmod 755 ~/LFY/scripts/bamtobg_open.sh
+nohup ~/LFY/scripts/bamtobg_open.sh > ~/LFY/log_files/bamtobg_open.log 2>&1 &
+●
+merge the 2 replicates of the open region sizes:
+nohup bedtools unionbedg -header -i 6hrDexA.open130.bg 6hrDexB.open130.bg > 6HrDex.open130.unionbedg &
+nohup bedtools unionbedg -header -i 6hrMockA.open130.bg 6hrMockB.open130.bg > 6hrMock.open130.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' 6HrDex.open130.unionbedg > 6hrDex_pooled.open130.bg
+sort -k1,1 -k2,2n 6hrDex_pooled.open130.bg > 6hrDex_pooled.sorted.open130.bg
+bedGraphToBigWig 6hrDex_pooled.sorted.open130.bg ~/Araport11/TAIR10_chr_count.txt 6hrDex_pooled.open130.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrMock.open130.unionbedg > 6hrMock_pooled.open130.bg
+sort -k1,1 -k2,2n 6hrMock_pooled.open130.bg > 6hrMock_pooled.sorted.open130.bg
+bedGraphToBigWig 6hrMock_pooled.sorted.open130.bg ~/Araport11/TAIR10_chr_count.txt 6hrMock_pooled.open130.bigwig
+A
+B
+C
+D
+E
+F
+G
+1
+.final.bg	<110bp	<130bp			
+2
+6HrMockA	9359402	5872895	5979190			
+3
+6HrMockB	4505264	4483635	4568204			
+4
+6HrMock_pooled	12599752	7485996	7589681			
+5
+6HrDexA	9452520	6463851	6555426			
+6
+6HrDexB	6420442	5455276	5548927			
+7
+6HrDex_pooled	14080333	8222413	8311776			
+Table14
+
+
+
+●
+Make TSS profile for the new ATAC files that filter for the fragment sizes: 
+nohup computeMatrix scale-regions -S 6hrMock_pooled.final.bigwig 6hrDex_pooled.final.bigwig 6hrMock_pooled.open130.bigwig 6hrDex_pooled.open130.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC6hrOld.open130NF.mat.gz &
+
+plotProfile --matrixFile ATAC6hrOld.open110NF.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC6hrOld.open110NF.png
+plotProfile --matrixFile ATAC6hrOld.open130NF.mat.gz --perGroup --outFileName ~/LFY/graphs/ATAC6hrOld.open130NF.png
+
+scp runjin@gpc.sas.upenn.edu:/home/runjin/LFY/graphs/ATAC6hrOld.open110NF.png .
+THURSDAY, 1/17/2019×
+●
+Try calling peaks with the new filtered reads and see whether we can get peaks in the AP1 region 
+macs2 callpeak -B -t 6hrDexA.open130.final.bam 6hrDexB.open130.final.bam -c 6hrMockA.open130.final.bam 6hrMockB.open130.final.bam -n ATAC6hrOld_open130_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/ATAC_downstream/macs2_DvM_6hrold_130_70_75150
+
+macs2 callpeak -B -t 6hrDexA.open130.final.bam 6hrDexB.open130.final.bam -c 6hrMockA.open130.final.bam 6hrMockB.open130.final.bam -n ATAC6hrOld_open130_70 -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/ATAC_downstream/macs2_DvM_6hrold_130_90_100200
+
+macs2 callpeak -B -t 6hrDexA.open110.final.bam 6hrDexB.open110.final.bam -c 6hrMockA.open110.final.bam 6hrMockB.open110.final.bam -n ATAC6hrOld_open110_70 -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/ATAC_downstream/macs2_DvM_6hrold_110_70_100200
+
+A
+B
+C
+1
+# of peaks	
+2
+ATAC6hrOld_open110_70	3836	
+3
+ATAC6hrOld_open130_70	3863	
+Table15
+
+
+
+TUESDAY, 1/22/2019×
+awk '{print "samtools view -h -o "$0".final.sam "$0".final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtosam.sh
+chmod 775 ~/LFY/scripts/bamtosam.sh
+nohup ~/LFY/scripts/bamtosam.sh > ~/LFY/log_files/bamtosam.log 2>&1 &
+
+nohup samtools view -h -o ATAC-6hrDexA-SK.final.sam ATAC-6hrDexA.final.bam &
+nohup samtools view -h -o ATAC-6hrDexB-SK.final.sam ATAC-6hrDexB.final.bam &
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+#batch script here:
+awk '{print "awk \47$9<=110\47 "$0".final.sam > "$0".open110.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/filterATAC.sh
+chmod 775 ~/LFY/scripts/filterATAC.sh
+nohup ~/LFY/scripts/filterATAC.sh > ~/LFY/log_files/filterATAC.log 2>&1 &
+
+nohup awk '$9<=110' ATAC-6hrDexA-SK.final.sam > ATAC-6hrDexA-SK.open110.final.sam &
+nohup awk '$9<=110' ATAC-6hrDexB-SK.final.sam > ATAC-6hrDexB-SK.open110.final.sam &
+
+awk '{print "samtools view -b -S "$0".open110.final.sam > "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/samtobam_ATAC.sh
+chmod 775 ~/LFY/scripts/samtobam_ATAC.sh
+nohup ~/LFY/scripts/samtobam_ATAC.sh > ~/LFY/log_files/samtobam_ATAC.log 2>&1 &
+
+nohup samtools view -b -S ATAC-6hrDexA-SK.open110.final.sam > ATAC-6hrDexA-SK.open110.final.bam &
+nohup samtools view -b -S ATAC-6hrDexB-SK.open110.final.sam > ATAC-6hrDexB-SK.open110.final.bam &
+
+awk '{print "samtools index "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_open.sh
+chmod 775 ~/LFY/scripts/index_open.sh
+nohup ~/LFY/scripts/index_open.sh > ~/LFY/log_files/index_open.log 2>&1 &
+●
+Make normalized bigwig files for profile plotting to see whether it makes better results: 
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".open110.final.bam -o "$0".open110.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_open.sh
+chmod 755 ~/LFY/scripts/bamtobg_open.sh
+nohup ~/LFY/scripts/bamtobg_open.sh > ~/LFY/log_files/bamtobg_open.log 2>&1 &
+●
+merge the 2 replicates of the open region sizes:
+nohup bedtools unionbedg -header -i ATAC-24hrDexA-Spikein.open110.bg ATAC-24hrDexB-Spikein.open110.bg > ATAC-24hrDex.pooled.unionbedg &
+nohup bedtools unionbedg -header -i ATAC-24hrMockA-Spikein.open110.bg ATAC-24hrMockB-Spikein.open110.bg > ATAC-24hrMock.pooled.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex.pooled.unionbedg > ATAC-24hrDex.open110.bg
+sort -k1,1 -k2,2n ATAC-24hrDex.open110.bg > ATAC-24hrDex.open110.sorted.bg
+bedGraphToBigWig ATAC-24hrDex.open110.sorted.bg ~/Araport11/TAIR10_chr_count.txt ATAC-24hrDex.open110.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock.pooled.unionbedg > ATAC-24hrMock.open110.bg
+sort -k1,1 -k2,2n ATAC-24hrMock.open110.bg > ATAC-24hrMock.open110.sorted.bg
+bedGraphToBigWig ATAC-24hrMock.open110.sorted.bg ~/Araport11/TAIR10_chr_count.txt ATAC-24hrMock.open110.bigwig
+MONDAY, 7/29/2019×
+cut -f1,2,3,4,5,6 ATAC6hrOld_open130_70_peaks.narrowPeak > ATAC6hrOld_open130_70.modified.bed
+
+python ~/Downloads/ChIP_Annotation/ ATAC_6hroldDvM \
+        . \
+        ~/graph_making/ATAC6hrOld_open130_70.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  ATAC6hrOld_open130_70_peaks.narrowPeak
+MONDAY, 8/5/2019×
+# $9 is the qval column and that selects for the qval > -10 -- getting qval peaks for all of them:
+
+awk '$9>=10' ATAC-6hr-DiffPeak_peaks.narrowPeak > ATAC6hr_qval10_peaks.narrowPeak
+awk '$9>=10' 6hr-DiffPeak_peaks.narrowPeak  > 6hr_qval10_peaks.narrowPeak
+awk '$9>=10' ATAC-24hr-DiffPeak_peaks.narrowPeak  > ATAC24hr_qval10_peaks.narrowPeak
+awk '$9>=10' ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak  > ATAC24hrSI_qval10_peaks.narrowPeak
+
+cut -f1,2,3,4,5,6 ATAC6hr_qval10_peaks.narrowPeak > ATAC6hr_qval10.modified.bed
+cut -f1,2,3,4,5,6 6hr_qval10_peaks.narrowPeak > 6hr_qval10.modified.bed
+cut -f1,2,3,4,5,6 ATAC24hr_qval10_peaks.narrowPeak > ATAC24hr_qval10.modified.bed
+cut -f1,2,3,4,5,6 ATAC24hrSI_qval10_peaks.narrowPeak > ATAC24hrSI_qval10.modified.bed
+
+cut -f1,2,3,4,5,6 ATAC-6hr-DiffPeak_peaks.narrowPeak > ATAC6hr_all.modified.bed
+cut -f1,2,3,4,5,6 6hr-DiffPeak_peaks.narrowPeak > 6hr_all.modified.bed
+cut -f1,2,3,4,5,6 ATAC-24hr-DiffPeak_peaks.narrowPeak > ATAC24hr_all.modified.bed
+cut -f1,2,3,4,5,6 ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak > ATAC24hrSI_all.modified.bed
+
+python ~/Downloads/ChIP_Annotation/ ATAC24hrSI_all_DvM \
+        . \
+        ATAC24hrSI_all.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n ATAC-24hr-Spikein-DiffPeak_peaks.narrowPeak
+
+python ~/Downloads/ChIP_Annotation/ ATAC24hrSI_qval10_DvM \
+        . \
+        ATAC24hrSI_qval10.modified.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n ATAC24hrSI_qval10_peaks.narrowPeak
+TUESDAY, 8/6/2019×
+bedtools intersect -a Wild_Type_Flower_DH_sites.bed -b Wild_Type_Leaf_DH_sites.bed -v > flowerSpecfic_DHS.bed
+bedtools intersect -b Wild_Type_Flower_DH_sites.bed -a Wild_Type_Leaf_DH_sites.bed -v > leafSpecfic_DHS.bed
+bedtools intersect -a Wild_Type_Flower_DH_sites.bed -b Wild_Type_Leaf_DH_sites.bed > common_DHS.bed
+
+
+python ~/Downloads/ChIP_Annotation/ common_DHS_genic \
+        . \
+        common_DHS_col6.bed \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ~/CIM_LDL3/useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 0 -tts 0
+
+cut -f 1-3 flowerSpecfic_DHS.bed > flowerSpecfic_DHS_col3.bed
+cut -f 1-3 leafSpecfic_DHS.bed > leafSpecfic_DHS_col3.bed
+cut -f 1-3 common_DHS.bed > common_DHS_col3.bed
+  
+awk -F"\t" '{x++; printf("%s\t%s\t%s\t%s_%04d\t%s\t%s\n",$1,$2,$3,"flowerSpecfic_DHS",x,"255",".")}' flowerSpecfic_DHS_col3.bed > flowerSpecfic_DHS_col6.bed
+
+awk -F"\t" '{x++; printf("%s\t%s\t%s\t%s_%04d\t%s\t%s\n",$1,$2,$3,"leafSpecfic_DHS",x,"255",".")}' leafSpecfic_DHS_col3.bed > leafSpecfic_DHS_col6.bed
+
+awk -F"\t" '{x++; printf("%s\t%s\t%s\t%s_%04d\t%s\t%s\n",$1,$2,$3,"common_DHS",x,"255",".")}' common_DHS_col3.bed > common_DHS_col6.bed
+A
+B
+C
+1
+Genic+3kb	Genic only 
+2
+flowerSpecific	7519	4490
+3
+leafSpecific	5380	3026
+4
+common	20867	18074
+Table16
+
+
+
+SPLIT WORKSPACE
