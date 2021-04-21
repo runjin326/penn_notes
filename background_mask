@@ -1,0 +1,648 @@
+LFY ChIP-seq background masking 
+TUESDAY, 1/8/2019
+●
+samtools view -b -S ATAC-24hrDexB-Spikein.mono.final.sam > ATAC-24hrDexB-Spikein.mono.final.bam 
+●
+Start with the files in LFY_ChIPSeq_3 -- call peaks from input files using MACS2 
+○
+The normal parameters that we used are listed in here
+macs2 callpeak -t *.filtered.bam -c mapped/TFLInput1.dupmark.sorted.bam mapped/TFLInput2.dupmark.sorted.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir "$3"_filter_noModel138_truePooled -n chipSampleRepAll > log_files/macs2_input
+●
+The actual code used for calling peaks in the input:
+nohup macs2 callpeak -t LFY1HrDexInputA.filter.bam LFY1HrDexInputB.filter.bam LFY1HrDexInputC.filter.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir MACS2_greenscreen -n InputDexAll > ../log_files/macs2_input &
+●
+To check the # of peaks that it gets:
+wc -l InputDexAll_peaks.narrowPeak
+awk '$9>=10' InputDexAll_peaks.narrowPeak| wc -l
+A
+B
+C
+1
+All peaks	qval-10
+2
+Input	2802	1258
+Table9
+
+
+
+●
+Make Greenscreen 
+○
+First tried different values for qval and fc to see which ones give the good number of regions that I want to remove -- this the greenscreen1 & 2 --> look at them and they look werid 
+○
+Then load the narrowpeak file in IGV after MACS2 and decide which qvalue and fc I want to use
+○
+Tried running those parameters and 
+●
+Summarized in this table: 
+○
+# is the # of regions 
+○
+If only one number, from 6hrMock sample, if 2 numbers, first is mock and second is dex 
+A
+B
+C
+D
+E
+1
+FC2	FC3	FC5	FC10
+2
+qval50	448	417	301	22
+3
+qval150	282	282	269	22
+4
+qval200	189	189	186	22
+5
+qval300	47	47	47	22
+6
+qval400	24	24	24	15
+7
+qval500	9	9	9	7
+Table11
+
+
+qval 200 merge5k 
+#Decide which parameters to use: use the following command to see how many peaks to remove: 
+     -- && means filter on that as well 
+awk '$9>=50 && $7>=10' InputDexAll_peaks.narrowPeak| wc -l 
+awk '$9>=50 && $7>=5' InputDexAll_peaks.narrowPeak| wc -l 
+awk '$9>=50 && $7>=3' InputDexAll_peaks.narrowPeak| wc -l 
+awk '$9>=50 && $7>=2' InputDexAll_peaks.narrowPeak| wc -l 
+awk '$9>=50' InputDexAll_peaks.narrowPeak| wc -l
+#to make it into a bed file -- test 6 conditions
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=10{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval50_fc10.bed
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=5{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval50_fc5.bed
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=3{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval50_fc3.bed
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=2{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval50_fc2.bed
+
+awk 'BEGIN{OFS="\t"}$9>=150 && $7>=5{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval150_fc5.bed
+awk 'BEGIN{OFS="\t"}$9>=200 && $7>=2{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval200_fc2.bed
+awk 'BEGIN{OFS="\t"}$9>=200 && $7>=5{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval200_fc5.bed
+awk 'BEGIN{OFS="\t"}$9>=300 && $7>=2{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval300_fc2.bed
+awk 'BEGIN{OFS="\t"}$9>=400 && $7>=2{print $1,$2,$3,$4,$7,$6}' InputDexAll_peaks.narrowPeak > InputDexAll_qval400_fc2.bed
+
+#go into nano and add the following to 1) give it a name & 2) give color 
+track name="my first green" useScore=1
+track name="my second green" useScore=1
+
+track name="InputChIP qval50 fc10" useScore=1
+track name="InputChIP qval50 fc5" useScore=1
+track name="InputChIP qval50 fc3" useScore=1
+track name="InputChIP qval50 fc2" useScore=1
+track name="InputChIP qval150 fc5" useScore=1
+track name="InputChIP qval200 fc2" useScore=1
+track name="InputChIP qval200 fc5" useScore=1
+track name="InputChIP qval300 fc2" useScore=1
+track name="InputChIP qval400 fc2" useScore=1
+●
+After testing everything, decided to use: qval50, FC=2 or qval150, FC=5
+#get narrowpeak file with the regions that I don't want first:
+awk '$9>=50 && $7>=2' InputDexAll_peaks.narrowPeak > InputDexAll_qval50_fc2.narrowPeak
+awk '$9>=150 && $7>=5' InputDexAll_peaks.narrowPeak > InputDexAll_qval150_fc5.narrowPeak
+
+#get merged file with anything within 1kb to be merged together: 
+bedtools merge -d 2000 -c 1,7 -o count,max -i InputDexAll_qval50_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"inputLFYChIP"x,$4,".";x++}'> InputDexAll_qval50_fc2_merge2k.bed
+
+bedtools merge -d 2000 -c 1,7 -o count,max -i InputDexAll_qval150_fc5.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"inputLFYChIP"x,$4,".";x++}'> InputDexAll_qval150_fc5_merge2k.bed
+
+wc -l InputDexAll_qval150_fc5_merge2k.bed (106)
+wc -l InputDexAll_qval50_fc2_merge2k.bed (145)
+●
+Run greenscreen by using the samtools
+○
+'-L' tells it to look for whatever that is in the bed file 
+○
+'-U' tells it to put whatever that is NOT in the bed file into this file 
+○
+'-o' puts the reads overlap with the greenscreen to the garbage.bam 
+○
+Changes the meta/SRX.list into the base names of the files
+●
+The './' in front of the script tells it that it's a bash script 
+○
+Decided to go with qval50 and fc2
+mkdir mapping_ChIP/greenscreen1
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+awk '{print "samtools view -L MACS2_greenscreen/InputDexAll_qval50_fc2_merge2k.bed -U greenscreen1/"$0".greenscreen1.bam "$0".filter.bam -o greenscreen1/"$0".garbage.bam"}' ../meta/SRX.list > ../scripts/greenscreen1.sh
+
+LFY1HrDexInputA
+LFY1HrDexInputB
+LFY1HrDexInputC
+LFY1HrDexA
+LFY1HrDexB
+LFY1HrDexC
+LFY1HrMockA
+LFY1HrMockB
+LFY1HrMockC
+
+chmod 755 ../scripts/greenscreen1.sh
+
+nohup ../scripts/greenscreen1.sh > ../log_files/rungreenscreen1.log 2>&1 &
+
+qlogin -l h=node05.gpc-global
+
+rm mapping/greenscreen1/*.garbage.bam
+A
+B
+C
+D
+E
+F
+G
+1
+DexA	DexB	DexC	MockA	MockB	MockC
+2
+greenscreen1	902004	740770	874749	546543	758824	753462
+3
+garbage	23784	22126	22409	15530	18934	18264
+Table1
+
+
+
+●
+Try calling peaks for MACS2 using the greenscreened-input and mock files: 
+nohup macs2 callpeak -t LFY1HrMockA.greenscreen1.bam LFY1HrMockB.greenscreen1.bam LFY1HrMockC.greenscreen1.bam -c LFY1HrDexInputA.greenscreen1.bam LFY1HrDexInputB.greenscreen1.bam LFY1HrDexInputC.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir ../MACS2_greenscreen -n MockvsInput > ~/LFY/log_files/macs2_input &
+
+awk '$9>=10' MockvsInput_peaks.narrowPeak| wc -l
+
+nohup macs2 callpeak -t LFY1HrDexA.greenscreen1.bam LFY1HrDexB.greenscreen1.bam LFY1HrDexC.greenscreen1.bam -c LFY1HrDexInputA.greenscreen1.bam LFY1HrDexInputB.greenscreen1.bam LFY1HrDexInputC.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir ../MACS2_greenscreen -n DexvsInput > ~/LFY/log_files/macs2_input &
+
+awk '$9>=10' DexvsInput_peaks.narrowPeak| wc -l
+
+nohup macs2 callpeak -t LFY1HrDexA.greenscreen1.bam LFY1HrDexB.greenscreen1.bam LFY1HrDexC.greenscreen1.bam -c LFY1HrMockA.greenscreen1.bam LFY1HrMockB.greenscreen1.bam LFY1HrMockC.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir ../MACS2_greenscreen -n DexvsMock > ~/LFY/log_files/macs2_input &
+
+awk '$9>=10' DexvsMock_peaks.narrowPeak| wc -l
+A
+B
+C
+D
+E
+F
+G
+1
+All peaks	qval-10	qval-20	qval-30	qval-50	qval-65
+2
+MockvsInput_gs1	1619	57	29	17	12	7
+3
+DexvsInput_gs1	12670	1779				
+4
+DexvsMock_gs1	2659	1232				
+5
+MockvsInput_gs2	1760	114				
+6
+DexvsInput_gs2	13089	1868				
+Table4
+
+
+
+●
+Make Greenscreen 
+○
+First tried different values for qval and fc to see which ones give the good number of regions that I want to remove 
+○
+Then load the narrowpeak file in IGV after MACS2 and decide which qvalue and fc I want to use
+#Decide which parameters to use: use the following command to see how many peaks to remove: 
+     -- && means filter on that as well 
+    #since qval10 already only gives 57 regions -- maybe start with that one
+
+awk '$9>=10' MockvsInput_peaks.narrowPeak| wc -l
+awk '$9>=10' DexvsMock_peaks.narrowPeak| wc -l
+
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' MockvsInput_peaks.narrowPeak > MockvsInput_qval65.bed
+
+#go into nano and add the following to 1) give it a name & 2) give color 
+track name="MockvsInput qval65" useScore=1
+THURSDAY, 1/10/2019×
+●
+In ordr to make greenscreen not to loose the AP1 peak that we are interested in -- need to use a qval of 65 
+●
+After testing everything, decided to use: qval50, FC=2 or qval150, FC=5
+#get narrowpeak file with the regions that I don't want first:
+awk '$9>=65' MockvsInput_peaks.narrowPeak > MockvsInput_peaks_qval65.narrowPeak
+
+#get merged file with anything within 2kb to be merged together: 
+bedtools merge -d 2000 -c 1,7 -o count,max -i MockvsInput_peaks_qval65.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"MockvsInput"x,$4,".";x++}'> MockvsInput_peaks_qval65_merge2k.bed
+
+wc -l MockvsInput_peaks_qval65_merge2k.bed (4)
+●
+What we should do here: 
+○
+Look at 2 narrowPeak files from MACS2 -- MockvsInput & DexvsInput and decide which ones to use 
+■
+Basically the cutoff should be: get rid of the 
+●
+Run greenscreen by using the samtools
+○
+'-L' tells it to look for whatever that is in the bed file 
+○
+'-U' tells it to put whatever that is NOT in the bed file into this file 
+○
+'-o' puts the reads overlap with the greenscreen to the garbage.bam 
+○
+Changes the meta/SRX.list into the base names of the files
+●
+The './' in front of the script tells it that it's a bash script 
+○
+Decided to go with qval50 and fc2
+mkdir mapping_ChIP/greenscreen2
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+awk '{print "samtools view -L MACS2_greenscreen/MockvsInput_peaks_qval65_merge2k.bed -U greenscreen2/"$0".greenscreen2.bam "$0".filter.bam -o greenscreen2/"$0".garbage.bam"}' ../meta/SRX.list > ../scripts/greenscreen2.sh
+
+LFY1HrDexInputA
+LFY1HrDexInputB
+LFY1HrDexInputC
+LFY1HrDexA
+LFY1HrDexB
+LFY1HrDexC
+LFY1HrMockA
+LFY1HrMockB
+LFY1HrMockC
+
+chmod 755 ../scripts/greenscreen2.sh
+
+nohup ../scripts/greenscreen2.sh > ../log_files/rungreenscreen2.log 2>&1 &
+
+qlogin -l h=node05.gpc-global
+
+rm mapping/greenscreen2/*.garbage.bam
+A
+B
+C
+D
+E
+F
+G
+1
+DexA	DexB	DexC	MockA	MockB	MockC
+2
+greenscreen1	902004	740770	874749	546543	758824	753462
+3
+garbage	23784	22126	22409	15530	18934	18264
+4
+greenscreen2	926738	760559	896265	563079	776349	771323
+5
+garbage	295	281	183	374	242	231
+Table3
+
+
+
+●
+Try calling peaks for MACS2 using the greenscreened-input and mock files: 
+nohup macs2 callpeak -t LFY1HrMockA.greenscreen2.bam LFY1HrMockB.greenscreen2.bam LFY1HrMockC.greenscreen2.bam -c LFY1HrDexInputA.greenscreen2.bam LFY1HrDexInputB.greenscreen2.bam LFY1HrDexInputC.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir ../MACS2_greenscreen -n MockvsInput_gs2 > ~/LFY/log_files/macs2_input &
+
+nohup macs2 callpeak -t LFY1HrDexA.greenscreen2.bam LFY1HrDexB.greenscreen2.bam LFY1HrDexC.greenscreen2.bam -c LFY1HrDexInputA.greenscreen2.bam LFY1HrDexInputB.greenscreen2.bam LFY1HrDexInputC.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir ../MACS2_greenscreen -n DexvsInput_gs2 > ~/LFY/log_files/macs2_input &
+
+nohup macs2 callpeak -t LFY1HrDexA.greenscreen2.bam LFY1HrDexB.greenscreen2.bam LFY1HrDexC.greenscreen2.bam -c LFY1HrMockA.greenscreen2.bam LFY1HrMockB.greenscreen2.bam LFY1HrMockC.greenscreen2.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir ../MACS2_greenscreen -n DexvsMock_gs2 > ~/LFY/log_files/macs2_input &
+
+wc -l  DexvsMock_gs2_peaks.narrowPeak
+awk '$9>=10' DexvsMock_gs2_peaks.narrowPeak| wc -l
+A
+B
+C
+D
+E
+F
+G
+1
+All peaks	qval-10			Overlap with inflorescence	Overlap with seedling
+2
+MockvsInput_gs1	1619	57				
+3
+DexvsInput_gs1	12670	1779	In DexvsInput NOT DexvsMock	514		
+4
+DexvsMock_gs1	2659	1232	DexvsInput IN DexvsMock	1671		
+5
+MockvsInput_gs2	1760	114				
+6
+DexvsInput_gs2	13089	1868	In DexvsInput_gs2 NOT DexvsMock_gs2	610		
+7
+DexvsMock_gs2	2679	1220	DexvsInput_gs2 IN DexvsMock_gs2	1661		
+Table2
+
+
+
+●
+Make all the qval-10 narrowPeak files and intersect them: just to see which peaks I loose:
+awk '$9>=10' MockvsInput_peaks.narrowPeak > MockvsInput_qval10.narrowPeak
+awk '$9>=10' DexvsInput_peaks.narrowPeak > DexvsInput_qval10.narrowPeak
+awk '$9>=10' DexvsMock_peaks.narrowPeak > DexvsMock_qval10.narrowPeak
+
+awk '$9>=10' MockvsInput_gs2_peaks.narrowPeak > MockvsInput_gs2_qval10.narrowPeak
+awk '$9>=10' DexvsInput_gs2_peaks.narrowPeak > DexvsInput_gs2_qval10.narrowPeak
+awk '$9>=10' DexvsMock_gs2_peaks.narrowPeak > DexvsMock_gs2_qval10.narrowPeak
+●
+Find the peaks that are lost in the DexvsMock file:
+bedtools intersect -v -a DexvsInput_qval10.narrowPeak -b DexvsMock_qval10.narrowPeak > LFY_peaklost_qval10.narrowPeak 
+
+bedtools intersect -wa -a DexvsInput_qval10.narrowPeak -b DexvsMock_qval10.narrowPeak > LFY_peakcommon_qval10.narrowPeak
+ 
+bedtools intersect -v -a DexvsInput_gs2_qval10.narrowPeak -b DexvsMock_gs2_qval10.narrowPeak > LFY_peaklost_gs2_qval10.narrowPeak
+
+bedtools intersect -wa -a DexvsInput_gs2_qval10.narrowPeak -b DexvsMock_gs2_qval10.narrowPeak > LFY_peakcommon_gs2_qval10.narrowPeak
+
+bedtools intersect -wa -a DexvsMock_gs2_qval10.narrowPeak -b DexvsMock_qval10.narrowPeak | wc -l 
+bedtools intersect -v -b DexvsMock_gs2_qval10.narrowPeak -a DexvsMock_qval10.narrowPeak > LFY_gs2gain_qval10.narrowPeak
+bedtools intersect -v -a DexvsMock_gs2_qval10.narrowPeak -b DexvsMock_qval10.narrowPeak > LFY_gs2lost_qval10.narrowPeak
+●
+In order to generate the bigwig file -- need to index the file first: 
+awk '{print "samtools index "$0".greenscreen1.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_greenscreen1.sh
+awk '{print "samtools index "$0".greenscreen2.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_greenscreen2.sh
+chmod 755 ~/LFY/scripts/index_greenscreen1.sh
+chmod 755 ~/LFY/scripts/index_greenscreen2.sh
+nohup ~/LFY/scripts/index_greenscreen1.sh > ~/LFY/log_files/index_greenscreen1.log 2>&1 &
+nohup ~/LFY/scripts/index_greenscreen2.sh > ~/LFY/log_files/index_greenscreen2.log 2>&1 &
+
+awk '{print "bamCoverage -b "$0".greenscreen1.bam -o "$0".greenscreen1.bw"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobw_greenscreen1.sh
+
+chmod 755 ~/LFY/scripts/bamtobw_greenscreen1.sh
+nohup ~/LFY/scripts/bamtobw_greenscreen1.sh > ~/LFY/log_files/bamtobw_greenscreen1.log 2>&1 &
+
+awk '{print "bamCoverage -b "$0".greenscreen2.bam -o "$0".greenscreen2.bw"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobw_greenscreen2.sh
+
+chmod 755 ~/LFY/scripts/bamtobw_greenscreen2.sh
+nohup ~/LFY/scripts/bamtobw_greenscreen2.sh > ~/LFY/log_files/bamtobw_greenscreen2.log 2>&1 &
+
+#once the running is done, move everything into this following directory:
+/home/runjin/LFY/visualization/ChIP_all
+A
+B
+C
+D
+E
+F
+G
+1
+Callus in inflorescence	Callus in seedling	Seedling in influorescence	Seedling in callus	Influorescence in seedling	Influorescence in callus 
+2
+Yes	308	687	443	551	443	249
+3
+No	924	545	596	1174	1282	790
+4
+%overlap	25%	55.76%	42.63%	31.94%	25.68%	23.97%
+Table6
+
+
+
+●
+Run overlap between DexvsMock:
+bedtools intersect -wa -b DexvsMock_qval10.narrowPeak -a InflLFYTAIR10.narrowPeak | sort -u | wc -l 
+bedtools intersect -v -wa -b DexvsMock_qval10.narrowPeak -a InflLFYTAIR10.narrowPeak | sort -u | wc -l 
+
+bedtools intersect -wa -b DexvsMock_qval10.narrowPeak -a SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 
+bedtools intersect -v -wa -b DexvsMock_qval10.narrowPeak -a SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 
+
+bedtools intersect -wa -a InflLFYTAIR10.narrowPeak -b SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 
+bedtools intersect -v -wa -a InflLFYTAIR10.narrowPeak -b SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 
+
+bedtools intersect -wa -b InflLFYTAIR10.narrowPeak -a SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 
+bedtools intersect -v -wa -b InflLFYTAIR10.narrowPeak -a SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 
+
+
+image.png
+thumbnail
+
+Generate bigwig files: 
+Tool:
+●
+Deeptools
+Steps:
+●
+normalize the bam files by RPKM
+○
+example command
+bamCoverage --bam LFY1HrInputA.greenscreen1.bam -o LFY1HrInputA_gs_normalized.bg\
+    --binSize 10
+    --effectiveGenomeSize 101274395
+    --normalizeUsing CPM --centerReads
+    --ignoreForNormalization Mt Pt
+    --minMappingQuality 30
+    -of bedgraph
+
+bamCoverage --bam LFY1HrInputA.greenscreen1.bam -o LFY1HrInputA_gs_normalized.bg\
+    --binSize 10
+    --effectiveGenomeSize 101274395
+    --normalizeUsing CPM --centerReads
+    --ignoreForNormalization Mt Pt
+    --minMappingQuality 30
+    -of bedgraph
+○
+make batch script and run it:
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".greenscreen1.bam -o "$0".greenscreen1.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_greenscreen1.sh
+
+awk '{print "bamCoverage -b "$0".greenscreen1.bam -o "$0".greenscreen1.bigwig --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobw_greenscreen1.sh
+
+LFY1HrInputA
+LFY1HrInputB
+LFY1HrInputC
+
+LFY1HrInputC.greenscreen1.bam
+
+chmod 755 ~/LFY/scripts/bamtobw_greenscreen1.sh
+
+nohup ~/LFY/scripts/bamtobw_greenscreen1.sh > ~/LFY/log_files/bamtobw_greenscreen1.log 2>&1 &
+●
+merge the three replicates of DEX, Mock, and input
+nohup bedtools unionbedg -header -i LFY1HrDexA.greenscreen1.bg LFY1HrDexB.greenscreen1.bg LFY1HrDexC.greenscreen1.bg > LFY1HrDex.greenscreen1.unionbedg &
+nohup bedtools unionbedg -header -i LFY1HrMockA.greenscreen1.bg LFY1HrMockB.greenscreen1.bg LFY1HrMockC.greenscreen1.bg > LFY1HrMock.greenscreen1.unionbedg &
+nohup bedtools unionbedg -header -i LFY1HrInputA.greenscreen1.bg LFY1HrInputB.greenscreen1.bg LFY1HrInputC.greenscreen1.bg > LFY1HrInput.greenscreen1.unionbedg &
+●
+get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5+$6)/3; print $1,$2,$3,avg}' LFY1HrInput.greenscreen1.unionbedg > LFY1HrInput_pooled_greenscreen1.bg
+sort -k1,1 -k2,2n LFY1HrInput_pooled_greenscreen1.bg > LFY1HrInput_pooled_greenscreen1_sorted.bg
+bedGraphToBigWig LFY1HrInput_pooled_greenscreen1_sorted.bg ~/Araport11/TAIR10_chr_count.txt LFY1HrInput_pooled_greenscreen1.bigwig
+
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5+$6)/3; print $1,$2,$3,avg}' LFY1HrMock.greenscreen1.unionbedg > LFY1HrMock_pooled_greenscreen1.bg
+sort -k1,1 -k2,2n LFY1HrMock_pooled_greenscreen1.bg > LFY1HrMock_pooled_greenscreen1_sorted.bg
+bedGraphToBigWig LFY1HrMock_pooled_greenscreen1_sorted.bg ~/Araport11/TAIR10_count.txt LFY1HrMock_pooled_greenscreen1.bigwig
+●
+Calculate matrix using the bigwig files:
+#first generate the bed files using the following codes:
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' DexvsInput_peaks.narrowPeak > DexvsInput_qval10.bed
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' DexvsMock_peaks.narrowPeak > DexvsMock_qval10.bed
+
+#if necessary, need to add Chr to the start of a bed file: 
+awk -F"\t" 'BEGIN{OFS="\t"}{print "Chr"$0}' DexvsMock_qval10.bed > DexvsMock_qval10_chr.bed 
+awk -F"\t" 'BEGIN{OFS="\t"}{print "Chr"$0}' DexvsInput_qval10.bed > DexvsInput_qval10_chr.bed 
+
+nohup computeMatrix reference-point -S LFY1HrMock_pooled_greenscreen1.bigwig LFY1HrDex_pooled_greenscreen1.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsInput_qval10.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsDvIqval10.tab.gz &
+
+nohup computeMatrix reference-point -S LFY1HrMock_pooled_greenscreen1.bigwig LFY1HrDex_pooled_greenscreen1.bigwig -R ~/LFY/mapping_ChIP/MACS2_greenscreen/DexvsMock_qval10.bed --referencePoint center -b 2000 -a 2000 --binSize 10 --sortRegions keep -o ChIPvsDvMqval10.tab.gz &
+
+FRIDAY, 1/11/2019×
+●
+Generate heatmap from the 
+plotHeatmap --matrixFile ChIPvsDvIqval10.tab.gz --colorMap Blues_r --outFileName ~/LFY/graphs/ChIPvsDvIqval10_gs_heatmap.png &
+plotHeatmap --matrixFile ChIPvsDvMqval10.tab.gz --colorMap Oranges_r --outFileName ~/LFY/graphs/ChIPvsDvMqval10_gs_heatmap.png &
+
+ChIPvsDvMqval10_gs_heatmap.png
+thumbnail
+
+
+ChIPvsDvIqval10_gs_heatmap.png
+thumbnail
+
+TUESDAY, 1/15/2019×
+●
+Compared the greenscreened LFY ChIP to the MNase files:
+
+MNaseOldvsLFY1k_heatmap.png
+thumbnail
+
+
+FilteredMNasevsLFY1k_heatmap.png
+thumbnail
+
+FRIDAY, 1/18/2019×
+●
+Try using the bedgraphs to do the subtraction:
+LFY1HrDex_pooled_greenscreen1.bg
+LFY1HrMock_pooled_greenscreen1.bg
+
+macs2 bdgcmp -t LFY1HrDex_pooled_greenscreen1.bg -c LFY1HrMock_pooled_greenscreen1.bg -m subtract --outdir macs2_bdgcmp --o-prefix DexsubMock
+
+sort -k1,1 -k2,2n DexsubMock_subtract.bdg > DexsubMock_subtract.sorted.bdg
+bedGraphToBigWig DexsubMock_subtract.sorted.bdg ~/Araport11/TAIR10_count.txt DexsubMock.bigwig
+
+macs2 bdgpeakcall -i DexsubMock_subtract.bdg -l 138 --o-prefix DexsubMock
+macs2 bdgpeakcall -i DexsubMock_subtract.bdg -l 200 -c 10 --o-prefix DexsubMock
+SATURDAY, 1/19/2019×
+●
+Get unionbedg for inflorescence and seedling 
+cut -f1-3,5 InflLFYTAIR10.narrowPeak > InflLFYTAIR10.bedgraph
+nohup bedtools unionbedg -i SeedlingLFYTAIR10.bedgraph InflLFYTAIR10.bedgraph > allLFYTAIR10.bedgraph &
+○
+get average of each row in the unionbedg (scripts/avg_unionbg.sh) - and make bigwig files for that 
+awk 'BEGIN{OFS="\t"; print "track name=\42 Seedling+Inflo\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' allLFYTAIR10.bedgraph > allLFYTAIR10.avg.bedgraph
+
+chmod 755 ../scripts/avg_unionbg.sh
+
+nohup ../scripts/avg_unionbg.sh 
+
+#Individual samples look like this: 
+awk 'BEGIN{OFS="\t"; print "track name=\42 6hr DEX\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrDex.unionbed > 6hrDex.bedgraph
+bedGraphToBigWig 6hrDex.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hrDex.bigwig
+awk 'BEGIN{OFS="\t"; print "track name=\426hr DEX\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrMock.unionbed > 6hrMock.bedgraph
+bedGraphToBigWig 6hrMock.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hrMock.bigwig
+
+
+Try calling motif on the new LFY peak files:
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' DexvsMock_qval10.narrowPeak > DexvsMock_qval10.bed
+
+Example command lines:
+findMotifsGenome.pl DexvsMock_qval10.bed tair10 ATAC_MotifOutput/ -size 200 
+#current directory to homer:
+/home/runjin/Downloads/homer/bin/
+#available organism: arabidopsis-o v6.0
+#available promoter: arabidopsis-p v5.0
+#available genomes: tair10	v6.0 
+MONDAY, 1/21/2019×
+bedtools intersect -wa -b DexvsMock_qval10.narrowPeak -a allLFYTAIR10.avg.bedgraph | sort -u | wc -l 703
+bedtools intersect -wa -a DexvsMock_qval10.narrowPeak -b allLFYTAIR10.avg.bedgraph | sort -u | wc -l 726
+MONDAY, 2/4/2019×
+awk '{print "samtools view -L InputDexAll_qval50_fc2_merge2k.bed -U "$0".greenscreen1.bam "$0".filter.bam -o "$0".garbage.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/greenscreen1.sh
+
+lfyMock1.filter.bam
+lfyMock2.filter.bam
+lfyMock3.filter.bam
+
+chmod 755 ~/LFY/scripts/greenscreen1.sh
+
+nohup ~/LFY/scripts/greenscreen1.sh > ~/LFY/log_files/rungreenscreen1.log 2>&1 &
+
+qlogin -l h=node05.gpc-global
+
+rm mapping/greenscreen1/*.garbage.bam
+A
+B
+C
+D
+1
+Start	Garbage	Final
+2
+lfyMock1	587025	13147	572800
+3
+lfyMock2	465892	9437	457149
+4
+lfyMock3	512020	11078	500023
+Table5
+
+
+
+nohup macs2 callpeak -c lfyMock3.filter.bam lfyMock2.filter.bam lfyMock1.filter.bam -t LFY1HrDexA.greenscreen1.bam LFY1HrDexB.greenscreen1.bam LFY1HrDexC.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138  --call-summits -g 101274395 --outdir ./MACS2_greenscreen -n DexvsoldMock_nogs > ~/LFY/log_files/macs2_oldMock &
+
+wc -l  DexvsoldMock_peaks.narrowPeak
+awk '$9>=10' DexvsoldMock_nogs_peaks.narrowPeak| wc -l
+●
+Try intersecting the new peak files with the old files and see how that goes 
+●
+Also compare with the inflorescence and the seedling files 
+awk '$9>=10' DexvsoldMock_peaks.narrowPeak > DexvsoldMock_qval10.narrowPeak
+awk '$9>=10' DexvsoldMock_nogs_peaks.narrowPeak > DexvsoldMock_nogs_qval10.narrowPeak
+
+bedtools intersect -wa -a DexvsoldMock_qval10.narrowPeak -b SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 769
+
+bedtools intersect -wa -a DexvsoldMock_nogs_qval10.narrowPeak -b allLFYTAIR10.avg.bedgraph | sort -u | wc -l 726
+A
+B
+C
+D
+E
+F
+G
+H
+I
+1
+Total Peak	qval10 peaks	In DexvsNewMock	In DexvsOldMock_nogs	In DexvsOldMock	In inflorescence	In seedling	In BOTH
+2
+DexvsNewMock	2659	1232	1232	817	812	308	687	726
+3
+DexvsOldMock (both gs)	1728	775	769	775	775	248	500	525
+4
+DexvsOldMock (mock w/o gs)	1772	780	774	780	776	249	503	528
+Table7
+
+
+
+TUESDAY, 2/12/2019×
+●
+Generate summit files for comparing with MNase peaks:
+nohup macs2 callpeak -c LFY1HrMockA.greenscreen1.bam LFY1HrMockB.greenscreen1.bam LFY1HrMockC.greenscreen1.bam -t LFY1HrDexA.greenscreen1.bam LFY1HrDexB.greenscreen1.bam LFY1HrDexC.greenscreen1.bam -f BAM --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir ./MACS2_1summit -n DexvsMock_1summit > ~/LFY/log_files/macs2_1summit &
+
+1181
+
+awk '$9>=10' DexvsMock_1summit_peaks.narrowPeak | wc -l 
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' DexvsMock_1summit_peaks.narrowPeak > DexvsMock_1summit_qval10.bed
+
+bedtools intersect -wa -a DexvsMock_1summit_qval10.bed -b InflLFYTAIR10.narrowPeak | sort -u | wc -l 274
+bedtools intersect -wa -a DexvsMock_1summit_qval10.bed -b SeedlingLFYTAIR10.narrowPeak | sort -u | wc -l 619
+
+awk '$5>=10' DexvsMock_1summit_summits.bed > DexvsMock_1summit_qval10_summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-99,$3+100,$4,$5,"."}' DexvsMock_1summit_qval10_summits.bed > DexvsMock_1summit_qval10_200bp.bed
+
+awk '$5>=10' DexvsMock_multi_summits.bed > DexvsMock_multi_qval10_summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-99,$3+100,$4,$5,"."}' DexvsMock_multi_qval10_summits.bed > DexvsMock_multi_qval10_200bp.bed
+
+A
+B
+C
+D
+E
+F
+1
+Multiple summits	Callus in inflorescence	Callus in seedling	One summit 	Callus in inflorescence	Callus in seedling
+2
+Yes	308	687	Yes	274	619
+3
+No	924	545	No 	907	562
+4
+%overlap	25%	55.76%	%overlap	23.200677392	52.4132091448
+Table8
+
+
+
+SPLIT WORKSPACE
