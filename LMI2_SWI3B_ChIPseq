@@ -1,0 +1,1250 @@
+LMI2 SWI3B ChIPseq Analysis
+MONDAY, 4/1/2019
+●
+Base space didn't work -- so downloaded the files
+○
+Working directory: runjin/WagnerLab_03302019
+●
+Run FASTQC for all the pooled files: 
+chmod 755 ~/Downloads/FastQC/fastqc
+nohup ~/Downloads/FastQC/fastqc -o ./FASTQC/raw LMI2CE2.fastq.gz LMI2SM2.fastq.gz SWI3B6hrD1.fastq.gz SWI3BMinput.fastq.gz LMI2CDE1.fastq.gz LMI2CEinput.fastq.gz SWI3B24hrD1.fastq.gz SWI3B6hrD2.fastq.gz LMI2CDE2.fastq.gz LMI2SD1.fastq.gz SWI3B24hrD2.fastq.gz SWI3B6hrM1.fastq.gz LMI2CDEinput.fastq.gz LMI2SD2.fastq.gz SWI3B24hrM1.fastq.gz SWI3B6hrM2.fastq.gz LMI2CE1.fastq.gz LMI2SM1.fastq.gz SWI3B24hrM2.fastq.gz SWI3BDinput.fastq.gz &
+●
+The indexes for each sample -- home/runjin/WagnerLab_03302019/index_03302019.txt -- all the names here are the same as the one on the sequencing server:
+LMI2CDEinput    GAATTCGT        TAAGATTA
+SWI3BMinput     TCCGGAGA        ACGTCCTG
+LMI2CDE2        GAGATTCC        TCAGAGCC
+LMI2CDE1        CGCTCATT        AGGATAGG
+SWI3B24hrD2     ATTCAGAA        AGGCTATA
+SWI3B24hrM1     GAGATTCC        AGGCTATA
+LMI2CEinput     ATTCAGAA        CTTCGCCT
+SWI3B6hrD2	TCCGGAGA        GTCAGTAC
+SWI3B6hrD1	ATTACTCG        ACGTCCTG
+LMI2CE1 ATTACTCG        AGGCTATA
+SWI3B6hrM2	GAGATTCC        AGGATAGG
+SWI3BDinput     CGCTCATT        GTCAGTAC
+SWI3B6hrM1	CGCTCATT        GCCTCTAT
+LMI2SM1 CGCTCATT        AGGCTATA
+LMI2SD1 ATTCAGAA        AGGATAGG
+LMI2CE2 TCCGGAGA        GCCTCTAT
+SWI3B24hrD1     GAATTCGT        AGGATAGG
+LMI2SD2 GAATTCGT        TCAGAGCC
+SWI3B24hrM2     ATTCAGAA        GCCTCTAT
+LMI2SM2 GAGATTCC        GCCTCTAT
+python ~/sammy_custom_scripts/name_truSeq-HT_adapters.py adapters/index_03302019.txt > adapters/adapters_03302019.txt
+○
+Then I made a script to make adapter fasta files using the command:
+cd adapters
+awk '{print "echo \\>D501-D508_Adapter > "$1"_adapters.fasta\necho "$4" >> "$1"_adapters.fasta\necho \\>D701–D712_Adapter >> "$1"_adapters.fasta\necho "$5" >> " $1"_adapters.fasta\n"}' adapters_03302019.txt > ../scripts/get_adapters_ChIP.sh
+○
+Then I ran the customized script
+source ../scripts/get_adapters_ChIP.sh
+●
+A batch script is used to run trimmomatics:
+cd ~/WagnerLab_03302019/fastq
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+
+ls *.gz| awk -F"." 'BEGIN{print "#!/bin/bash"}{print "java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar SE -phred33 fastq/"$0" trimmed_fastq/"$1".trimmed.fastq  ILLUMINACLIP:adapters/"$1"_adapters.fasta:2:30:10 MINLEN:50 TOPHRED33"}' > ../scripts/trim_adapters.sh
+
+#sample script:
+java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar SE -phred33 fastq/LMI2MockA.fastq.gz trimmed_fastq/LMI2MockA.trimmed.fastq ILLUMINACLIP:adapters/LMI2MockA_adapters.fasta:2:30:10 MINLEN:50 TOPHRED33
+
+cd ..
+
+chmod 755 scripts/trim_adapters.sh
+
+qsub -V -b y -N trimming -cwd -o log_files/trimming.log -e log_files/trimming.log source ./scripts/trim_adapters.sh
+
+●
+run FASTQC on the trimmed reads
+chmod 755 ~/Downloads/FastQC/fastqc
+
+nohup ~/Downloads/FastQC/fastqc -o ../FASTQC/trimmed LMI2CDE1.trimmed.fastq LMI2CEinput.trimmed.fastq SWI3B24hrD1.trimmed.fastq SWI3B6hrD2.trimmed.fastq LMI2CDE2.trimmed.fastq LMI2SD1.trimmed.fastq SWI3B24hrD2.trimmed.fastq SWI3B6hrM1.trimmed.fastq LMI2CDEinput.trimmed.fastq LMI2SD2.trimmed.fastq SWI3B24hrM1.trimmed.fastq SWI3B6hrM2.trimmed.fastq LMI2CE1.trimmed.fastq LMI2SM1.trimmed.fastq SWI3B24hrM2.trimmed.fastq SWI3BDinput.trimmed.fastq LMI2CE2.trimmed.fastq LMI2SM2.trimmed.fastq SWI3B6hrD1.trimmed.fastq SWI3BMinput.trimmed.fastq &
+
+.trimmed.fastq
+
+#NOTICE NAME CHANGE AFTERWARDS:
+LMI2CEinput
+LMI2CDEinput
+LMI2sdlM1
+LMI2sdlM2
+LMI2sdlD1
+LMI2sdlD2
+LMI2CDE1
+LMI2CDE2
+LMI2CE1
+LMI2CE2
+
+SWI3B6hrM1
+SWI3B6hrM2
+SWI3B6hrD1
+SWI3B6hrD2
+
+SWI3BMinput
+SWI3BDinput
+SWI3B24hrM1
+SWI3B24hrM2
+SWI3B24hrD1
+SWI3B24hrD2
+A
+B
+C
+D
+E
+1
+Start	Surviving	Dropped	
+2
+LMI2CEinput	19941614	19727497 (98.93%)	214117 (1.07%)	
+3
+LMI2CDEinput	31057598	28989230 (93.34%)	2068368 (6.66%)	
+4
+LMI2sldM1	13880125	13698638 (98.69%)	181487 (1.31%)	
+5
+LMI2sldM2	19697082	19513410 (99.07%)	183672 (0.93%)	
+6
+LMI2sldE1	21772718	21011701 (96.50%)	761017 (3.50%)	
+7
+LMI2sldE2	30373080	29400569 (96.80%)	972511 (3.20%)	
+8
+LMI2CE1	18274169	17577126 (96.19%)	697043 (3.81%)	
+9
+LMI2CE2	23134389	22086449 (95.47%)	1047940 (4.53%)	
+10
+LMI2CDE1	25358560	24833478 (97.93%)	525082 (2.07%)	
+11
+LMI2CDE2	22412440	22024780 (98.27%)	387660 (1.73%)	
+12
+SWI3B6hrM1	2332534	2282218 (97.84%)	50316 (2.16%)	
+13
+SWI3B6hrM2	23738447	23018066 (96.97%)	720381 (3.03%)	
+14
+SWI3B6hrD1	19014165	18486472 (97.22%)	527693 (2.78%)	
+15
+SWI3B6hrD2	14940769	14797251 (99.04%)	143518 (0.96%)	
+16
+SWI3BMinput	26859317	26476433 (98.57%)	382884 (1.43%)	
+17
+SWI3BDinput	30174444	29686479 (98.38%)	487965 (1.62%)	
+18
+SWI3B24hrM1	19558171	19412059 (99.25%)	146112 (0.75%)	
+19
+SWI3B24hrM2	23270132	23027015 (98.96%)	243117 (1.04%)	
+20
+SWI3B24hrD1	26719684	26515654 (99.24%)	204030 (0.76%)	
+21
+SWI3B24hrD2	25647413	25369581 (98.92%)	277832 (1.08%)	
+Table1
+
+
+
+●
+Make batch script for mapping -- used bowtie2 for mapping:
+mkdir mapped
+mkdir log_files/bowtie2_logs
+○
+example of command line script:
+bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/LFY20minDexA.sam trimmed_fastq/RJA.trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_LFY20minDexA.log
+○
+run batch script
+awk '{print "bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/"$1".sam trimmed_fastq/"$1".trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_"$1".txt"}' ./meta/SRX_LMI2callus.list > scripts/bowtie2_LMI2callus.sh
+
+chmod 755 ./scripts/bowtie2_LMI2callus.sh
+nohup ./scripts/bowtie2_LMI2callus.sh > log_files/mapping_bowtie2.log &
+
+awk '{print "bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/"$1".sam trimmed_fastq/"$1".trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_"$1".txt"}' ./meta/SRX_LMI2seedling.list > scripts/bowtie2_LMI2seedling.sh
+
+chmod 755 ./scripts/bowtie2_LMI2seedling.sh
+nohup ./scripts/bowtie2_LMI2seedling.sh > log_files/mapping_bowtie2_LS.log &
+
+awk '{print "bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/"$1".sam trimmed_fastq/"$1".trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_"$1".txt"}' ./meta/SRX_SWI3B24hr.list > scripts/bowtie2_SWI3B24hr.sh
+
+chmod 755 ./scripts/bowtie2_SWI3B24hr.sh
+nohup ./scripts/bowtie2_SWI3B24hr.sh > log_files/mapping_bowtie2_SWI3B24hr.log &
+
+awk '{print "bowtie2 --phred33 -q -x ~/Araport11/TAIR10_bowtie2 -S mapped/"$1".sam trimmed_fastq/"$1".trimmed.fastq 2> log_files/bowtie2_logs/bowtie_log_"$1".txt"}' ./meta/SRX_SWI3B6hr.list > scripts/bowtie2_SWI3B6hr.sh
+
+chmod 755 ./scripts/bowtie2_SWI3B6hr.sh
+nohup ./scripts/bowtie2_SWI3B6hr.sh > log_files/mapping_bowtie2_SWI3B6hr.log &
+A
+B
+C
+D
+E
+F
+G
+1
+Start	%unmapped	%unique mapped	%mapped more than one	%overall mapped	
+2
+LMI2CEinput	19727497	3555594 (18.02%)	11397902 (57.78%)	4774001 (24.20%)	81.98% 	
+3
+LMI2CDEinput	28989230	4959911 (17.11%)	16627720 (57.36%)	7401599 (25.53%)	82.89%	
+4
+LMI2sldM1	13698638	4621870 (33.74%)	5676980 (41.44%)	3399788 (24.82%)	66.26% 	
+5
+LMI2sldM2	19513410	4259982 (21.83%)	9402217 (48.18%)	5851211 (29.99%)	78.17%	
+6
+LMI2sldE1	21011701	3835821 (18.26%)	11949523 (56.87%)	5226357 (24.87%)	81.74%	
+7
+LMI2sldE2	29400569	5214325 (17.74%)	16806229 (57.16%)	7380015 (25.10%)	82.26%	
+8
+LMI2CE1	17577126	3834311 (21.81%)	8402381 (47.80%)	5340434 (30.38%)	78.19% 	
+9
+LMI2CE2	22086449	4852385 (21.97%)	10988429 (49.75%)	6245635 (28.28%)	78.03%	
+10
+LMI2CDE1	24833478	3207412 (12.92%)	 14183742 (57.12%)	7442324 (29.97%)	87.08% 	
+11
+LMI2CDE1	22024780	3077814 (13.97%)	12851362 (58.35%)	6095604 (27.68%)	86.03%	
+Table2
+
+
+
+●
+Steps for filtering reads
+●
+create_filtering_LMI2seedling.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/WagnerLab_03302019/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX_LMI2seedling.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1796: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd ~/LMI2/mapped
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+source ../scripts/create_filtering_LMI2seedling.sh > ../scripts/filtering_LMI2seedling.sh
+chmod 755 ../scripts/filtering_LMI2seedling.sh
+nohup ../scripts/filtering_LMI2seedling.sh > ../log_files/filtering_LMI2seedling.log 2>&1 &
+●
+For MACS2 call peaks -- maybe instead of doing the extend 138 we can actually just let MACS2 do its thing:
+nohup macs2 callpeak -t LMI2CE1.filter.bam LMI2CE2.filter.bam -f BAM -c LMI2CEinput.filter.bam --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir MACS2_pre -n LMI2CE_ext > ../log_files/macs2_LMI2CE_ext.log &
+
+nohup macs2 callpeak -t LMI2CDE1.filter.bam LMI2CDE2.filter.bam -c LMI2CDEinput.filter.bam -f BAM --keep-dup auto --nomodel --extsize 138 -g 101274395 --outdir MACS2_pre -n LMI2CDE_ext > ../log_files/macs2_LMI2CDE_ext.log &
+
+nohup macs2 callpeak -t LMI2CE1.filter.bam LMI2CE2.filter.bam -f BAM -c LMI2CEinput.filter.bam --keep-dup auto -g 101274395 --outdir MACS2_pre -n LMI2CE_sft > ../log_files/macs2_LMI2CE_sft.log &
+
+nohup macs2 callpeak -t LMI2CDE1.filter.bam LMI2CDE2.filter.bam -c LMI2CDEinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n LMI2CDE_sft > ../log_files/macs2_LMI2CDE_sft.log &
+
+Steps for CP10M normalization of reads for IGV
+●
+run ~/custom_scripts/bam2big_singleEnd.sh script on each bam file to get bigwigs and bedgraph files
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh mapped/"$0".filter.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX_LMI2seedling.list > scripts/bam2big_LMI2seedling.sh
+
+chmod 755 scripts/bam2big_LMI2seedling.sh
+nohup ./scripts/bam2big_LMI2seedling.sh > log_files/bam2big_LMI2seedling.log 2>&1 &
+●
+Steps for filtering reads
+●
+create_filtering_input.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/WagnerLab_03302019/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX_Input.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1796: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd ~/WagnerLab_03302019/mapped
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+source ../scripts/create_filtering_LMI2callus.sh > ../scripts/filtering_LMI2callus.sh
+chmod 755 ../scripts/filtering_LMI2callus.sh
+nohup ../scripts/filtering_LMI2callus.sh > ../log_files/filtering_LMI2callus.log 2>&1 &
+●
+For MACS2 call peaks -- maybe instead of doing the extend 138 we can actually just let MACS2 do its thing:
+nohup macs2 callpeak -t LMI2CDE1.filter.bam LMI2CDE2.filter.bam -c LMI2CDEinput.filter.bam LMI2CEinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n LMI2DEvI > ../log_files/macs2_LMI2DEvI.log &
+
+nohup macs2 callpeak -t LMI2CE1.filter.bam LMI2CE2.filter.bam -c LMI2CDEinput.filter.bam LMI2CEinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n LMI2EvI > ../log_files/macs2_LMI2EvI.log &
+
+nohup macs2 callpeak -t LMI2CDE1.filter.bam LMI2CDE2.filter.bam -c LMI2CE1.filter.bam LMI2CE2.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n LMI2DEvE > ../log_files/macs2_LMI2DEvE.log &
+
+nohup macs2 callpeak -c LMI2CDE1.filter.bam LMI2CDE2.filter.bam -t LMI2CE1.filter.bam LMI2CE2.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n LMI2EvDE > ../log_files/macs2_LMI2EvDE.log &
+
+●
+And then try calling individual using the input I got from callus
+WEDNESDAY, 4/3/2019×
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 LMI2CDE1.sam
+samtools view -c -F 4 LMI2CDE2.sam
+●
+Get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c LMI2CDE1.filter.bam
+samtools view -c LMI2CDE2.filter.bam 
+A
+B
+C
+1
+Read # in SAM	Get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+2
+LMI2sldM1	9076768	5760194
+3
+LMI2sldM2	15253428	9559389
+4
+LMI2sldE1	17175880	11885390
+5
+LMI2sldM1	24186244	16716593
+6
+LMI2CEinput	16171903	11293706
+7
+LMI2CDEinput	24029319	16563571
+8
+LMI2CE1	13742815	8608209
+9
+LMI2CE1	17234064	11177141
+10
+LMI2CDE1	21626066	14374040
+11
+LMI2CDE1	18946966	12966055
+Table3
+
+
+
+seeding: D by itself (no control - 11147); seedling: D using M as control (2686, qval10 = 928)
+A
+B
+C
+D
+E
+1
+Extend 138 - all	Extend 138 - qval10	Shift - all	Shift - qval10
+2
+LMI2DEvE	2686	928	2244	960
+3
+LMI2DEvI	N/A	10607	1934
+4
+LMI2EvI	6660	2451
+5
+LMI2EvDE	2153	302
+6
+LMI2sdlEalone	1009	496	1550	749
+7
+LMI2sdlMalone	5533	475	Cannot build model
+8
+LMI2sdlEvI	3	0	4	0
+9
+LMI2sdlMvI	439	32	Cannot build model
+Table4
+
+
+
+●
+Get bigiwg files for IGV visualization 
+●
+run ~/custom_scripts/bam2big_singleEnd.sh script on each bam file to get bigwigs and bedgraph files
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh mapped/"$0".filter.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX_LMI2seedling.list > scripts/bam2big_LMI2sdl.sh
+
+chmod 755 scripts/bam2big_LMI2sdl.sh
+nohup ./scripts/bam2big_LMI2sdl.sh > log_files/bam2big_LMI2sdl.log 2>&1 &
+
+awk '$9>=10' LMI2DEvI_peaks.narrowPeak > LMI2DEvI_qval10.narrowPeak
+awk '$9>=10' LMI2EvI_peaks.narrowPeak > LMI2EvI_qval10.narrowPeak
+awk '$9>=10' LMI2DEvE_peaks.narrowPeak > LMI2DEvE_qval10.narrowPeak
+awk '$9>=10' LMI2EvDE_peaks.narrowPeak > LMI2EvDE_qval10.narrowPeak
+
+●
+Generate pooled samples for LMI2 seedling and callus:
+nohup bedtools unionbedg -i LMI2sdlE1.filteren.bg LMI2sdlE2.filteren.bg > LMI2sdlE.unionbed &
+○
+get average of each row in the unionbedg (scripts/avg_unionbg.sh) - and make bigwig files for that 
+awk 'BEGIN{OFS="\t"; print "track name=\42 LMI2 sdl E\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' LMI2sdlE.unionbed > LMI2sdlE.bedgraph
+bedGraphToBigWig LMI2sdlE.bedgraph ~/Araport11/TAIR10_chr_count.txt LMI2sdlE.pooled.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 SWI3B input\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' SWI3Binput.unionbed > SWI3Binput.bedgraph
+bedGraphToBigWig SWI3Binput.bedgraph ~/Araport11/TAIR10_chr_count.txt SWI3Binput.pooled.bigwig
+
+mv LMI2sdlM1.filteren.bg.bw LMI2sdlM1.CP10M.bigwig
+mv LMI2sdlM2.filteren.bg.bw LMI2sdlM2.CP10M.bigwig
+mv LMI2CE1.filteren.bg.bw LMI2CE1.CP10M.bigwig
+mv LMI2CE2.filteren.bg.bw LMI2CE2.CP10M.bigwig
+mv LMI2CEinput.filteren.bg.bw LMI2CEinput.CP10M.bigwig
+mv LMI2CDEinput.filteren.bg.bw LMI2CDEinput.CP10M.bigwig
+
+awk '$9>=10' LMI2DEvI_peaks.narrowPeak > LMI2DEvI_qval10.narrowPeak
+awk '$9>=10' LMI2EvI_peaks.narrowPeak > LMI2EvI_qval10.narrowPeak
+awk '$9>=10' LMI2DEvE_peaks.narrowPeak > LMI2DEvE_qval10.narrowPeak
+awk '$9>=10' LMI2EvDE_peaks.narrowPeak > LMI2EvDE_qval10.narrowPeak
+
+bedtools intersect -wa -a LMI2DEvE_qval10.narrowPeak -b LMI2EvDE_qval10.narrowPeak -u | wc -l
+
+A
+B
+C
+D
+E
+1
+LMI2EvI 	LMI2DEvI	LMI2EvDE	LMI2DEvE
+2
+LMI2EvI 				
+3
+LMI2DEvI				
+4
+LMI2EvDE				
+5
+LMI2DEvE				
+Table9
+
+
+
+awk '$5>=10' LMI2DEvI_summits.bed > LMI2DEvI_qval10summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' LMI2DEvI_qval10summits.bed > LMI2DEvI_qval10_summits.bed
+
+awk '$5>=10' LMI2EvI_summits.bed > LMI2EvI_qval10summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' LMI2EvI_qval10summits.bed > LMI2EvI_qval10_summits.bed
+
+awk '$5>=10' LMI2DEvE_summits.bed > LMI2DEvE_qval10summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' LMI2DEvE_qval10summits.bed > LMI2DEvE_qval10_summits.bed
+
+bedtools intersect -wa -a LMI2DEvI_qval10_summits.bed -b MNaseIH_final_q100.bed -u >  LMI2DEvI_qval10_q100_IHbound.bed
+bedtools intersect -wa -a LMI2EvI_qval10_summits.bed -b MNaseIH_final_q100.bed -u >  LMI2EvI_qval10_q100_IHbound.bed
+
+bedtools intersect -wa -a LMI2CDEvI_gs_qval10_summits.bed -b MNaseIH_final_q100.bed -u >  LMI2CDEvI_gs_qval10_q100_IHbound.bed
+bedtools intersect -wa -a LMI2CEvI_gs_qval10_summits.bed -b MNaseIH_final_q100.bed -u >  LMI2CEvI_gs_qval10_q100_IHbound.bed
+bedtools intersect -wa -a LMI2CDEvCE_gs_qval10_summits.bed -b MNaseIH_final_q100.bed -u >  LMI2CDEvCE_gs_qval10_q100_IHbound.bed
+
+
+bedtools intersect -v -a LMI2DEvI_qval10_summits.bed -b MNaseIH_final_q100.bed >  LMI2DEvI_qval10_q100_IHfree.bed
+bedtools intersect -v -a LMI2EvI_qval10_summits.bed -b MNaseIH_final_q100.bed >  LMI2EvI_qval10_q100_IHfree.bed
+
+bedtools intersect -v -a LMI2CDEvI_gs_qval10_summits.bed -b MNaseIH_final_q100.bed >  LMI2CDEvI_gs_qval10_q100_IHfree.bed
+bedtools intersect -v -a LMI2CEvI_gs_qval10_summits.bed -b MNaseIH_final_q100.bed >  LMI2CEvI_gs_qval10_q100_IHfree.bed
+bedtools intersect -v -a LMI2CDEvCE_gs_qval10_summits.bed -b MNaseIH_final_q100.bed >  LMI2CDEvCE_gs_qval10_q100_IHfree.bed
+
+bedtools intersect -wa -a LMI2DEvE_qval10_summits.bed -b MNaseIH_final_q100.bed -u >  LMI2DEvE_qval10_q100_IHbound.bed
+bedtools intersect -v -a LMI2DEvE_qval10_summits.bed -b MNaseIH_final_q100.bed >  LMI2DEvE_qval10_q100_IHfree.bed
+
+nohup computeMatrix reference-point -S greenscreen/IGV/LMI2CDE_gs.pooled.bigwig -R ./bed_regions/LMI2CDEvCE_gs_qval10_q100_IHbound.bed ./bed_regions/LMI2CDEvCE_gs_qval10_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2CDEvCE_gs_q100_ChIP_CDE.tab.gz &
+
+nohup computeMatrix reference-point -S greenscreen/IGV/LMI2CE_gs.pooled.bigwig -R ./bed_regions/LMI2CDEvCE_gs_qval10_q100_IHbound.bed ./bed_regions/LMI2CDEvCE_gs_qval10_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2CDEvCE_gs_q100_ChIP_CE.tab.gz &
+
+
+nohup computeMatrix reference-point -S ./MNase_files/MNaseIH_q100_final.bigwig -R ./bed_regions/LMI2CDEvCE_gs_qval10_q100_IHbound.bed ./bed_regions/LMI2CDEvCE_gs_qval10_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2CDEvCE_gs_q100_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S mapped/IGV/LMI2CE.pooled.bigwig -R ./bed_regions/LMI2EvI_qval10_q100_IHbound.bed ./bed_regions/LMI2EvI_qval10_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2EvI_q100_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/MNaseIH_q100_final.bigwig -R ./bed_regions/LMI2EvI_qval10_q100_IHbound.bed ./bed_regions/LMI2EvI_qval10_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2EvI_q100_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S mapped/IGV/LMI2CDE.pooled.bigwig -R ./bed_regions/LMI2DEvE_qval10_q100_IHbound.bed ./bed_regions/LMI2DEvE_qval10_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvE_q100_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/MNaseIH_q100_final.bigwig -R ./bed_regions/LMI2DEvE_qval10_q100_IHbound.bed ./bed_regions/LMI2DEvE_qval10_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvE_q100_MNase.tab.gz &
+
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvI_gs_q100_ChIP.tab.gz --colorMap Oranges --missingDataColor white --outFileName ./graphs/LMI2CDEvI_gs_q100_ChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvI_gs_q100_MNase.tab.gz --colorMap Oranges --missingDataColor white --outFileName ./graphs/LMI2CDEvI_gs_q100_MNase.png 
+
+plotHeatmap --matrixFile ./matrix_files/LMI2CEvI_gs_q100_ChIP.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/LMI2CEvI_gs_q100_ChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CEvI_gs_q100_MNase.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/LMI2CEvI_gs_q100_MNase.png
+
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvCE_gs_q100_ChIP_CDE.tab.gz --colorMap Blues --missingDataColor white --outFileName ./graphs/LMI2CDEvCE_gs_q100_ChIP_CDE.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvCE_gs_q100_ChIP_CE.tab.gz --colorMap Blues --missingDataColor white --outFileName ./graphs/LMI2CDEvCE_gs_q100_ChIP_CE.png 
+
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvCE_gs_q100_MNase.tab.gz --colorMap Blues --missingDataColor white --outFileName ./graphs/LMI2CDEvCE_gs_q100_MNase.png
+
+●
+With the input swapped:
+
+image.png
+thumbnail
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-99,$3+100,$4,$5,"."}' LMI2DEvI_qval10_summits.bed > LMI2DEvI_qval10_200bp.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' LMI2DEvI_qval10_summits.bed > LMI2DEvI_qval10_120bp.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-99,$3+100,$4,$5,"."}' LMI2EvI_qval10_summits.bed > LMI2EvI_qval10_200bp.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' LMI2EvI_qval10_summits.bed > LMI2EvI_qval10_120bp.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-99,$3+100,$4,$5,"."}' LMI2DEvE_qval10_summits.bed > LMI2DEvE_qval10_200bp.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' LMI2DEvE_qval10_summits.bed > LMI2DEvE_qval10_120bp.bed
+
+#try ~75bp nucleosome overlap:
+bedtools intersect -wa -a LMI2DEvI_qval10_120bp.bed -b MNaseIH_final_q100.bed -f 0.625 -u >  LMI2DEvI_120v75_q100_IHbound.bed
+bedtools intersect -wa -a LMI2DEvI_qval10_200bp.bed -b MNaseIH_final_q100.bed -f 0.375 -u >  LMI2DEvI_200v75_q100_IHbound.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_120bp.bed -b MNaseIH_final_q100.bed -f 0.625 -u >  LMI2EvI_120v75_q100_IHbound.bed
+bedtools intersect -wa -a LMI2EvI_qval10_200bp.bed -b MNaseIH_final_q100.bed -f 0.375 -u >  LMI2EvI_200v75_q100_IHbound.bed
+
+bedtools intersect -wa -a LMI2DEvE_qval10_120bp.bed -b MNaseIH_final_q100.bed -f 0.625 -u >  LMI2DEvE_120v75_q100_IHbound.bed
+bedtools intersect -wa -a LMI2DEvE_qval10_200bp.bed -b MNaseIH_final_q100.bed -f 0.375 -u >  LMI2DEvE_200v75_q100_IHbound.bed
+
+bedtools intersect -v -a LMI2DEvI_qval10_120bp.bed -b MNaseIH_final_q100.bed -f 0.625 >  LMI2DEvI_120v75_q100_IHfree.bed
+bedtools intersect -v -a LMI2DEvI_qval10_200bp.bed -b MNaseIH_final_q100.bed -f 0.375 >  LMI2DEvI_200v75_q100_IHfree.bed
+
+bedtools intersect -v -a LMI2EvI_qval10_120bp.bed -b MNaseIH_final_q100.bed -f 0.625 >  LMI2EvI_120v75_q100_IHfree.bed
+bedtools intersect -v -a LMI2EvI_qval10_200bp.bed -b MNaseIH_final_q100.bed -f 0.375 >  LMI2EvI_200v75_q100_IHfree.bed
+
+bedtools intersect -v -a LMI2DEvE_qval10_120bp.bed -b MNaseIH_final_q100.bed -f 0.625 >  LMI2DEvE_120v75_q100_IHfree.bed
+bedtools intersect -v -a LMI2DEvI_qval10_200bp.bed -b MNaseIH_final_q100.bed -f 0.375 >  LMI2DEvE_200v75_q100_IHfree.bed
+
+nohup computeMatrix reference-point -S mapped/IGV/LMI2CDE.pooled.bigwig -R ./bed_regions/LMI2DEvI_120v75_q100_IHbound.bed ./bed_regions/LMI2DEvI_120v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvI_120v75_q100_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/MNaseIH_q100_final.bigwig -R ./bed_regions/LMI2DEvI_120v75_q100_IHbound.bed ./bed_regions/LMI2DEvI_120v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvI_120v75_q100_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S mapped/IGV/LMI2CE.pooled.bigwig -R ./bed_regions/LMI2EvI_200v75_q100_IHbound.bed ./bed_regions/LMI2EvI_200v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2EvI_200v75_q100_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/MNaseIH_q100_final.bigwig -R ./bed_regions/LMI2EvI_200v75_q100_IHbound.bed ./bed_regions/LMI2EvI_200v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2EvI_200v75_q100_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S mapped/IGV/LMI2CDE.pooled.bigwig -R ./bed_regions/LMI2DEvE_120v75_q100_IHbound.bed ./bed_regions/LMI2DEvE_120v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvE_120v75_q100_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/MNaseIH_q100_final.bigwig -R ./bed_regions/LMI2DEvE_120v75_q100_IHbound.bed ./bed_regions/LMI2DEvE_120v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvE_120v75_q100_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S mapped/IGV/LMI2CDE.pooled.bigwig -R ./bed_regions/LMI2DEvE_200v75_q100_IHbound.bed ./bed_regions/LMI2DEvE_200v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvE_200v75_q100_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/MNaseIH_q100_final.bigwig -R ./bed_regions/LMI2DEvE_200v75_q100_IHbound.bed ./bed_regions/LMI2DEvE_200v75_q100_IHfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2DEvE_200v75_q100_MNase.tab.gz &
+
+plotHeatmap --matrixFile ./matrix_files/LMI2DEvE_120v75_q100_ChIP.tab.gz --colorMap Blues --missingDataColor white --outFileName ./graphs/LMI2DEvE_120v75_q100_ChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2DEvE_120v75_q100_MNase.tab.gz --colorMap Blues --missingDataColor white --outFileName ./graphs/LMI2DEvE_120v75_q100_MNase.png 
+
+plotHeatmap --matrixFile ./matrix_files/LMI2DEvE_200v75_q100_ChIP.tab.gz --colorMap Blues --missingDataColor white --outFileName ./graphs/LMI2DEvE_200v75_q100_ChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2DEvE_200v75_q100_MNase.tab.gz --colorMap Blues --missingDataColor white --outFileName ./graphs/LMI2DEvE_200v75_q100_MNase.png
+
+plotHeatmap --matrixFile ./matrix_files/LMI2EvI_120v75_q100_ChIP.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/LMI2EvI_120v75_q100_ChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2EvI_120v75_q100_MNase.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/LMI2EvI_120v75_q100_MNase.png 
+
+plotHeatmap --matrixFile ./matrix_files/LMI2EvI_200v75_q100_ChIP.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/LMI2EvI_200v75_q100_ChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2EvI_200v75_q100_MNase.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/LMI2EvI_200v75_q100_MNase.png
+
+A
+B
+C
+D
+E
+F
+G
+H
+1
+Start	Not mapped	Mapped once	Mapped more than once	Overall % 		
+2
+SWI3BMinput	26476433	7363846 (27.81%)	13224471 (49.95%)	5888116 (22.24%)	72.19%		
+3
+SWI3BDinput	29686479	7338854 (24.72%)	15414864 (51.93%)	6932761 (23.35%)	75.28%		
+4
+SWI3B24hrM1	19412059	4752510 (24.48%)	8890770 (45.80%)	5768779 (29.72%)	75.52%		
+5
+SWI3B24hrM2	23027015	5689709 (24.71%)	10522024 (45.69%)	6815282 (29.60%)	75.29%		
+6
+SWI3B24hrD1	26515654	5715741 (21.56%)	12813410 (48.32%)	7986503 (30.12%)	78.44%		
+7
+SWI3B24hrD2	25369581	5610961 (22.12%)	12124101 (47.79%)	7634519 (30.09%)	77.88%		
+8
+SWI3B6hrM1	2282218	287028 (12.58%)	1431212 (62.71%)	563978 (24.71%)	87.42% 		
+9
+SWI3B6hrM2	23018066	3394447 (14.75%)	14484870 (62.93%)	5138749 (22.32%)	85.25%		
+10
+SWI3B6hrD1	18486472	3084382 (16.68%)	11228375 (60.74%)	4173715 (22.58%)	83.32%		
+11
+SWI3B6hrD2	14797251	1164765 (7.87%)	9879552 (66.77%)	3752934 (25.36%)	92.13%		
+Table6
+
+
+
+●
+Steps for filtering reads
+●
+create_filtering_SWI3B6hr.sh
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/WagnerLab_03302019/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX_SWI3B6hr.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1796: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30
+        [[ ! -f $SRX.bam ]] && echo "samtools view -@ ${NTHREADS} -b ${SRX}.sam -o ${SRX}.bam "  
+        [[ ! -f $SRX.filter.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1796 -q $miniQ -b ${SRX}.bam | samtools sort - -o ${SRX}.filter.bam " 
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	done
+●
+filter  reads based on MAPQ>=30 and get reads without redundancies
+cd ~/WagnerLab_03302019/mapped
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+source ../scripts/create_filtering_SWI3B6hr.sh > ../scripts/filtering_SWI3B6hr.sh
+chmod 755 ../scripts/filtering_SWI3B6hr.sh
+nohup ../scripts/filtering_LMI2seedling.sh > ../log_files/filtering_LMI2seedling.log 2>&1 &
+A
+B
+C
+1
+Read # in SAM	Get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+2
+SWI3BMinput	19112587	13169158
+3
+SWI3BDinput	22347625	15357712
+4
+SWI3BM1	14659549	9073065
+5
+SWI3BM2	17337306	10743230
+6
+SWI3BD1	20799913	13043123
+7
+SWI3BD2	19758620	12363968
+8
+SWI3B6hrM1	1995190	1435816
+9
+SWI3B6hrM2	19623619	14465481
+10
+SWI3B6hrD1	15402090	11240289
+11
+SWI3B6hrD2	13632486	9872237
+Table7
+
+
+
+samtools view -c -F 4 SWI3B6hrM1.bam
+samtools view -c -F 4 SWI3B6hrM2.bam
+samtools view -c -F 4 SWI3B6hrD1.bam
+samtools view -c -F 4 SWI3B6hrD2.bam
+●
+Get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c SWI3B6hrM1.filter.bam
+samtools view -c SWI3B6hrM2.filter.bam 
+●
+For MACS2 call peaks -- maybe instead of doing the extend 138 we can actually just let MACS2 do its thing:
+nohup macs2 callpeak -t SWI3B6hrD1.filter.bam SWI3B6hrD2.filter.bam -c SWI3BDinput.filter.bam SWI3BMinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrDvI > ../log_files/macs2_SWI3B6hrDvI.log &
+
+nohup macs2 callpeak -t SWI3B6hrM1.filter.bam SWI3B6hrM2.filter.bam -c SWI3BMinput.filter.bam SWI3BDinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrMvI > ../log_files/macs2_SWI3B6hrMvI.log &
+
+nohup macs2 callpeak -t SWI3B6hrD1.filter.bam SWI3B6hrD2.filter.bam -c SWI3B6hrM1.filter.bam SWI3B6hrM2.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrDvM > ../log_files/macs2_SWI3B6hrDvM.log &
+
+nohup macs2 callpeak -c SWI3B6hrD1.filter.bam SWI3B6hrD2.filter.bam -t SWI3B6hrM1.filter.bam SWI3B6hrM2.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrMvD > ../log_files/macs2_SWI3B6hrMvD.log &
+
+●
+Maybe we can use DANPOS to see whether that call peaks better than MACS2:
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos SWI3B24hrM1.filter.bam SWI3B24hrM2.filter.bam --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ./DANPOS2 > ../log_files/dpos_SWI3B24hrM.log 2>&1 &
+
+nohup python ~/Downloads/danpos-2.2.2/danpos.py dpos SWI3B24hrD1.filter.bam SWI3B24hrD2.filter.bam --smooth_width 10 -H 1 -m 1 --mifrsz 40 -o ./DANPOS2 > ../log_files/dpos_SWI3B24hrD.log 2>&1 &
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42SWI3B24hrM\42 useScore=1"} NR>1{x++;print $1,$2,$3,"SWI3B24hrM_"x,$5,"."}' ath_MNase.final.smooth.positions.xls > ath_MNase_nuc.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"; print "track name=\42SWI3B24hrD\42 useScore=1"} NR>1{x++;print $1,$2,$3,"SWI3B24hrD_"x,$5,"."}' ath_MNase.final.smooth.positions.xls > ath_MNase_nuc.bed
+A
+B
+C
+D
+E
+1
+All peaks - ext 147	qval10 peaks	All peaks - shift	qval10 peaks
+2
+SWI3B24hrMvI	2138	22	N/A
+3
+SWI3B24hrDvI	2663	30
+4
+SWI3B24hrMvD	34	0
+5
+SWI3B24hrDvM	106	15
+6
+SWI3B6hrMvI	7776	1727	13732	4145
+7
+SWI3B6hrDvI	9762	2280	10450	2369
+8
+SWI3B6hrMvD	1383	427	1387	419
+9
+SWI3B6hrDvM	1375	375	1324	419
+10
+SWI3B6hrDvI1	11418	2486	N/A
+Table8
+
+
+
+awk '$9>=10' SWI3B6hrDvI_peaks.narrowPeak > SWI3B6hrDvI_qval10.narrowPeak
+awk '$9>=10' SWI3B6hrMvI_peaks.narrowPeak > SWI3B6hrMvI_qval10.narrowPeak
+awk '$9>=10' SWI3B6hrDvM_peaks.narrowPeak > SWI3B6hrDvM_qval10.narrowPeak
+awk '$9>=10' SWI3B6hrMvD_peaks.narrowPeak > SWI3B6hrMvD_qval10.narrowPeak
+●
+On second thought -- instead of calling peaks over their individual inputs -- call peaks on both inputs: should get more peaks: -- also let it build model is better 
+nohup macs2 callpeak -t SWI3B6hrD1.filter.bam SWI3B6hrD2.filter.bam -c SWI3BDinput.filter.bam SWI3BMinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrDvI > ../log_files/macs2_SWI3B6hrDvI.log &
+
+nohup macs2 callpeak -t SWI3B6hrM1.filter.bam SWI3B6hrM2.filter.bam -c SWI3BDinput.filter.bam SWI3BMinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrMvI > ../log_files/macs2_SWI3B6hrMvI.log &
+
+nohup macs2 callpeak -t SWI3B6hrD1.filter.bam SWI3B6hrD2.filter.bam -c SWI3B6hrM1.filter.bam SWI3B6hrM2.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrDvM > ../log_files/macs2_SWI3B6hrDvM.log &
+
+nohup macs2 callpeak -c SWI3B6hrD1.filter.bam SWI3B6hrD2.filter.bam -t SWI3B6hrM1.filter.bam SWI3B6hrM2.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_pre -n SWI3B6hrMvD > ../log_files/macs2_SWI3B6hrMvD.log &
+THURSDAY, 4/4/2019×
+●
+Get bigiwg files for IGV visualization 
+●
+run ~/custom_scripts/bam2big_singleEnd.sh script on each bam file to get bigwigs and bedgraph files
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh mapped/"$0".filter.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX_SWI3B6hr.list > scripts/bam2big_SWI3B6hr.sh
+
+chmod 755 scripts/bam2big_SWI3B6hr.sh
+nohup ./scripts/bam2big_SWI3B6hr.sh > log_files/bam2big_SWI3B6hr.log 2>&1 &
+●
+Generate pooled samples for LMI2 seedling and callus:
+nohup bedtools unionbedg -i SWI3B6hrM1.filteren.bg SWI3B6hrM2.filteren.bg > SWI3B6hrM.unionbed &
+nohup bedtools unionbedg -i SWI3B6hrD1.filteren.bg SWI3B6hrD2.filteren.bg > SWI3B6hrD.unionbed &
+nohup bedtools unionbedg -i SWI3B24hrM1.filteren.bg SWI3B24hrM2.filteren.bg > SWI3B24hrM.unionbed &
+nohup bedtools unionbedg -i SWI3B24hrD1.filteren.bg SWI3B24hrD2.filteren.bg > SWI3B24hrD.unionbed &
+○
+get average of each row in the unionbedg (scripts/avg_unionbg.sh) - and make bigwig files for that 
+awk 'BEGIN{OFS="\t"; print "track name=\42 SWI3B 6hrM\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' SWI3B6hrM.unionbed > SWI3B6hrM.bedgraph
+bedGraphToBigWig SWI3B6hrM.bedgraph ~/Araport11/TAIR10_chr_count.txt SWI3B6hrM.pooled.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 SWI3B 6hrD\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' SWI3B6hrD.unionbed > SWI3B6hrD.bedgraph
+bedGraphToBigWig SWI3B6hrD.bedgraph ~/Araport11/TAIR10_chr_count.txt SWI3B6hrD.pooled.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 SWI3B 24hrM\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' SWI3B24hrM.unionbed > SWI3B24hrM.bedgraph
+bedGraphToBigWig SWI3B24hrM.bedgraph ~/Araport11/TAIR10_chr_count.txt SWI3B24hrM.pooled.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 SWI3B 24hrD\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' SWI3B24hrD.unionbed > SWI3B24hrD.bedgraph
+bedGraphToBigWig SWI3B24hrD.bedgraph ~/Araport11/TAIR10_chr_count.txt SWI3B24hrD.pooled.bigwig
+
+mv SWI3B6hrM1.filteren.bg.bw SWI3B6hrM1.CP10M.bigwig
+mv SWI3B6hrM2.filteren.bg.bw SWI3B6hrM1.CP10M.bigwig
+mv SWI3B6hrD1.filteren.bg.bw SWI3B6hrD1.CP10M.bigwig
+mv SWI3B6hrD2.filteren.bg.bw SWI3B6hrD2.CP10M.bigwig
+mv SWI3BDinput.filteren.bg.bw SWI3BDinput.CP10M.bigwig
+mv SWI3BMinput.filteren.bg.bw SWI3BMinput.CP10M.bigwig
+
+mv SWI3B24hrM1.filteren.bg.bw SWI3B24hrM1.CP10M.bigwig
+mv SWI3B24hrM2.filteren.bg.bw SWI3B24hrM1.CP10M.bigwig
+mv SWI3B24hrD1.filteren.bg.bw SWI3B24hrD1.CP10M.bigwig
+mv SWI3B24hrD2.filteren.bg.bw SWI3B24hrD2.CP10M.bigwig
+
+awk '$9>=10' SWI3B6hrMvI_peaks.narrowPeak > SWI3B6hrMvI_qval10.narrowPeak
+awk '$9>=10' SWI3B6hrDvI_peaks.narrowPeak > SWI3B6hrDvI_qval10.narrowPeak
+awk '$9>=10' SWI3B6hrMvD_peaks.narrowPeak > SWI3B6hrMvD_qval10.narrowPeak
+awk '$9>=10' SWI3B6hrDvM_peaks.narrowPeak > SWI3B6hrDvM_qval10.narrowPeak
+
+awk '$9>=10' SWI3B24hrDvI_peaks.narrowPeak > SWI3B24hrDvI_qval10.narrowPeak
+awk '$9>=10' SWI3B24hrMvI_peaks.narrowPeak > SWI3B24hrMvI_qval10.narrowPeak
+awk '$9>=10' SWI3B24hrMvD_peaks.narrowPeak > SWI3B24hrMvD_qval10.narrowPeak
+awk '$9>=10' SWI3B24hrDvM_peaks.narrowPeak > SWI3B24hrDvM_qval10.narrowPeak
+
+FRIDAY, 4/5/2019×
+bedtools intersect -wa -a LMI2DEvI_qval10_summits.bed -b lowDex1_q10_nuc.bed -u >  LMI2DEvI_LDbound.bed
+bedtools intersect -wa -a LMI2DEvI_qval10_summits.bed -b lowMock1_q10_nuc.bed -u >  LMI2DEvI_LMbound.bed
+bedtools intersect -wa -a LMI2DEvI_qval10_summits.bed -b highDex2_q10_nuc.bed -u >  LMI2DEvI_HDbound.bed
+
+bedtools intersect -v -a LMI2DEvI_qval10_summits.bed -b lowDex1_q10_nuc.bed >  LMI2DEvI_LDfree.bed
+bedtools intersect -v -a LMI2DEvI_qval10_summits.bed -b lowMock1_q10_nuc.bed >  LMI2DEvI_LMfree.bed
+bedtools intersect -v -a LMI2DEvI_qval10_summits.bed -b highDex2_q10_nuc.bed >  LMI2DEvI_HDfree.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_summits.bed -b lowDex1_q10_nuc.bed -u >  LMI2EvI_LDbound.bed
+bedtools intersect -wa -a LMI2EvI_qval10_summits.bed -b lowMock1_q10_nuc.bed -u >  LMI2EvI_LMbound.bed
+bedtools intersect -wa -a LMI2EvI_qval10_summits.bed -b highDex2_q10_nuc.bed -u >  LMI2EvI_HDbound.bed
+
+bedtools intersect -v -a LMI2EvI_qval10_summits.bed -b lowDex1_q10_nuc.bed >  LMI2EvI_LDfree.bed
+bedtools intersect -v -a LMI2EvI_qval10_summits.bed -b lowMock1_q10_nuc.bed >  LMI2EvI_LMfree.bed
+bedtools intersect -v -a LMI2EvI_qval10_summits.bed -b highDex2_q10_nuc.bed >  LMI2EvI_HDfree.bed
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowDex1_q10_nuc.bed -u >  LFY_LDbound.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b lowMock1_q10_nuc.bed -u >  LFY_LMbound.bed
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b highDex2_q10_nuc.bed -u >  LFY_HDbound.bed
+
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b lowDex1_q10_nuc.bed >  LFY_LDfree.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b lowMock1_q10_nuc.bed >  LFY_LMfree.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b highDex2_q10_nuc.bed >  LFY_HDfree.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_120bp.bed -b lowDex1_q10_nuc.bed -f 0.625 -u >  LMI2EvI_120v75_LDbound.bed
+bedtools intersect -v -a LMI2EvI_qval10_120bp.bed -b lowDex1_q10_nuc.bed -f 0.625 >  LMI2EvI_120v75_LDfree.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_200bp.bed -b lowDex1_q10_nuc.bed -f 0.375 -u >  LMI2EvI_200v75_LDbound.bed
+bedtools intersect -v -a LMI2EvI_qval10_200bp.bed -b lowDex1_q10_nuc.bed -f 0.375 >  LMI2EvI_200v75_LDfree.bed
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' highDex_DANPOS.bed > highDex2_q10_nuc.bed
+
+lowDex1_q30_nuc.bed
+lowMock1_q30_nuc.bed
+highDex2_q30_nuc.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LMI2EvI_qval10_summits.bed > LMI2EvI_qval10_nochr_summits.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LMI2DEvI_qval10_summits.bed > LMI2DEvI_qval10_nochr_summits.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_nochr_summits.bed -b highDex2_q10_nuc.bed -u >  LMI2DEvI_HDbound.bed
+bedtools intersect -v -a LMI2EvI_qval10_nochr_summits.bed -b lowDex1_q10_nuc.bed >  LMI2DEvI_LDfree.bed
+
+nohup computeMatrix reference-point -S LFY_ChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R ./bed_regions/DexvsMock_1summit_qval10.summit.bed ./bed_regions/LMI2DEvI_qval10_nochr_summits.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFYvDE_bothChIP.tab.gz &
+
+nohup computeMatrix reference-point -S mapped/IGV/LMI2CDE.pooled.bigwig -R ./bed_regions/LFY_LMbound.bed ./bed_regions/LFY_LMfree.bed ./bed_regions/LMI2EvI_LMbound.bed ./bed_regions/LMI2EvI_LMbound.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2EvLFY_bothChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/lowDex_MNase1.bigwig -R ./bed_regions/LFY_LDbound.bed ./bed_regions/LFY_LDfree.bed ./bed_regions/LMI2DEvI_LDbound.bed ./bed_regions/LMI2DEvI_LDfree.bed --referencePoint center -b 200 -a 200 --binSize 10 --sortRegions keep -o ./matrix_files/LFYvLMI2DE_LD_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/highDex_MNase2.bigwig -R ./bed_regions/LFY_HDbound.bed ./bed_regions/LFY_HDfree.bed ./bed_regions/LMI2DEvI_HDbound.bed ./bed_regions/LMI2DEvI_HDfree.bed --referencePoint center -b 200 -a 200 --binSize 10 --sortRegions keep -o ./matrix_files/LFYvLMI2DE_HD_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/lowMock_MNase1.bigwig -R ./bed_regions/LFY_LMbound.bed ./bed_regions/LFY_LMfree.bed ./bed_regions/LMI2DEvI_LMbound.bed ./bed_regions/LMI2DEvI_LMfree.bed --referencePoint center -b 200 -a 200 --binSize 10 --sortRegions keep -o ./matrix_files/LFYvLMI2DE_LM_MNase.tab.gz &
+
+plotHeatmap --matrixFile ./matrix_files/LFYvDE_bothChIP.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYvDE_bothChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2EvLFY_bothChIP.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LMI2EvLFY_bothChIP.png
+
+plotHeatmap --matrixFile ./matrix_files/LFYvLMI2DE_LD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYvLMI2DE_LD_MNase.png 
+plotHeatmap --matrixFile ./matrix_files/LFYvLMI2DE_HD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYvLMI2DE_HD_MNase.png 
+plotHeatmap --matrixFile ./matrix_files/LFYvLMI2DE_LM_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYvLMI2DE_LM_MNase.png 
+
+SATURDAY, 4/6/2019×
+●
+Start doing greenscreening for the files: 
+nohup macs2 callpeak -t SWI3BDinput.filter.bam SWI3BMinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_greenscreen -n SWI3Binput > ../log_files/macs2_SWI3Binput.log &
+nohup macs2 callpeak -t LMI2CEinput.filter.bam LMI2CDEinput.filter.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_greenscreen -n LMI2Cinput > ../log_files/macs2_LMI2Cinput.log &
+A
+B
+C
+D
+1
+LMI2	fc2	SWI3B	fc2
+2
+qval20	483	qval20	405
+3
+qval30	295	qval30	235
+4
+qval50	148	qval50	140
+5
+qval100	93	qval100	91
+6
+qval150	66	qval150	62
+7
+qval200	56	qval200	50
+Table5
+
+
+
+awk '$9>=30 && $7>=2' LMI2Cinput_peaks.narrowPeak | wc -l
+awk '$9>=200 && $7>=2' SWI3Binput_peaks.narrowPeak| wc -l 
+
+#to make it into a bed file -- test 6 conditions
+awk 'BEGIN{OFS="\t"}$9>=30 && $7>=2{print $1,$2,$3,$4,$7,$6}' SWI3Binput_peaks.narrowPeak > SWI3Binput_qval30_fc2.bed
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=2{print $1,$2,$3,$4,$7,$6}' SWI3Binput_peaks.narrowPeak > SWI3Binput_qval50_fc2.bed
+awk 'BEGIN{OFS="\t"}$9>=20 && $7>=2{print $1,$2,$3,$4,$7,$6}' SWI3Binput_peaks.narrowPeak > SWI3Binput_qval20_fc2.bed
+awk 'BEGIN{OFS="\t"}$9>=100 && $7>=2{print $1,$2,$3,$4,$7,$6}' SWI3Binput_peaks.narrowPeak > SWI3Binput_qval100_fc2.bed
+awk 'BEGIN{OFS="\t"}$9>=150 && $7>=2{print $1,$2,$3,$4,$7,$6}' SWI3Binput_peaks.narrowPeak > SWI3Binput_qval150_fc2.bed
+
+
+awk 'BEGIN{OFS="\t"}$9>=30 && $7>=2' SWI3Binput_peaks.narrowPeak > SWI3Binput_qval30_fc2.narrowPeak
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=2' SWI3Binput_peaks.narrowPeak > SWI3Binput_qval50_fc2.narrowPeak
+awk 'BEGIN{OFS="\t"}$9>=30 && $7>=2' LMI2Cinput_peaks.narrowPeak > LMI2Cinput_qval30_fc2.narrowPeak
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=2' LMI2Cinput_peaks.narrowPeak > LMI2Cinput_qval50_fc2.narrowPeak
+
+
+#get narrowpeak file with the regions that I don't want first:
+awk '$9>=65' MockvsInput_peaks.narrowPeak > MockvsInput_peaks_qval65.narrowPeak
+
+#get merged file with anything within 2kb to be merged together: 
+bedtools merge -d 2000 -c 1,7 -o count,max -i SWI3Binput_qval30_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"SWI3BvsInput"x,$4,".";x++}'> SWI3Binput_qval30_fc2_merge2k.bed
+
+bedtools merge -d 2000 -c 1,7 -o count,max -i SWI3Binput_qval50_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"SWI3BvsInput"x,$4,".";x++}'> SWI3Binput_qval50_fc2_merge2k.bed
+
+bedtools merge -d 2000 -c 1,7 -o count,max -i LMI2Cinput_qval30_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"LMI2CvsInput"x,$4,".";x++}'> LMI2Cinput_qval30_fc2_merge2k.bed
+
+bedtools merge -d 2000 -c 1,7 -o count,max -i LMI2Cinput_qval50_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"LMI2CvsInput"x,$4,".";x++}'> LMI2Cinput_qval50_fc2_merge2k.bed
+
+wc -l LMI2Cinput_qval30_fc2_merge2k.bed
+
+A
+B
+C
+D
+E
+1
+SWI3B_qval30_fc2_merge2k	SWI3B_qval50_fc2_merge2k	LMI2C_qval30_fc2_merge2k	LMI2C_qval50_fc2_merge2k
+2
+# of regions	110	57	133	61
+Table10
+
+
+
+●
+Decided to go with qval30 fc2 merge 2k -- try out these two to see which one is better:
+mkdir mapped/
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+awk '{print "samtools view -L mapped/MACS2_greenscreen/LMI2Cinput_qval30_fc2_merge2k.bed -U greenscreen/"$0".greenscreen.bam ./mapped/"$0".filter.bam -o greenscreen/"$0".garbage.bam"}' ./meta/SRX_LMI2callus.list > ./scripts/greenscreen_LMI2C.sh
+chmod 755 ./scripts/greenscreen_LMI2C.sh
+
+nohup ./scripts/greenscreen_LMI2C.sh > ./log_files/rungreenscreen_LMI2C.log 2>&1 &
+
+MONDAY, 4/8/2019×
+●
+Start calling peaks using greenscreen.bam files -- also try to figure out how many peaks we gain 
+nohup macs2 callpeak -t SWI3B6hrD1.greenscreen.bam SWI3B6hrD2.greenscreen.bam -c SWI3BDinput.greenscreen.bam SWI3BMinput.greenscreen.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_final -n SWI3B6hrDvI_gs > ../log_files/macs2_SWI3B6hrDvI_gs.log &
+nohup macs2 callpeak -t SWI3B6hrM1.greenscreen.bam SWI3B6hrM2.greenscreen.bam -c SWI3BDinput.greenscreen.bam SWI3BMinput.greenscreen.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_final -n SWI3B6hrMvI_gs > ../log_files/macs2_SWI3B6hrMvI_gs.log &
+
+nohup macs2 callpeak -t SWI3B6hrD1.greenscreen.bam SWI3B6hrD2.greenscreen.bam -c SWI3B6hrM1.greenscreen.bam SWI3B6hrM2.greenscreen.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_final -n SWI3B6hrDvM_gs > ../log_files/macs2_SWI3B6hrDvM_gs.log &
+
+nohup macs2 callpeak -c SWI3B6hrD1.greenscreen.bam SWI3B6hrD2.greenscreen.bam -t SWI3B6hrM1.greenscreen.bam SWI3B6hrM2.greenscreen.bam -f BAM --keep-dup auto -g 101274395 --outdir MACS2_final -n SWI3B6hrMvD_gs > ../log_files/macs2_SWI3B6hrMvD_gs.log &
+
+A
+B
+C
+D
+E
+F
+G
+1
+Before greenscreen_all	Before greenscreen_qval10	After greenscreen_all	After greenscreen_qval10		
+2
+SWI3B6hrMvI	13732	4145	13500	4254		
+3
+SWI3B6hrDvI	10450	2369	10207	2467		
+4
+SWI3B6hrMvD	1387	419	1361	425		
+5
+SWI3B6hrDvM	1324	419	1208	410		
+6
+LMI2EvI	10607	1934	10430	1918		
+7
+LMI2DEvI	6660	2451	6626	2460		
+8
+LMI2EvDE	2153	302	2142	293		
+9
+LMI2DEvE	2244	960	2220	951		
+Table11
+
+
+
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh greenscreen/"$0".greenscreen.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX_SWI3B6hr.list > scripts/bam2big_SWI3B6hr_gs.sh
+
+chmod 755 scripts/bam2big_SWI3B6hr_gs.sh
+nohup ./scripts/bam2big_SWI3B6hr_gs.sh > log_files/bam2big_SWI3B6hr_gs.log 2>&1 &
+
+nohup bedtools unionbedg -i LMI2CE1.greenscreenen.bg LMI2CE2.greenscreenen.bg > LMI2CE_gs.unionbed &
+nohup bedtools unionbedg -i LMI2CDE1.greenscreenen.bg LMI2CDE2.greenscreenen.bg > LMI2CDE_gs.unionbed &
+nohup bedtools unionbedg -i LMI2CEinput.greenscreenen.bg LMI2CDEinput.greenscreenen.bg > LMI2CInput_gs.unionbed &
+nohup bedtools unionbedg -i SWI3BDinput.greenscreenen.bg SWI3BMinput.greenscreenen.bg > SWI3BInput_gs.unionbed &
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 LMI2 CE GS\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' LMI2CE_gs.unionbed > LMI2CE_gs.bedgraph
+bedGraphToBigWig LMI2CE_gs.bedgraph ~/Araport11/TAIR10_chr_count.txt LMI2CE_gs.pooled.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 LMI2 CDE GS\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' LMI2CDE_gs.unionbed > LMI2CDE_gs.bedgraph
+bedGraphToBigWig LMI2CDE_gs.bedgraph ~/Araport11/TAIR10_chr_count.txt LMI2CDE_gs.pooled.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 LMI2C input\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' LMI2CInput_gs.unionbed > LMI2CInput_gs.bedgraph
+bedGraphToBigWig LMI2CInput_gs.bedgraph ~/Araport11/TAIR10_chr_count.txt LMI2CInput_gs.pooled.bigwig
+
+awk '{print "mv "$0".greenscreenen.bg.bw "$0".CP10M.bigwig"}' ../meta/SRX_SWI3B6hr.list > ../scripts/CP10Mbg_SWI3B6hr_gs.sh
+chmod 775 ../scripts/CP10Mbg_SWI3B6hr_gs.sh
+nohup ../scripts/CP10Mbg_SWI3B6hr_gs.sh &
+
+awk '{print "mv "$0".greenscreenen.bg.bw "$0".CP10M.bigwig"}' ../meta/SRX_LMI2callus.list > ../scripts/CP10Mbg_LMI2C_gs.sh
+chmod 775 ../scripts/CP10Mbg_LMI2C_gs.sh
+nohup ../scripts/CP10Mbg_LMI2C_gs.sh &
+
+awk '$9>=10' SWI3B6hrMvI_gs_peaks.narrowPeak > SWI3B6hrMvI_gs_qval10.narrowPeak
+
+awk '$5>=10' LMI2CDEvCE_gs_summits.bed > LMI2CDEvCE_gs_qval10summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' LMI2CDEvCE_gs_qval10summits.bed > LMI2CDEvCE_gs_qval10_summits.bed
+
+bedtools intersect -wa -a LMI2CDEvCE_gs_qval10_summits.bed -b lowDex1_q10_nuc.bed -u >  LMI2CDEvCE_gs_LDbound.bed
+bedtools intersect -wa -a LMI2CDEvCE_gs_qval10_summits.bed -b lowMock1_q10_nuc.bed -u >  LMI2CDEvCE_gs_LMbound.bed
+bedtools intersect -wa -a LMI2CDEvCE_gs_qval10_summits.bed -b highDex2_q10_nuc.bed -u >  LMI2CDEvCE_gs_HDbound.bed
+
+bedtools intersect -v -a LMI2CEvI_gs_qval10_summits.bed -b lowDex1_q10_nuc.bed >  LMI2CEvI_gs_LDfree.bed
+bedtools intersect -v -a LMI2CEvI_gs_qval10_summits.bed -b lowMock1_q10_nuc.bed >  LMI2CEvI_gs_LMfree.bed
+bedtools intersect -v -a LMI2CEvI_gs_qval10_summits.bed -b highDex2_q10_nuc.bed >  LMI2CEvI_gs_HDfree.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_120bp.bed -b lowDex1_q10_nuc.bed -f 0.625 -u >  LMI2EvI_120v75_LDbound.bed
+bedtools intersect -v -a LMI2EvI_qval10_120bp.bed -b lowDex1_q10_nuc.bed -f 0.625 >  LMI2EvI_120v75_LDfree.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_200bp.bed -b lowDex1_q10_nuc.bed -f 0.375 -u >  LMI2EvI_200v75_LDbound.bed
+bedtools intersect -v -a LMI2EvI_qval10_200bp.bed -b lowDex1_q10_nuc.bed -f 0.375 >  LMI2EvI_200v75_LDfree.bed
+
+awk 'BEGIN{OFS="\t"}$1="Chr"$1' highDex_DANPOS.bed > highDex2_q10_nuc.bed
+
+lowDex1_q30_nuc.bed
+lowMock1_q30_nuc.bed
+highDex2_q30_nuc.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LMI2EvI_qval10_summits.bed > LMI2EvI_qval10_nochr_summits.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LMI2DEvI_qval10_summits.bed > LMI2DEvI_qval10_nochr_summits.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_nochr_summits.bed -b highDex2_q10_nuc.bed -u >  LMI2DEvI_HDbound.bed
+bedtools intersect -v -a LMI2EvI_qval10_nochr_summits.bed -b lowDex1_q10_nuc.bed >  LMI2DEvI_LDfree.bed
+
+plotHeatmap --matrixFile ./matrix_files/LMI2CEvI_LD_MNase.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/greenscreen/LMI2CEvI_LD_MNase.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CEvI_HD_MNase.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/greenscreen/LMI2CEvI_HD_MNase.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CEvI_LM_MNase.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/greenscreen/LMI2CEvI_LM_MNase.png 
+
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvI_LD_MNase.tab.gz --colorMap Oranges --missingDataColor white --outFileName ./graphs/greenscreen/LMI2CDEvI_LD_MNase.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvI_HD_MNase.tab.gz --colorMap Oranges --missingDataColor white --outFileName ./graphs/greenscreen/LMI2CDEvI_HD_MNase.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CDEvI_LM_MNase.tab.gz --colorMap Oranges --missingDataColor white --outFileName ./graphs/greenscreen/LMI2CDEvI_LM_MNase.png
+
+plotHeatmap --matrixFile ./matrix_files/LFYLMI2_gs_LD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/greenscreen/LFYLMI2_gs_LD_MNase.png
+plotHeatmap --matrixFile ./matrix_files/LFYLMI2_gs_HD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/greenscreen/LFYLMI2_gs_HD_MNase.png
+plotHeatmap --matrixFile ./matrix_files/LFYLMI2_gs_LM_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/greenscreen/LFYLMI2_gs_LM_MNase.png
+
+nohup computeMatrix reference-point -S ./MNase_files/lowDex_MNase1.bigwig -R ./bed_regions/LFY_LDbound.bed ./bed_regions/LFY_LDfree.bed ./bed_regions/LMI2CDEvI_gs_LDbound.bed ./bed_regions/LMI2CDEvI_gs_LDfree.bed ./bed_regions/LMI2CEvI_gs_LDbound.bed ./bed_regions/LMI2CEvI_gs_LDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFYLMI2_gs_LD_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/highDex_MNase2.bigwig -R ./bed_regions/LFY_HDbound.bed ./bed_regions/LFY_HDfree.bed ./bed_regions/LMI2CDEvI_gs_HDbound.bed ./bed_regions/LMI2CDEvI_gs_HDfree.bed ./bed_regions/LMI2CEvI_gs_HDbound.bed ./bed_regions/LMI2CEvI_gs_HDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFYLMI2_gs_HD_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/lowMock_MNase1.bigwig -R ./bed_regions/LFY_LMbound.bed ./bed_regions/LFY_LMfree.bed ./bed_regions/LMI2CDEvI_gs_LMbound.bed ./bed_regions/LMI2CDEvI_gs_LMfree.bed ./bed_regions/LMI2CEvI_gs_LMbound.bed ./bed_regions/LMI2CEvI_gs_LMfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFYLMI2_gs_LM_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/highDex_MNase2.bigwig -R ./bed_regions/LMI2CEvI_gs_qval10_summits.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2CEvI_HD_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/lowMock_MNase1.bigwig -R ./bed_regions/LMI2CEvI_gs_qval10_summits.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2CEvI_LM_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S greenscreen/IGV/LMI2CE_gs.pooled.bigwig -R ./bed_regions/LFY_LMbound.bed ./bed_regions/LFY_LMfree.bed ./bed_regions/LMI2CEvI_gs_LDfree.bed ./bed_regions/LMI2CEvI_gs_LDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2EvLFY_bothChIP.tab.gz &
+
+
+plotHeatmap --matrixFile ./matrix_files/LFYvDE_bothChIP.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYvDE_bothChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2EvLFY_bothChIP.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LMI2EvLFY_bothChIP.png
+
+plotProfile --matrixFile ./matrix_files/LFYLMI2_gs_HD_MNase.tab.gz --outFileName ./graphs/greenscreen/LFYLMI2_gs_HD_MNase_profile.png 
+plotHeatmap --matrixFile ./matrix_files/LFYvLMI2DE_HD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYvLMI2DE_HD_MNase.png 
+plotHeatmap --matrixFile ./matrix_files/LFYvLMI2DE_LM_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYvLMI2DE_LM_MNase.png 
+
+bedtools intersect -wa -a SWI3B6hrMvD_gs_qval10.narrowPeak -b SWI3B6hrDvI_gs_qval10.narrowPeak -u | wc -l 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+1
+SWI3B6hrMvI	SWI3B6hrDvI	SWI3B6hrMvD	SWI3B6hrDvM	LMI2EvI	LMI2DEvI	LMI2EvDE	LMI2DEvE
+2
+SWI3B6hrMvI	4254	1987	414	258	1314	1600	225	648
+3
+SWI3B6hrDvI	1949	2467	323	310	1297	1671	204	748
+4
+SWI3B6hrMvD	425	329	425	4	293	290	160	112
+5
+SWI3B6hrDvM	306	399	4	410	359	399	61	262
+6
+LMI2EvI	1295	1293	286	282	1918	1491	244	623
+7
+LMI2DEvI	1506	1579	285	304	1445	2460	202	877
+8
+LMI2EvDE	255	241	159	51	281	236	293	30
+9
+LMI2DEvE	636	754	112	239	632	945	30	951
+Table12
+
+
+
+bedtools intersect -wa -a LMI2CDEvCE_gs_qval10.narrowPeak -b SWI3B6hrMvI_gs_qval10.narrowPeak -u | wc -l 
+
+awk '$1 != "Pt" && $1 !="Mt"' SWI3B6hrMvI_gs_qval10.narrowPeak > SWI3B6hrMvI_gs_qval10.modified.narrowPeak
+cut -f1,2,3,4,5,6 SWI3B6hrMvI_gs_qval10.modified.narrowPeak > SWI3B6hrMvI_gs_qval10.modified.bed
+
+#all moved to bed_regions
+●
+Re did annotation with the following files -- 
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation SWI3B6hrMvI_gs \
+        . \
+        ../bed_regions/SWI3B6hrMvI_gs_qval10.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  ../greenscreen/MACS2_final/final_peaks/SWI3B6hrMvI_gs_qval10.modified.narrowPeak \
+        -nf ../bed_regions/SWI3B6hrMvI_gs_LDbound.bed \
+            ../bed_regions/SWI3B6hrMvI_gs_LMbound.bed \
+            ../bed_regions/SWI3B6hrMvI_gs_HDbound.bed \
+        -nn summit_LD summit_LM summit_HD \
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation SWI3B6hrDvM_gs \
+        . \
+        ../bed_regions/SWI3B6hrDvM_gs_qval10.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  ../greenscreen/MACS2_final/final_peaks/SWI3B6hrDvM_gs_qval10.modified.narrowPeak \
+
+python ~/Downloads/ChIP_annotation_new/ChIP_Annotation 35SLFY_Parcy \
+        . \
+        ../bed_regions/35SLFY_Parcy_final.modified.bed \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes_ann.txt \
+        ../useful_files/Araport11_GFF3_ProteinCodingANDmiRNAgenes.bed \
+        -ga Name locus_type attribute \
+        -tss 3000 -tts 0 \
+        -n  ../bed_regions/35SLFY_Parcy_final.modified.bed \
+TUESDAY, 4/9/2019×
+awk '{print "macs2 predictd -s 75 -i mapped/"$0".filter.bam -f BAM -g 101274395 --rfile cross_correlation/before_GS/"$0"_wiDups.R"}' meta/SRX.list > scripts/estimate_nogs_fragLen.sh
+
+chmod 775 scripts/estimate_nogs_fragLen.sh
+nohup ./scripts/estimate_nogs_fragLen.sh > ./log_files/estimate_nogs_fragLen.log 2>&1 &
+
+Rscript cross_correlation/before_GS/LMI2CE1_wiDups.R
+
+awk '{print "~/custom_scripts/bam2big_singleEnd.sh greenscreen/"$0".greenscreen.bam ~/Araport11/TAIR10_chr_count.txt 138 ."}' meta/SRX_SWI3B6hr.list > scripts/bam2big_SWI3B6hr_gs.sh
+
+~/custom_scripts/bam2big_singleEnd.sh greenscreen/SWI3B6hrM1.greenscreen.bam ~/Araport11/TAIR10_chr_count.txt 138 .
+~/custom_scripts/bam2big_singleEnd.sh mapped/SWI3B24hrM2.filter.bam ~/Araport11/TAIR10_chr_count.txt 138 .
+WEDNESDAY, 4/10/2019×
+nohup multiBigwigSummary bins -b LMI2CDE1.CP10M.bigwig LMI2CDE2.CP10M.bigwig LMI2CE1.CP10M.bigwig LMI2CE2.CP10M.bigwig LMI2CDEinput.CP10M.bigwig LMI2CEinput.CP10M.bigwig SWI3B6hrD1.CP10M.bigwig SWI3B6hrD2.CP10M.bigwig SWI3B6hrM1.CP10M.bigwig SWI3B6hrM2.CP10M.bigwig SWI3BDinput.CP10M.bigwig SWI3BMinput.CP10M.bigwig --binSize 10 -l CDE1 CDE2 CE1 CE2 CDEinput CEinput 6hrD1 6hrD2 6hrM1 6hrM2 6hrDinput 6hrMinput -o ../../matrix_files/LMI2vSWI3B_gs_bw_corr.npz &
+
+nohup plotCorrelation --corData ./matrix_files/LMI2vSWI3B_gs_bw_corr.npz -o ./graphs/LMI2vSWI3B_gs_bw_pearson.png -c pearson -p heatmap -T=LMI2vSWI3BCorrealtion_pearson &
+
+nohup plotCorrelation --corData ./matrix_files/LMI2vSWI3B_gs_bw_corr.npz -o ./graphs/LMI2vSWI3B_gs_bw_spearman.png -c spearman -p heatmap -T=LMI2vSWI3BCorrealtion_spearman &
+
+nohup plotPCA --corData ./matrix_files/LMI2vSWI3B_gs_bw_corr.npz --log2 -o ./graphs/LMI2vSWI3B_gs_log2_pca.png &
+nohup plotPCA --corData ./matrix_files/LMI2vSWI3B_gs_bw_corr.npz --transpose -o ./graphs/LMI2vSWI3B_gs_tsp_pca.png &
+●
+scripts/run_idr_LMI2SWI3B_gs_wiDups.sh
+new_t=$1
+python ~/Downloads/IDR_comparison_pipeline \
+        LMI2vsSWI3B LMI2vsSWI3B_gs_wiDups \
+        ${new_t} ${new_t} ${new_t} \
+        /home/runjin/Araport11/TAIR10_chr_count.txt \
+        --t_docs greenscreen/LMI2CDE1.greenscreen.bam \
+        greenscreen/LMI2CDE2.greenscreen.bam \
+        greenscreen/LMI2CE1.greenscreen.bam \
+        greenscreen/LMI2CE2.greenscreen.bam \
+        greenscreen/SWI3B6hrD1.greenscreen.bam \
+        greenscreen/SWI3B6hrD1.greenscreen.bam \
+        greenscreen/SWI3B6hrM1.greenscreen.bam \
+        greenscreen/SWI3B6hrM2.greenscreen.bam \
+        --t_names LMI2CDE1 LMI2CDE1 LMI2CE1 LMI2CE2 SWI3B6hrD1 SWI3B6hrD2 SWI3B6hrM1 SWI3B6hrM2 \
+        --genome_size 101274395 --macs2_file_type BAM \
+        --filter_chr ChrC ChrM --peak_type NARROW \
+        --other_macs2_params "--keep-dup auto" \
+        --filter_using_idr > log_files/LMI2vsSWI3B_wiDups_wiDups_idr_${new_t}.log 2>&1
+○
+run script doing 
+mkdir LMI2vsSWI3B_gs_wiDups
+chmod 775 scripts/run_idr_LMI2SWI3B_gs_wiDups.sh
+# threshold 0.05
+nohup ./scripts/run_idr_LMI2SWI3B_gs_wiDups.sh 0.05 > log_files/LMI2vsSWI3B_wiDups_wiDups_idr_0.05.log 2>&1 &
+awk '$5>=30' LMI2CDEvI_gs_summits.bed > LMI2CEvI_gs_qval30summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' LMI2CEvI_gs_qval30summits.bed > LMI2CEvI_gs_qval30_summits.bed
+
+awk '$5>=50' LMI2CEvI_gs_summits.bed > LMI2CEvI_gs_qval50summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' LMI2CEvI_gs_qval50summits.bed > LMI2CEvI_gs_qval50_summits.bed
+
+awk '$5>=30' LMI2CEvI_gs_summits.bed > LMI2CEvI_gs_qval30summits.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,"."}' LMI2CEvI_gs_qval30summits.bed > LMI2CEvI_gs_qval30_summits.bed
+
+bedtools intersect -wa -a LMI2CDEvI_gs_qval30_summits.bed -b lowDex1_q10_nuc.bed -u >  LMI2CDEvI_gs_qval30_LDbound.bed
+bedtools intersect -wa -a LMI2CEvI_gs_qval30_summits.bed -b lowDex1_q10_nuc.bed -u >  LMI2CEvI_gs_qval30_LDbound.bed
+bedtools intersect -wa -a LMI2CDEvI_gs_qval50_summits.bed -b lowDex1_q10_nuc.bed -u >  LMI2CDEvI_gs_qval50_LDbound.bed
+bedtools intersect -wa -a LMI2CEvI_gs_qval50_summits.bed -b lowDex1_q10_nuc.bed -u >  LMI2CEvI_gs_qval50_LDbound.bed
+
+
+bedtools intersect -v -a LMI2CDEvI_gs_qval30_summits.bed -b lowDex1_q10_nuc.bed >  LMI2CDEvI_gs_qval30_LDfree.bed
+bedtools intersect -v -a LMI2CEvI_gs_qval30_summits.bed -b lowDex1_q10_nuc.bed >  LMI2CEvI_gs_qval30_LDfree.bed
+bedtools intersect -v -a LMI2CDEvI_gs_qval50_summits.bed -b lowDex1_q10_nuc.bed >  LMI2CDEvI_gs_qval50_LDfree.bed
+bedtools intersect -v -a LMI2CEvI_gs_qval50_summits.bed -b lowDex1_q10_nuc.bed >  LMI2CEvI_gs_qval50_LDfree.bed
+
+lowDex1_q30_nuc.bed
+lowMock1_q30_nuc.bed
+highDex2_q30_nuc.bed
+
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LMI2EvI_qval10_summits.bed > LMI2EvI_qval10_nochr_summits.bed
+awk 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print}' LMI2DEvI_qval10_summits.bed > LMI2DEvI_qval10_nochr_summits.bed
+
+bedtools intersect -wa -a LMI2EvI_qval10_nochr_summits.bed -b highDex2_q10_nuc.bed -u >  LMI2DEvI_HDbound.bed
+bedtools intersect -v -a LMI2EvI_qval10_nochr_summits.bed -b lowDex1_q10_nuc.bed >  LMI2DEvI_LDfree.bed
+
+nohup computeMatrix reference-point -S ./greenscreen/IGV/LMI2CDE_gs.pooled.bigwig -R ./bed_regions/LMI2CDEvI_gs_qval30_summits.bed ./bed_regions/LMI2CDEvI_gs_qval50_summits.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2CDE_gs_qval30v50_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./greenscreen/IGV/LMI2CE_gs.pooled.bigwig -R ./bed_regions/LMI2CEvI_gs_qval30_summits.bed ./bed_regions/LMI2CEvI_gs_qval50_summits.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LMI2CE_gs_qval30v50_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/lowDex_MNase1.bigwig -R ./bed_regions/LFY_LDbound.bed ./bed_regions/LFY_LDfree.bed ./bed_regions/LMI2CDEvI_gs_qval50_LDbound.bed ./bed_regions/LMI2CDEvI_gs_qval50_LDfree.bed ./bed_regions/LMI2CEvI_gs_qval50_LDbound.bed ./bed_regions/LMI2CEvI_gs_qval50_LDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFYLMI2_gs_qval50_LD_MNase.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/lowDex_MNase1.bigwig -R ./bed_regions/LFY_LDbound.bed ./bed_regions/LFY_LDfree.bed ./bed_regions/LMI2CDEvI_gs_qval30_LDbound.bed ./bed_regions/LMI2CDEvI_gs_qval30_LDfree.bed ./bed_regions/LMI2CEvI_gs_qval30_LDbound.bed ./bed_regions/LMI2CEvI_gs_qval30_LDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFYLMI2_gs_qval30_LD_MNase.tab.gz &
+
+plotHeatmap --matrixFile ./matrix_files/LMI2CDE_gs_qval30v50_ChIP.tab.gz --colorMap Oranges --missingDataColor white --outFileName ./graphs/LMI2CDE_gs_qval30v50_ChIP.png 
+plotHeatmap --matrixFile ./matrix_files/LMI2CE_gs_qval30v50_ChIP.tab.gz --colorMap Purples --missingDataColor white --outFileName ./graphs/LMI2CE_gs_qval30v50_ChIP.png
+
+plotHeatmap --matrixFile ./matrix_files/LFYLMI2_gs_qval50_LD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYLMI2_gs_qval50_LD_MNase_hm.png
+plotHeatmap --matrixFile ./matrix_files/LFYLMI2_gs_qval30_LD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYLMI2_gs_qval30_LD_MNase_hm.png
+
+plotProfile --matrixFile ./matrix_files/LFYLMI2_gs_qval50_LD_MNase.tab.gz --outFileName ./graphs/LFYLMI2_gs_qval50_LD_MNase_pf.png 
+plotProfile --matrixFile ./matrix_files/LFYLMI2_gs_qval30_LD_MNase.tab.gz --outFileName ./graphs/LFYLMI2_gs_qval30_LD_MNase_pf.png 
+
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2-59,$3+60,$4,$5,"."}' LMI2CEvI_gs_qval50_summits.bed > LMI2CEvI_gs_qval50_120bp.bed
+
+#'try ~75bp nucleosome overlap:?
+
+bedtools intersect -wa -a LMI2CDEvI_gs_qval50_120bp.bed -b lowDex1_q10_nuc.bed -f 1 -u >  LMI2CDEvI_120v120_q10_qval50_LDbound.bed
+bedtools intersect -wa -a LMI2CEvI_gs_qval50_120bp.bed -b lowDex1_q10_nuc.bed -f 1 -u >  LMI2CEvI_120v120_q10_qval50_LDbound.bed
+
+bedtools intersect -v -a LMI2CDEvI_gs_qval50_120bp.bed -b lowDex1_q10_nuc.bed -f 1 >  LMI2CDEvI_120v120_q10_qval50_LDfree.bed
+bedtools intersect -v -a LMI2CEvI_gs_qval50_120bp.bed -b lowDex1_q10_nuc.bed -f 1 >  LMI2CEvI_120v120_q10_qval50_LDfree.bed
+
+nohup computeMatrix reference-point -S ./MNase_files/lowDex_MNase1.bigwig -R ./bed_regions/LFY_LDbound.bed ./bed_regions/LFY_LDfree.bed ./bed_regions/LMI2CDEvI_gs_qval50_summits.bed ./bed_regions/LMI2CEvI_gs_qval50_summits.bed --referencePoint center -b 1000 -a 1000 --averageTypeBins sum --binSize 10 --sortRegions keep -o ./matrix_files/LFYLMI2all_gs_qval50_LD_MNase.tab.gz &
+
+
+plotHeatmap --matrixFile ./matrix_files/LFYLMI2all_gs_qval50_LD_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFYLMI2all_gs_qval50_LD_MNase_hm.png
+
+plotHeatmap --matrixFile ./matrix_files/LFYLMI2_gs_120v120_qval50_LD_MNase.tab.gz --outFileName ./graphs/LFYLMI2all_gs_qval50_LD_MNase.tab.gz 
+
+WEDNESDAY, 4/17/2019×
+nohup computeMatrix reference-point -S ./MNase_files/highDex_MNase2.bigwig -R ./bed_regions/LFY_HDbound.bed ./bed_regions/LFY_HDfree.bed ./bed_regions/LFY_q30_HDbound.bed ./bed_regions/LFY_q30_HDfree.bed ./bed_regions/LFY_q50_HDbound.bed ./bed_regions/LFY_q50_HDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFYvsMMase_HD_MNase.tab.gz &
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b highDex2_q30_nuc.bed -u >  LFY_q30_HDbound.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b highDex2_q30_nuc.bed >  LFY_q30_HDfree.bed
+
+bedtools intersect -wa -a DexvsMock_qval10_summmit.chr.bed -b highDex2_q50_nuc.bed -u >  LFY_q50_HDbound.bed
+bedtools intersect -v -a DexvsMock_qval10_summmit.chr.bed -b highDex2_q50_nuc.bed >  LFY_q50_HDfree.bed
+
+nohup computeMatrix reference-point -S ./LFY_ChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R ./bed_regions/LFY_q30_HDbound.bed ./bed_regions/LFY_q30_HDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFY_q30_HD_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./LFY_ChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R ./bed_regions/LFY_q30_LDbound.bed ./bed_regions/LFY_q30_LDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFY_q30_LD_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./LFY_ChIP/LFY1HrDex_pooled_greenscreen1.bigwig -R ./bed_regions/LFY_q30_LMbound.bed ./bed_regions/LFY_q30_LMfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFY_q30_LM_ChIP.tab.gz &
+
+nohup computeMatrix reference-point -S ./MNase_files/highDex_MNase2.bigwig -R ./bed_regions/LFY_q50_HDbound.bed ./bed_regions/LFY_q50_HDfree.bed --referencePoint center -b 1000 -a 1000 --binSize 10 --sortRegions keep -o ./matrix_files/LFY_q50_HD_MNase.tab.gz &
+
+plotProfile --matrixFile ./matrix_files/LFYvsMMase_HD_MNase.tab.gz --outFileName ./graphs/LFYvsMMase_HD_MNase_pf.png 
+plotProfile --matrixFile ./matrix_files/LFYvsMMase_LM_MNase.tab.gz --plotType se --outFileName ./graphs/LFYvsMMase_LM_MNase_pf.png 
+
+plotHeatmap --matrixFile ./matrix_files/LFY_q30_LM_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFY_q30_LM_MNase_hm.png
+plotHeatmap --matrixFile ./matrix_files/LFY_q50_LM_MNase.tab.gz --colorMap Reds --missingDataColor white --outFileName ./graphs/LFY_q50_LM_MNase_hm.png
+
+python ~/Desktop/Wagner_Lab/scripts/goTermHeatmap.py goTerm_heatmap.pdf -i FIE_go_terms2.csv PIR_and_FIE_go_terms2.csv -l FIE PIR_and_FIE --neglog10
+
+python ~/scripts/goTermHeatmap.py LM50TvF.png -i DE24LM50.txt DE24LM50F.txt -l "LM50DE bound" "LM50DE free" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "LM50DE bound" 
+
+--headcrop 50 --fdr_min 1e-10
+
+python ~/scripts/goTermHeatmap.py GOterm_all_LM50F.png -i DE24LM50F.txt DE24LM50B.txt DE24hrLM30F.txt DE24hrLM30B.txt LM50ParcyBF.txt LM50ParcyBB.txt LM30ParcyBF.txt LM30ParcyBB.txt -l "LM50DE F" "LM50DE B" "LM30DE F" "LM30DE B" "LM50DEPB F" "LM50DEPB B" "LM30DEPB F" "LM30DEPB B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 36 --sortByLabel "LM50DE F" --fdr_min 0.05 
+FRIDAY, 4/19/2019×
+python ~/Downloads/goTermHeatmap.py GOterm_LM30_sub_nohc.png -i LM30BIHBPB.txt LM30BIHBPF.txt LM30BIHFPB.txt LM30BIHFPF.txt LM30FIHBPB.txt LM30FIHBPF.txt LM30FIHFPB.txt LM30FIHFPF.txt -l "LM30B IHB PB" "LM30B IHB PF" "LM30B IHF PB" "LM30B IHF PF" LM30F IHB PB" "LM30F IHB PF" "LM30F IHF PB" "LM30F IHF PF" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "LM30B IHB PB" --fdr_min 0.05
+
+python ~/Downloads/goTermHeatmap.py GOterm_callusB_parcy_hc66_LM30.png -i DE24hrLM30B.txt DE24hrLM30F.txt DE24LM50B.txt DE24LM50F.txt LM30ParcyBB.txt LM30ParcyBF.txt LM50ParcyBB.txt LM50ParcyBF.txt ParcyB_list.txt ParcyF_list.txt Parcy_IH100B.txt Parcy_IH100F.txt IH100B_LM30B_GO.txt IH100B_LM30F.txt -l "LM30DE B" "LM30DE F" "LM50DE B" "LM50DE F" "LM30DEPB B" "LM30DEPB F" "LM50DEPB B" "LM50DEPB F" "DE24hrParcy B" "DE24hrParcy F" "Parcy IH100B" "Parcy IH100F" "IH100B_LM30B" "IH100B_LM30F" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 66 --sortByLabel "LM30DE B" --fdr_min 0.05
+
+python ~/Downloads/goTermHeatmap.py GOterm_callus_parcyF_hc66_LM3050.png -i Parcy_IH100F.txt Parcy_IH100B.txt IH100B_LM30F.txt IH100B_LM30B_GO.txt IH100B_LM50F.txt IH100B_LM50B.txt DE24hrLM30F.txt DE24hrLM30B.txt DE24LM50F.txt DE24LM50B.txt LM30ParcyBF.txt LM30ParcyBB.txt LM50ParcyBF.txt LM50ParcyBB.txt ParcyF_list.txt ParcyB_list.txt -l "Parcy IH100F" "Parcy IH100B" "IH100B_LM30F" "IH100B_LM30B" "IH100B_LM50F" "IH100B_LM50B" "LM30DE F" "LM30DE B" "LM50DE F" "LM50DE B" "LM30DEPB F" "LM30DEPB B" "LM50DEPB F" "LM50DEPB B" "DE24hrParcy F" "DE24hrParcy B" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --headcrop 66 --sortByLabel "Parcy IH100F" --fdr_min 0.05
+
+python ~/Downloads/goTermHeatmap.py GOterm_LM30_IHB_nohc.png -i LM30BIHB.txt LM30BIHF.txt LM30FIHB.txt LM30FIHF.txt -l "LM30B IHB" "LM30B IHF" "LM30F IHB" "LM30F IHF" --tsv --neglog --title "GO terms for LFY genes with nucleosome occupancy" --sortByLabel "LM30B IHB" --fdr_min 0.05
+SPLIT WORKSPACE
