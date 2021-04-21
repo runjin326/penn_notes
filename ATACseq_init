@@ -1,0 +1,3398 @@
+LFY ATACseq Analysis
+MONDAY, 10/15/2018
+1.
+2.
+source ~/custom_scripts/removeChrFromSam.sh 6hrDexA.sam ChrC ChrMMove data from BaseSpace to the server - Create Script to join samples from the four lanes
+basemount /data/home/runjin/BaseSpace_Mount/
+
+# make directories necessary for script
+mkdir scripts
+mkdir log_files
+mkdir fastq
+
+ls /home/runjin/BaseSpace_Mount/Projects/Wagnerlab_10062018/Samples/*/Files/*R1* | awk -F"/" '{gsub(" ","\\ ",$0)} NR%4==1{printf "cat "$0" "}NR%4==2||NR%4==3{printf $0" "}NR%4==0{split($NF,a,"_"); printf $0"> fastq/"a[1]"_R1.fastq.gz\n"}'| sed -e "s/fastq\/42/fastq\//g" > scripts/rename_fastq_files_R1.sh
+
+ls /home/runjin/BaseSpace_Mount/Projects/Wagnerlab_10062018/Samples/*/Files/*R2* | awk -F"/" '{gsub(" ","\\ ",$0)} NR%4==1{printf "cat "$0" "}NR%4==2||NR%4==3{printf $0" "}NR%4==0{split($NF,a,"_"); printf $0"> fastq/"a[1]"_R2.fastq.gz\n"}'| sed -e "s/fastq\/42/fastq\//g" > scripts/rename_fastq_files_R2.sh
+
+chmod 755 scripts/rename_fastq_files_R1.sh
+chmod 755 scripts/rename_fastq_files_R2.sh
+
+qlogin
+
+nohup ./scripts/rename_fastq_files_R1.sh > log_files/rename_fastq_files_R1.log 2>&1 &
+nohup ./scripts/rename_fastq_files_R2.sh > log_files/rename_fastq_files_R2.log 2>&1 &
+2. Working directory /home/runjin/LFY
+TUESDAY, 10/16/2018×
+●
+Install Trimmomatic 
+curl -O http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.38.zip
+●
+Sammy's custom scripts
+ls /home/wagner-lab/sklasfeld/custom_scripts/
+
+cp /home/wagner-lab/sklasfeld/custom_scripts/name_truSeq-SingleIdx_adapters.py ~/sammy_custom_scripts/
+●
+Moved Sammy's name script into sammy's custom script
+●
+And then use the script to find full adapters
+python ~/sammy_custom_scripts/name_truSeq-SingleIdx_adapters.py adapters/index.txt > adapters/adapters.txt
+
+●
+Run FASTQC on raw files:
+awk '{print $1"_adapter\t"$3}' adapters/adapters.txt > adapters/adapterList4FASTQC.txt
+
+mkdir FASTQC
+mkdir FASTQC/raw
+
+chmod 755 ~/Downloads/FastQC/fastqc
+
+nohup ~/Downloads/FastQC/fastqc -a adapters/adapterList4FASTQC.txt -o FASTQC/raw fastq/ATAC-24hrDexA_R1.fastq.gz fastq/ATAC-24hrDexA_R2.fastq.gz fastq/ATAC-24hrDexA-Spikein_R1.fastq.gz fastq/ATAC-24hrDexA-Spikein_R2.fastq.gz fastq/ATAC-24hrDexB_R1.fastq.gz fastq/ATAC-24hrDexB_R2.fastq.gz fastq/ATAC-24hrDexB-Spikein_R1.fastq.gz fastq/ATAC-24hrDexB-Spikein_R2.fastq.gz fastq/ATAC-24hrMockA_R1.fastq.gz fastq/ATAC-24hrMockA_R2.fastq.gz fastq/ATAC-24hrMockA-Spikein_R1.fastq.gz fastq/ATAC-24hrMockA-Spikein_R2.fastq.gz fastq/ATAC-24hrMockB_R1.fastq.gz fastq/ATAC-24hrMockB_R2.fastq.gz fastq/ATAC-24hrMockB-Spikein_R1.fastq.gz fastq/ATAC-24hrMockB-Spikein_R2.fastq.gz fastq/ATAC-6hrDexA_R1.fastq.gz fastq/ATAC-6hrDexA_R2.fastq.gz fastq/ATAC-6hrDexB_R1.fastq.gz fastq/ATAC-6hrDexB_R2.fastq.gz fastq/ATAC6hrMockA_R1.fastq.gz fastq/ATAC6hrMockA_R2.fastq.gz fastq/ATAC-6hrMockB_R1.fastq.gz fastq/ATAC-6hrMockB_R2.fastq.gz fastq/MNase-HM1_R1.fastq.gz fastq/MNase-HM1_R2.fastq.gz fastq/MNase-HM2_R1.fastq.gz fastq/MNase-HM2_R2.fastq.gz fastq/MNase-LM1_R1.fastq.gz fastq/MNase-LM1_R2.fastq.gz fastq/MNase-LM2_R1.fastq.gz fastq/MNase-LM2_R2.fastq.gz &
+
+Trim the adapters from reads and clear out low quality sequences
+Then I made a script to make adapter fasta files using the command:
+cd adapters
+awk '{print "echo \\>D701–D712_Adapter > "$1"_adapters.fasta\necho "$3" >> " $1"_adapters.fasta\n"}' adapters.txt > ../scripts/get_adapters.sh
+○
+Then I ran the customized script
+source ../scripts/get_adapters.sh
+○
+To run Trimmomatic I first made a batch script (Note these parameters were selected based on the example given in the Trimmomatic manual)
+cd /home/runjin/LFY/fastq
+
+ls *.gz| awk '$1~"R1"{printf $0"\t"} $1~"R2"{print}'| awk -F"\t" 'BEGIN{print "#!/bin/bash"}{a=$1; sub("_R1.fastq.gz","",a); print "java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 -trimlog log_files/trimming/"a"_trimming.log fastq/"$1" fastq/"$2" trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R2.unpaired.fastq  ILLUMINACLIP:adapters/"a"_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 TOPHRED33\nfastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.unpaired.fastq"}' > ../scripts/trim_adapters.sh
+
+cd ..
+
+chmod 755 scripts/trim_adapters.sh
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+mkdir log_files/trimming/
+
+nohup ./scripts/trim_adapters.sh > log_files/trimming.log &
+●
+Install bowtie1 for paired end 
+cd /home/runjin/Downloads
+curl -O https://sourceforge.net/projects/bowtie-bio/files/bowtie/1.2.2/bowtie-1.2.2-linux-x86_64.zip
+●
+Install MACS2
+●
+MACS2
+○
+Installation commands
+git clone https://github.com/taoliu/MACS.git
+cd MACS
+python setup_w_cython.py install --prefix=/home/runjin/local
+python setup.py install --prefix /home/runjin/local
+●
+Path fo MACS2
+/home/runjin/Downloads/MACS/bin/macs2 -h
+scp /Users/RunJin/Downloads/bowtie-1.2.2-linux-x86_64.zip runjin@gpc.sas.upenn.edu:/home/runjin/Downloads
+
+FRIDAY, 10/19/2018×
+●
+Run FASTQC on the trimmed reads
+nohup ~/Downloads/FastQC/fastqc -a adapters/adapterList4FASTQC.txt -o FASTQC/trimmed trimmed_fastq/ATAC-24hrDexA_R1.paired.fastq trimmed_fastq/ATAC-24hrDexA_R2.paired.fastq trimmed_fastq/ATAC-24hrDexA-Spikein_R1.paired.fastq trimmed_fastq/ATAC-24hrDexA-Spikein_R2.paired.fastq trimmed_fastq/ATAC-24hrDexB_R1.paired.fastq trimmed_fastq/ATAC-24hrDexB_R2.paired.fastq trimmed_fastq/ATAC-24hrDexB-Spikein_R1.paired.fastq trimmed_fastq/ATAC-24hrDexB-Spikein_R2.paired.fastq trimmed_fastq/ATAC-24hrMockA_R1.paired.fastq trimmed_fastq/ATAC-24hrMockA_R2.paired.fastq trimmed_fastq/ATAC-24hrMockA-Spikein_R1.paired.fastq trimmed_fastq/ATAC-24hrMockA-Spikein_R2.paired.fastq trimmed_fastq/ATAC-24hrMockB_R1.paired.fastq trimmed_fastq/ATAC-24hrMockB_R2.paired.fastq trimmed_fastq/ATAC-24hrMockB-Spikein_R1.paired.fastq trimmed_fastq/ATAC-24hrMockB-Spikein_R2.paired.fastq trimmed_fastq/ATAC-6hrDexA_R1.paired.fastq trimmed_fastq/ATAC-6hrDexA_R2.paired.fastq trimmed_fastq/ATAC-6hrDexB_R1.paired.fastq trimmed_fastq/ATAC-6hrDexB_R2.paired.fastq trimmed_fastq/ATAC6hrMockA_R1.paired.fastq trimmed_fastq/ATAC6hrMockA_R2.paired.fastq trimmed_fastq/ATAC-6hrMockB_R1.paired.fastq trimmed_fastq/ATAC-6hrMockB_R2.paired.fastq trimmed_fastq/MNase-HM1_R1.paired.fastq trimmed_fastq/MNase-HM1_R2.paired.fastq trimmed_fastq/MNase-HM2_R1.paired.fastq trimmed_fastq/MNase-HM2_R2.paired.fastq trimmed_fastq/MNase-LM1_R1.paired.fastq trimmed_fastq/MNase-LM1_R2.paired.fastq &
+Mapping
+●
+Build Bowtie Index -- can be skipped
+# -f reference is fasta file
+bowtie-build -f /home/runjin/Araport11/TAIR10_Chr.all.fasta /home/runjin/Araport11/TAIR10_bowtie1
+●
+Run Bowtie
+○
+example bowtie command
+# -m suppress all alignments if >1 exist
+# --best hits guaranteed best stratum; ties broken by quality
+# --no-unal
+bowtie --no-unal -S --chunkmbs 200 --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/6hrDexA_P1.paired.fastq -2 trimmed_fastq/6hrDexA_P2.paired.fastq > mapping/6hrDexA.sam
+●
+Run bowtie for the first 2 files and see how that goes 
+nohup bowtie --no-unal -S  --chunkmbs 200     --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1     -1 trimmed_fastq/ATAC-24hrDexA_R1.paired.fastq     -2 trimmed_fastq/ATAC-24hrDexA_R2.paired.fastq > mapping/ATAC-24hrDexA.sam     2> log_files/mapping/bowtie_ATAC-24hrDexA.log &
+
+●
+Make batch script
+mkdir mapping
+
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_fastq/"$1"_R2.paired.fastq > mapping/"$1".sam \
+    2> log_files/mapping/bowtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/2 WAIT\42"}END{print "wait\necho \42YAY YOU FINALLY DONE!\42"}' \
+    meta/SRX.list > scripts/mapping.sh
+
+chmod 755 scripts/mapping.sh
+mkdir log_files/mapping
+
+nohup ./scripts/mapping.sh > log_files/mapping.log &
+●
+Move FASTQC files into my own computer 
+scp -r runjin@gpc.sas.upenn.edu:~/LFY/FASTQC/raw .
+
+scp -r runjin@gpc.sas.upenn.edu:~/LFY/FASTQC/trimmed_HC15 .
+●
+Check the mapping rates for bowtie -- maybe try different parameters
+less log_files/mapping/bowtie_ATAC-24hrDexA.log 
+●
+Check the trimming of reads -- how many get trimmined and how many get lost 
+less log_files/trimming.log
+●
+If want to trim more adapters - we could possibly use cutadapt
+cutadapt \
+            -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC \
+            -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT \
+            -o trimmed.1.fastq.gz -p trimmed.2.fastq.gz \
+            reads.1.fastq.gz reads.2.fastq.gz
+●
+Run FASTQC on the MNase_LM1 & 2
+nohup ~/Downloads/FastQC/fastqc -a adapters/adapterList4FASTQC.txt -o FASTQC/trimmed trimmed_fastq/MNase-LM1_R1.paired.fastq trimmed_fastq/MNase-LM1_R2.paired.fastq trimmed_fastq/MNase-LM2_R1.paired.fastq trimmed_fastq/MNase-LM2_R2.paired.fastq &
+●
+Re mount base space & get files from it again -- not all of them because we editted the scripts/rename_fastq_files_R1.sh & scripts/rename_fastq_files_R1.sh in nano by # out all the samples that we do not need 
+basemount /data/home/runjin/BaseSpace_Mount/
+
+nohup ./scripts/rename_fastq_files_R1.sh > log_files/rename_fastq_files_R1.log 2>&1 &
+
+nohup ./scripts/rename_fastq_files_R2.sh > log_files/rename_fastq_files_R2.log 2>&1 &
+●
+Copy sammy's scripts to mine:
+SATURDAY, 10/20/2018×
+●
+Check mapping rates for all analysis
+nano log_files/mapping/bowtie_*.log
+A
+B
+C
+D
+E
+F
+G
+1
+Sample ID	Reads processed 	Reads mapped 	% mapped	Reads unmapped	% unmapped	% duplicate
+2
+ATAC-24hrDexA	31173873	5548552	17.80%	22838988	73.26%	8.94%
+3
+ATAC-24hrDexA-Spikein	47673829	8239950	17.28%	35859107	75.22%	7.50%
+4
+ATAC-24hrDexB	39380500	6947699	17.64%	29024296	73.70%	8.66%
+5
+ATAC-24hrDexB-Spikein	37649929	6804466	18.07%	27919741	74.16%	7.77%
+6
+ATAC-24hrMockA	32649995	6393668	19.58%	23281761	71.31%	9.11%
+7
+ATAC-24hrMockA-Spikein	28757417	5972593	20.77%	20782269	72.27%	6.96%
+8
+ATAC-24hrMockB	28489518	5746656	20.17%	20101568	70.56%	9.27%
+9
+ATAC-24hrMockB-Spikein	32607285	7073689	21.69%	23070178	70.75%	7.55%
+10
+ATAC-6hrDexA	27889018	9743527	34.94%	14820862	53.14%	11.92%
+11
+ATAC-6hrDexB	27719206	27719206	35.27%	14688579	52.99%	11.74%
+12
+ATAC-6hrMockA	24546624	7854967	32.00%	13965293	56.89%	11.11%
+13
+ATAC-6hrMockB	24646711	7891856	32.02%	13949007	56.60%	11.38%
+14
+MNase-HM1	47044647	20958040	44.55%	17345285	36.87%	18.58%
+15
+MNase-HM2	74702910	30281225	40.54%	30808892	41.24%	18.22%
+16
+Table1
+
+
+
+●
+Import the following to get_adapters_fasta.py:
+#!/usr/bin/env python
+
+import argparse
+import sys
+import os
+
+parser = argparse.ArgumentParser(description="given a tab delimited\
+        file of i7 and i5 TruSeq HT adapters return their respective adapters")
+parser.add_argument('input_file', help='A text file with three columns. \
+        SAMPLE ID in column 1, Index 1 (i7 adapters) in column 2, \
+        and Index 2 (i5 adapters) in column 3.')
+parser.add_argument('-o','--out_dir', help='directory where output is placed', \
+    default=".")
+args = parser.parse_args()
+
+
+D501_D508_1= "AATGATACGGCGACCACCGAGATCTACAC"
+D501_D508_2= "TCGTCGGCAGCGTCAGATGTG"
+D701_D712_1= "CAAGCAGAAGACGGCATACGAGAT"
+D701_D712_2= "GTCTCGTGGGCTCGGAGATGT"
+
+
+in_file = open(args.input_file, 'r')
+for line in in_file:
+        line = line.rstrip()
+        fields = line.split('\t')
+        newfile=("%s/%s_adapters.fasta" % (os.path.abspath(args.out_dir),fields[0]))
+        f = open(newfile, "w")
+        adapter1 = (("%s%s%s") % (D701_D712_1, fields[1].strip(), D701_D712_2))
+        f.write(">i7_Adapter\n")
+        f.write("%s\n" % adapter1)
+        adapter2 = (("%s%s") % (D501_D508_1, D501_D508_2))
+        if len(fields)==3 and len(fields[2])>0 :
+            adapter2 = (("%s%s%s") % (D501_D508_1, fields[2], D501_D508_2))
+        f.write(">i5_Adapter\n")
+        f.write("%s\n" % adapter2)
+        f.close()
+in_file.close()
+python ~/custom_scripts/get_adapters_fasta.py adapters/index.txt -o adapters
+●
+Unmount base space 
+●
+Re mount base space & get files from it again -- not all of them because we editted the scripts/rename_fastq_files_R1.sh & scripts/rename_fastq_files_R1.sh in nano by # out all the samples that we do not need 
+basemount /data/home/runjin/BaseSpace_Mount/
+
+nohup ./scripts/rename_fastq_files_R1.sh > log_files/rename_fastq_files_R1.log 2>&1 &
+
+nohup ./scripts/rename_fastq_files_R2.sh > log_files/rename_fastq_files_R2.log 2>&1 &
+●
+Now use the new method trimming method to trim the reads -- with the new trimming fasta files and a HEADCROP of 15bp based on the fastQC files 
+●
+Didn't do well with the HEADCROP -- all of them are droped 
+●
+Need to separately do the job -- try the new adapters first - first see whether that helps 
+cd /home/runjin/LFY/fastq
+
+ls *.gz| awk '$1~"R1"{printf $0"\t"} $1~"R2"{print}'| awk -F"\t" 'BEGIN{print "#!/bin/bash"}{a=$1; sub("_R1.fastq.gz","",a); print "java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 -trimlog log_files/trimming/"a"_trimming.log fastq/"$1" fastq/"$2" trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R2.unpaired.fastq  ILLUMINACLIP:adapters/"a"_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15  MINLEN:36 TOPHRED33\nfastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.unpaired.fastq"}' > ../scripts/trim_adapters.sh
+
+cd ..
+
+chmod 755 scripts/trim_adapters.sh
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+mkdir log_files/trimming/
+
+nohup ./scripts/trim_adapters.sh > log_files/trimming.log &
+●
+Remove previous mapped SAM files from the server -- only left with the MNase_HM1 and HM2 since they are not mount and trimmed using the new method
+●
+For the MNase_LM1 and LM2 - also used the new trimming with HEADCROP:15 to see whether that makes a differences
+●
+To do next: try out different bowtie mapping parameters to see whether that makes a differnece 
+SUNDAY, 10/21/2018×
+●
+Try trimming with the HEADCROP: 3 
+○
+Maybe the issue i had previously was after headcrop15 they no longer have MINLEN of 36? 
+cd /home/runjin/LFY/fastq
+
+ls *.gz| awk '$1~"R1"{printf $0"\t"} $1~"R2"{print}'| awk -F"\t" 'BEGIN{print "#!/bin/bash"}{a=$1; sub("_R1.fastq.gz","",a); print "java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/"$1" fastq/"$2" trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R2.unpaired.fastq  ILLUMINACLIP:adapters/"a"_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 HEADCROP:3 MINLEN:36 TOPHRED33\nfastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.unpaired.fastq"}' > ../scripts/trim_adapters.sh
+
+cd ..
+
+chmod 755 scripts/trim_adapters.sh
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+mkdir log_files/trimming/
+
+nohup ./scripts/trim_adapters.sh > log_files/trimming.log &
+
+●
+Since the first two trimming 24hrDexA and DexB are done -- try mapping on those two files 
+●
+Build bowtie index first:
+bowtie-build -f /home/runjin/Araport11/TAIR10_Chr.all.fasta /home/runjin/Araport11/TAIR10_bowtie1
+mkdir mapping
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-24hrDexA_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrDexA_R2.paired.fastq > mapping/ATAC-24hrDexA.sam &
+●
+Reget the files from base space
+# unmount BaseSpace
+basemount --unmount /data/home/runjin/BaseSpace_Mount
+basemount --unmount /data/home/runjin/BaseSpace_mount
+
+# remount BaseSpace to update it
+basemount /data/home/runjin/BaseSpace_Mount/
+
+nohup ./scripts/rename_fastq_files_R1.sh > log_files/rename_fastq_files_R1.log 2>&1 &
+nohup ./scripts/rename_fastq_files_R2.sh > log_files/rename_fastq_files_R2.log 2>&1 &
+●
+Single line for doing the trimming
+java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/ATAC-24hrDexA_R1.fastq.gz fastq/ATAC-24hrDexA_R2.fastq.gz trimmed_HC15_fastq/ATAC-24hrDexA_R1.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexA_R1.unpaired.fastq trimmed_HC15_fastq/ATAC-24hrDexA_R2.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexA_R2.unpaired.fastq  ILLUMINACLIP:adapters/ATAC-24hrDexA_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 HEADCROP:15 MINLEN:24 TOPHRED33
+fastqc -f fastq -o FASTQC/trimmed_HC15/ trimmed_HC15_fastq/ATAC-24hrDexA_R1.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexA_R2.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexA_R1.unpaired.fastq trimmed_HC15_fastq/ATAC-24hrDexA_R2.unpaired.fastq
+
+mkdir trimmed_HC15_fastq/
+mkdir FASTQC/trimmed_HC15/
+mkdir log_files/trimming_HC15/
+To do next: 
+●
+Try different trimming parameters -- for example the HEADCROP of 15 and do the mapping following that -- to see whether that makes any difference 
+java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 -trimlog log_files/trimming_HC15/ATAC-24hrDexB_trimming.log fastq/ATAC-24hrDexB_R1.fastq.gz fastq/ATAC-24hrDexB_R2.fastq.gz trimmed_HC15_fastq/ATAC-24hrDexB_R1.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R1.unpaired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.unpaired.fastq  ILLUMINACLIP:adapters/ATAC-24hrDexB_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 HEADCROP:15 MINLEN:24 TOPHRED33
+fastqc -f fastq -o FASTQC/trimmed_HC15/ trimmed_HC15_fastq/ATAC-24hrDexB_R1.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R1.unpaired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.unpaired.fastq
+
+●
+Use HEADCROP of 3 for MNase and use HEADCROP of 15 for ATAC -- then they pass all the quality check 
+●
+Started mapping 
+mkdir mapping
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC15_fastq/ATAC-24hrDexB_R1.paired.fastq -2 trimmed_HC15_fastq/ATAC-24hrDexB_R2.paired.fastq > mapping/ATAC-24hrDexB.sam &
+mkdir mapping_HC15
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC15_fastq/ATAC-24hrDexB_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrDexB_R2.paired.fastq > mapping_HC15/ATAC-24hrDexB.sam &
+●
+Make custom scripts for mapping the HC15: 
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_HC15_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_HC15_fastq/"$1"_R2.paired.fastq > mapping_HC15/"$1".sam \
+    2> log_files/mapping_HC15/bowtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/7 WAIT\42"}' \
+    meta/SRX.list > scripts/mapping_HC15.sh
+
+chmod 755 scripts/mapping_HC15.sh
+mkdir log_files/mapping_HC15
+
+nohup ./scripts/mapping_HC15.sh > log_files/mapping_HC15.log &
+●
+Removed the space between 2 and > and get it to work
+nohup bowtie --no-unal -S  --chunkmbs 200     --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1     -1 trimmed_HC15_fastq/ATAC-24hrDexA_R1.paired.fastq     -2 trimmed_HC15_fastq/ATAC-24hrDexA_R2.paired.fastq > mapping_HC15/ATAC-24hrDexA.sam     2>log_files/mapping_HC15/bowtie_ATAC-24hrDexA.log &
+
+java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 -trimlog log_files/trimming_HC15/ATAC-24hrDexB_trimming.log fastq/ATAC-24hrDexB_R1.fastq.gz fastq/ATAC-24hrDexB_R2.fastq.gz trimmed_HC15_fastq/ATAC-24hrDexB_R1.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R1.unpaired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.unpaired.fastq  ILLUMINACLIP:adapters/ATAC-24hrDexB_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 HEADCROP:15 MINLEN:24 TOPHRED33
+fastqc -f fastq -o FASTQC/trimmed_HC15/ trimmed_HC15_fastq/ATAC-24hrDexB_R1.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.paired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R1.unpaired.fastq trimmed_HC15_fastq/ATAC-24hrDexB_R2.unpaired.fastq
+
+MONDAY, 10/22/2018×
+●
+Try to map the low MNase with the new trimming to see whether that changes anything 
+●
+The trimmed MNase files are in trimmed_fastq
+nohup bowtie --no-unal -S  --chunkmbs 200     --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1     -1 trimmed_fastq/MNase-LM1_R1.paired.fastq     -2 trimmed_fastq/MNase-LM1_R2.paired.fastq > mapping_HC15/MNase-LM1.sam     2> log_files/mapping_HC3/bowtie_MNase-LM1.log &
+
+mkdir log_files/mapping_HC3
+●
+Try trimming the HM1 & 2 
+●
+FASTQC should be run AFTER the trimming is done 
+nohup java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/MNase-HM1_R1.fastq.gz fastq/MNase-HM1_R2.fastq.gz trimmed_fastq/MNase-HM1_R1.paired.fastq trimmed_fastq/MNase-HM1_R1.unpaired.fastq trimmed_fastq/MNase-HM1_R2.paired.fastq trimmed_fastq/MNase-HM1_R2.unpaired.fastq  ILLUMINACLIP:adapters/MNase-HM1_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 HEADCROP:3 MINLEN:33 TOPHRED33 &
+
+fastqc -f fastq -o FASTQC/trimmed_HC15/ trimmed_fastq/MNase-HM1_R1.paired.fastq trimmed_fastq/MNase-HM1_R2.paired.fastq trimmed_fastq/MNase-HM1_R1.unpaired.fastq trimmed_fastq/MNase-HM1_R2.unpaired.fastq
+nohup java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/MNase-HM2_R1.fastq.gz fastq/MNase-HM2_R2.fastq.gz trimmed_fastq/MNase-HM2_R1.paired.fastq trimmed_fastq/MNase-HM2_R1.unpaired.fastq trimmed_fastq/MNase-HM2_R2.paired.fastq trimmed_fastq/MNase-HM2_R2.unpaired.fastq  ILLUMINACLIP:adapters/MNase-HM2_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 HEADCROP:3 MINLEN:33 TOPHRED33 &
+
+fastqc -f fastq -o FASTQC/trimmed_HC3/ trimmed_HC3_fastq/MNase-HM2_R1.paired.fastq trimmed_HC3_fastq/MNase-HM2_R2.paired.fastq trimmed_HC3_fastq/MNase-HM2_R1.unpaired.fastq trimmed_HC3_fastq/MNase-HM2_R2.unpaired.fastq
+●
+Try mapping the HC3 and HC15 files for ATAC and see which method gives better results
+nohup bowtie --no-unal -S  --chunkmbs 200     --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1     -1 trimmed_HC15_fastq/ATAC-24hrDexB_R1.paired.fastq     -2 trimmed_HC15_fastq/ATAC-24hrDexB_R2.paired.fastq > mapping_HC15/ATAC-24hrDexB.sam     2> log_files/mapping_HC15/bowtie_ATAC-24hrDexB.log &
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/ATAC-24hrDexA_R1.paired.fastq -2 trimmed_HC3_fastq/ATAC-24hrDexA_R2.paired.fastq > mapping_HC3/ATAC-24hrDexA.sam 2> log_files/mapping_HC3/bowtie_ATAC-24hrDexA.log &
+●
+Move the FASTQC of the trimmed into my folder 
+scp -r runjin@gpc.sas.upenn.edu:~/LFY/FASTQC/trimmed_HC3 .
+●
+Checked FASTQC for MNase LM and HM -- they all look good with HC3 -- move on to mapping -- they are all mapped to HC3 
+nohup bowtie --no-unal -S  --chunkmbs 200     --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1     -1 trimmed_HC3_fastq/MNase-HM1_R1.paired.fastq     -2 trimmed_HC3_fastq/MNase-HM1_R2.paired.fastq > mapping_HC3/MNase-HM1.sam     2> log_files/mapping_HC3/bowtie_MNase-HM1.log &
+
+mkdir log_files/mapping_HC3
+●
+Log into previous node and see what is running 
+qstat | grep 'runjin'
+●
+Find the node name where i was running the previous things -- use the following code to log back into the previous node
+qlogin -l h=node01.gpc-global
+●
+And the find my jobs by doing this: 
+ps -ef | grep runjin
+●
+Results for LM1
+●
+Results for ATAC-24hr-DexB is not any better -- with HC = 15 
+nohup: ignoring input
+# reads processed: 30704935
+# reads with at least one reported alignment: 13190852 (42.96%)
+# reads that failed to align: 11728219 (38.20%)
+# reads with alignments suppressed due to -m: 5785864 (18.84%)
+Reported 13190852 paired-end alignments
+●
+Run the following with HM2 and LM2
+nohup bowtie --no-unal -S  --chunkmbs 200     --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1     -1 trimmed_HC3_fastq/MNase-HM2_R1.paired.fastq     -2 trimmed_HC3_fastq/MNase-HM2_R2.paired.fastq > mapping_HC3/MNase-HM2.sam     2> log_files/mapping_HC3/bowtie_MNase-HM2.log &
+
+nohup bowtie --no-unal -S  --chunkmbs 200     --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1     -1 trimmed_HC3_fastq/MNase-LM2_R1.paired.fastq     -2 trimmed_HC3_fastq/MNase-LM2_R2.paired.fastq > mapping_HC3/MNase-LM2.sam     2> log_files/mapping_HC3/bowtie_MNase-LM2.log &
+●
+Run the ATAC data with Bob Schmit's parameters: '-v 2 -m 3'
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/ATAC-24hrDexA_R1.paired.fastq -2 trimmed_HC3_fastq/ATAC-24hrDexA_R2.paired.fastq > mapping_HC3_BS/ATAC-24hrDexA.sam 2> log_files/mapping_HC3_BS/bowtie_ATAC-24hrDexA.log &
+A
+B
+C
+D
+E
+F
+G
+1
+Trimming	Mapping parameters	Reads processed	Reads mapped	% mapped 	dropped non unique %
+2
+ATAC_24hrDexA	No HC	--best -m 1	31173873	5548552	17.80%	8.94%
+3
+ATAC_24hrDexA	No HC	-v 2 -m 3	31173862	6848975	21.97%	3.02%
+4
+ATAC_24hrDexA	HC3	--best -m 1	30938097	5457221	17.64%	9.15%
+5
+ATAC_24hrDexA	HC3	-v 2 -m 3	30938097	6745194	21.80%	3.15%
+6
+ATAC_24hrDexB	No HC	--best -m 1	39380500	6947699	17.64%	8.66%
+7
+ATAC_24hrDexB	HC15	--best -m 1	39085647	6282739	16.07%	9.66%
+8
+MNase_HM1	No HC	--best -m 1	47044647	20958040	44.55%	18.58%
+9
+MNase_HM1	HC3	--best -m 1	47045760	21071154	44.79%	19.34%
+10
+MNase_HM2	No HC	--best -m 1	74702910	30281225	40.54%	18.22%
+11
+MNase_LM1	HC3	--best -m 1	30704935	13190852	42.96%	18.84%
+12
+MNase_LM2	HC3	--best -m 1	65029667	24178807	37.18%	17.50%
+Table2
+
+
+
+●
+There is NO need to trim differently -- because during bowtie mapping, we can use -s to skip the first several bases 
+○
+By doing HC -- we have less reads to start with and we have more non-unique mapping rate -- also, the % map is decreased 
+○
+So stick with no HC for trimming 
+●
+Retrim everything with the updated adapter sequences: 
+d /home/runjin/LFY/fastq
+
+ls *.gz| awk '$1~"R1"{printf $0"\t"} $1~"R2"{print}'| awk -F"\t" 'BEGIN{print "#!/bin/bash"}{a=$1; sub("_R1.fastq.gz","",a); print "java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/"$1" fastq/"$2" trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R2.unpaired.fastq  ILLUMINACLIP:adapters/"a"_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 TOPHRED33\nfastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.unpaired.fastq"}' > ../scripts/trim_adapters.sh
+
+cd ..
+
+chmod 755 scripts/trim_adapters.sh
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+mkdir log_files/trimming/
+
+nohup ./scripts/trim_adapters.sh > log_files/trimming.log &
+●
+Try the trimming without HC but with the new adapter sequences -- to see whether it makes a difference
+●
+And then try mapping with BS method -- only incrase % mapped marginally 
+nohup java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/ATAC-24hrDexA_R1.fastq.gz fastq/ATAC-24hrDexA_R2.fastq.gz trimmed_fastq/ATAC-24hrDexA_R1.paired.fastq trimmed_fastq/ATAC-24hrDexA_R1.unpaired.fastq trimmed_fastq/ATAC-24hrDexA_R2.paired.fastq trimmed_fastq/ATAC-24hrDexA_R2.unpaired.fastq  ILLUMINACLIP:adapters/ATAC-24hrDexA_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 TOPHRED33 &
+
+fastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/ATAC-24hrDexA_R1.paired.fastq trimmed_fastq/ATAC-24hrDexA_R2.paired.fastq trimmed_fastq/ATAC-24hrDexA_R1.unpaired.fastq trimmed_fastq/ATAC-24hrDexA_R2.unpaired.fastq
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+mkdir log_files/trimming/
+
+●
+Run the ATAC data with Bob Schmit's parameters: '-v 2 -m 3'
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-24hrDexA_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrDexA_R2.paired.fastq > mapping_BS/ATAC-24hrDexA.sam 2> log_files/mapping_BS/bowtie_ATAC-24hrDexA.log &
+●
+Seems to be slightly better -- but the mapping does not make any differences for ATAC
+●
+Make batch script to trim ALL ATAC files the same way without HC
+○
+Also did not include the trimming log 
+cd /home/runjin/LFY/fastq
+
+ls *.gz| awk '$1~"R1"{printf $0"\t"} $1~"R2"{print}'| awk -F"\t" 'BEGIN{print "#!/bin/bash"}{a=$1; sub("_R1.fastq.gz","",a); print "java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/"$1" fastq/"$2" trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R2.unpaired.fastq  ILLUMINACLIP:adapters/"a"_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 TOPHRED33\nfastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/"a"_R1.paired.fastq trimmed_fastq/"a"_R2.paired.fastq trimmed_fastq/"a"_R1.unpaired.fastq trimmed_fastq/"a"_R2.unpaired.fastq"}' > ../scripts/trim_adapters.sh
+
+cd ..
+
+chmod 755 scripts/trim_adapters.sh
+
+mkdir trimmed_fastq/
+mkdir FASTQC/trimmed/
+
+nohup ./scripts/trim_adapters.sh > log_files/trimming.log &
+●
+Try mapping with BS method -- MNase-HM1 -- see whether it gives better result: 
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/MNase-HM1_R1.paired.fastq -2 trimmed_HC3_fastq/MNase-HM1_R2.paired.fastq > mapping_HC3_BS/MNase-HM1.sam 2> log_files/mapping_HC3_BS/bowtie_MNase-HM1.log &
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/MNase-HM1_R1.paired.fastq -2 trimmed_HC3_fastq/MNase-HM1_R2.paired.fastq > mapping_HC3/MNase-HM1.sam 2> log_files/mapping_HC3/bowtie_MNase-HM1.log &
+●
+Make batch script for mapping using BS method -- for all the trimmed ATACseq
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_fastq/"$1"_R2.paired.fastq > mapping_BS/"$1".sam \
+    2> log_files/mapping_BS/bowtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/7 WAIT\42"}' \
+    meta/SRX.list > scripts/mapping_BS.sh
+
+chmod 755 scripts/mapping_BS.sh
+mkdir log_files/mapping_BS
+
+nohup ./scripts/mapping_BS.sh > log_files/mapping_BS.log &
+TUESDAY, 10/23/2018×
+●
+Trim the remaining 4 files individually: 
+
+nohup java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/ATAC-6hrDexB_R1.fastq.gz fastq/ATAC-6hrDexB_R2.fastq.gz trimmed_fastq/ATAC-6hrDexB_R1.paired.fastq trimmed_fastq/ATAC-6hrDexB_R1.unpaired.fastq trimmed_fastq/ATAC-6hrDexB_R2.paired.fastq trimmed_fastq/ATAC-6hrDexB_R2.unpaired.fastq  ILLUMINACLIP:adapters/ATAC-6hrDexB_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 TOPHRED33 &
+
+fastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/ATAC-6hrDexB_R1.paired.fastq trimmed_fastq/ATAC-6hrDexB_R2.paired.fastq 
+
+nohup java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/ATAC-6hrMockB_R1.fastq.gz fastq/ATAC-6hrMockB_R2.fastq.gz trimmed_fastq/ATAC-6hrMockB_R1.paired.fastq trimmed_fastq/ATAC-6hrMockB_R1.unpaired.fastq trimmed_fastq/ATAC-6hrMockB_R2.paired.fastq trimmed_fastq/ATAC-6hrMockB_R2.unpaired.fastq  ILLUMINACLIP:adapters/ATAC-6hrMockB_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 TOPHRED33 & 
+
+fastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/ATAC-6hrMockB_R1.paired.fastq trimmed_fastq/ATAC-6hrMockB_R2.paired.fastq 
+
+nohup java -jar ~/Downloads/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 fastq/ATAC6hrMockA_R1.fastq.gz fastq/ATAC6hrMockA_R2.fastq.gz trimmed_fastq/ATAC6hrMockA_R1.paired.fastq trimmed_fastq/ATAC6hrMockA_R1.unpaired.fastq trimmed_fastq/ATAC6hrMockA_R2.paired.fastq trimmed_fastq/ATAC6hrMockA_R2.unpaired.fastq  ILLUMINACLIP:adapters/ATAC6hrMockA_adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 TOPHRED33 & 
+
+fastqc -f fastq -o FASTQC/trimmed/ trimmed_fastq/ATAC6hrMockA_R1.paired.fastq trimmed_fastq/ATAC6hrMockA_R2.paired.fastq
+
+●
+Make custom scripts for all the mapping 
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_fastq/"$1"_R2.paired.fastq > mapping_BS/"$1".sam \
+    2> log_files/mapping_HC15/bowtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/7 WAIT\42"}' \
+    meta/SRX.list > scripts/mapping_BS.sh
+
+chmod 755 scripts/mapping_BS.sh
+mkdir log_files/mapping_BS
+
+nohup ./scripts/mapping_BS.sh > log_files/mapping_BS.log &
+Mapping result summary: 
+A
+B
+C
+D
+E
+F
+G
+H
+1
+Trimming	Mapping parameters	Reads processed	Reads mapped	% mapped 	dropped non unique %	
+2
+ATAC_24hrDexA	No HC	-v 2 -m 3	31173862	6848975	21.97%	3.02%	
+3
+ATAC_24hrDexA_Spikein	No HC	-v 2 -m 3	47673812	9827851	20.61%	2.63%	
+4
+ATAC_24hrDexA_Spikein	No HC	-v 3 -m 5	47673812	10080840	21.15%	3.80%	252989
+5
+ATAC_24hrDexB	No HC	-v 2 -m 3	39380479	8535953	21.68%	2.93%	
+6
+ATAC_24hrDexB_Spikein	No HC	-v 2 -m 3	37649925	8113689	21.55%	2.70%	
+7
+ATAC_24hrMockA	No HC	-v 2 -m 3	32649978	7782640	23.84%	3.06%	
+8
+ATAC_24hrMockA_Spikein	No HC	-v 2 -m 3	28757472	6835486	23.77%	2.46%	
+9
+ATAC_24hrMockB	No HC	-v 2 -m 3	28489512	6968808	24.46%	3.13%	
+10
+ATAC_24hrMockB_Spikein	No HC	-v 2 -m 3	32607430	8185941	25.10%	2.61%	
+11
+ATAC_6hrDexA	No HC	-v 2 -m 3	27889031	11097677	39.79%	4.39%	
+12
+ATAC_6hrDexB	No HC	-v 2 -m 3	27719182	11105659	40.06%	4.33%	
+13
+ATAC_6hrMockA	No HC	-v 2 -m 3	24546624	8981360	36.59%	4.07%	
+14
+ATAC_6hrMockB	No HC	-v 2 -m 3	24646722	9049141	36.72%	4.15%	
+Table3
+
+
+
+●
+Install samtools and picard 
+○
+samtools are added by downloading on my computer and move to the server 
+#unzip samtools
+tar xvjf samtools-1.9.tar.bz2
+#make PATH to samtools
+cd ~
+nano .bashrc
+# this is added for bowtie
+export PATH="/home/runjin/Downloads/bowtie-1.2.2-linux-x86_64/:$PATH"
+
+# this is added for samtools
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+#run .bashrc again to make sure it is working: 
+source .bashrc
+# path to picard 
+/home/runjin/Downloads/picard/build/libs
+# test installation
+java -jar /home/runjin/Downloads/picard/build/libs/picard.jar -h
+●
+Use custom scripts from Kaufmann for filtering and removing ChrFromSam: 
+create_ATAC_filtering.sh
+
+#!/bin/bash
+
+# **************** 9. Filtering ****************
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment,
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LFY
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=250
+minFragLen=150
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512)$
+        [[ ! -f $SRX.bam ]] && echo """samtools view -@ ${NTHREADS} -h ${SRX}.sam -o ${SRX}.bam
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.bam Chr1 Chr2 Chr3 Chr4 Chr5 | \
+                samtools sort - -o ${SRX}.filter.bam """
+        [[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+        [[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $PICARD/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SOR$
+        [[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+        done
+cd /home/runjin/LFY/mapping
+
+source ~/custom_scripts/create_ATAC_filtering.sh > ~/custom_scripts/ATAC_filtering.sh
+
+chmod 755 ~/custom_scripts/ATAC_filtering.sh
+
+nohup ~/custom_scripts/ATAC_filtering.sh > ../log_files/ATAC_filtering.log 2>&1 &
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 ATAC-24hrDexA.sam
+samtools view -c -F 4 ATAC-24hrDexA-Spikein.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c ATAC-24hrDexA.filter.bam 
+samtools view -c ATAC-24hrDexA-Spikein.filter.bam
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 -f 3 ATAC-24hrDexA.final.bam
+samtools view -c -F 4 -f 3 ATAC-24hrDexA-Spikein.final.bam
+●
+Get average fragment size
+samtools view -f 3 -F 4 ATAC-24hrDexA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrDexA-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+●
+Get mad for not sorting 
+○
+So sort the sam files into bam files and index it 
+samtools sort -@ 2 ATAC-24hrDexA.sam -o ATAC-24hrDexA.bam
+samtools index ATAC-24hrDexA.bam
+A
+B
+C
+D
+E
+F
+G
+1
+Mapped reads to start 	MAPQ>=30, paired, in nucleus	MAPQ>=30, paired, in nucleus, no dup.	Average fragment size		
+2
+ATAC-24hrDexA	13697950	12881394	11781412	114.184		
+3
+ATAC-24hrDexA-Spikein	19655702	18430342	16343676	118.341		
+4
+ATAC-24hrDexB	17071906	16053752	14521348	113.607		
+5
+ATAC-24hrDexB-Spikein	16227378	15190078	13584286	118.149		
+6
+ATAC-24hrMockA	15565280	14537428	13288272	109.91		
+7
+ATAC-24hrMockA-Spikein	13670972	12995400	9837738	114.007		
+Table4
+
+
+
+●
+To change the script for ATAC_filter.sh
+○
+Go to meta file and change the SRX file 
+○
+Source the create_ATAC_filter.sh again --> call new SRX and chmod 755 
+○
+Start running the filtering in the mapping directory 
+nohup ~/custom_scripts/ATAC_filtering.sh > ../log_files/ATAC_filtering.log 2>&1 &
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 ATAC-24hrDexB.sam
+samtools view -c -F 4 ATAC-24hrDexB-Spikein.sam
+samtools view -c -F 4 ATAC-24hrMockA.sam
+samtools view -c -F 4 ATAC-24hrMockA-Spikein.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c ATAC-24hrDexB.filter.bam 
+samtools view -c ATAC-24hrDexB-Spikein.filter.bam
+samtools view -c ATAC-24hrMockA.filter.bam
+samtools view -c ATAC-24hrMockA-Spikein.filter.bam
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 -f 3 ATAC-24hrDexB.final.bam
+samtools view -c -F 4 -f 3 ATAC-24hrDexB-Spikein.final.bam
+samtools view -c -F 4 -f 3 ATAC-24hrMockA.final.bam
+samtools view -c -F 4 -f 3 ATAC-24hrMockA-Spikein.final.bam
+●
+Get average fragment size
+samtools view -f 3 -F 4 ATAC-24hrDexB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrDexB-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrMockA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrMockA-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+WEDNESDAY, 10/24/2018×
+●
+Trimmed HC3 fastq files for MNase & mapping results 
+A
+B
+C
+D
+E
+F
+G
+1
+R1	R2	Bowtie parameter	Reads processed	Reads mapped (%mapped)	Dropped non unique 
+2
+MNase_HM1	188183040	188183040	-v 2 -m 3	47045760	25781400 (54.80%)	5.77%
+3
+MNase_HM2	298831780	298831780	-v 2 -m 3	74707945	38590498 (51.66%)	4.93%
+4
+MNase_LM1	122819740	122819740	-v 2 -m 3	30704935	16025304 (52.19%)	5.98%
+5
+MNase_LM2	260118668	260118668	-v 2 -m 3	65029667	30479047 (46.87%)	4.77%
+Table5
+
+
+
+●
+Transferred all the trimmed_fastq files to BOX and external hard drive
+●
+Started mapping the final two ATAC files 
+●
+Finish up filtring for all the mapped files 
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC6hrMockA_R1.paired.fastq -2 trimmed_fastq/ATAC6hrMockA_R2.paired.fastq > mapping_BS/ATAC-6hrMockA.sam 2> log_files/mapping_BS/bowtie_ATAC-6hrMockA.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-6hrMockB_R1.paired.fastq -2 trimmed_fastq/ATAC-6hrMockB_R2.paired.fastq > mapping_BS/ATAC-6hrMockB.sam 2> log_files/mapping_BS/bowtie_ATAC-6hrMockB.log &
+
+●
+Try mapping the spiked-in samples with -v 3 -m 5 to see whether that gives different results:
+nohup bowtie --no-unal -S --chunkmbs 200 -v 3 -m 5 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-24hrDexA-Spikein_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrDexA-Spikein_R2.paired.fastq > mapping_BS/ATAC-24hrDexA-Spikein-v3m5.sam 2> log_files/mapping_BS/bowtie_ATAC-24hrDexA-Spikein-v3m5.log &
+
+●
+Sample filtering steps:
+samtools sort -@ 2 ATAC-24hrMockB.sam -o ATAC-24hrMockB.bam
+samtools index ATAC-24hrMockB.bam
+samtools view -@ 2 -h -f3 -F 1804 -q 30 ATAC-24hrMockB.bam Chr1 Chr2 Chr3 Chr4 Chr5 | samtools sort -o ATAC-24hrMockB.filter.bam
+samtools index ATAC-24hrMockB.filter.bam
+java -jar /home/runjin/Downloads/picard/build/libs/picard.jar MarkDuplicates I=ATAC-24hrMockB.filter.bam O=ATAC-24hrMockB.dupmark.bam M=ATAC-24hrMockB.dup.qc VALIDATION_STRINGENCY$
+samtools sort ATAC-24hrMockB.dupmark.bam > ATAC-24hrMockB.dupmark.sorted.bam
+samtools index ATAC-24hrMockB.dupmark.sorted.bam
+samtools view -@ 2 -F 1804 -b ATAC-24hrMockB.dupmark.bam > ATAC-24hrMockB.final.bam
+samtools index ATAC-24hrMockB.final.bam && rm ATAC-24hrMockB.dupmark.bam 
+●
+For the filtering -- before doing anything:
+module load java/1.8
+THURSDAY, 10/25/2018×
+●
+ Mapping of MNase using the -v 2 -m 3 method 
+cd /home/runjin/LFY
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/MNase-HM1_R1.paired.fastq -2 trimmed_HC3_fastq/MNase-HM1_R2.paired.fastq > mapping_BS/MNase-HM1.sam 2> log_files/mapping_BS/bowtie_MNase-HM1.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/MNase-HM2_R1.paired.fastq -2 trimmed_HC3_fastq/MNase-HM2_R2.paired.fastq > mapping_BS/MNase-HM2.sam 2> log_files/mapping_BS/bowtie_MNase-HM2.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/MNase-LM1_R1.paired.fastq -2 trimmed_HC3_fastq/MNase-LM1_R2.paired.fastq > mapping_BS/MNase-LM1.sam 2> log_files/mapping_BS/bowtie_MNase-LM1.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_HC3_fastq/MNase-LM2_R1.paired.fastq -2 trimmed_HC3_fastq/MNase-LM2_R2.paired.fastq > mapping_BS/MNase-LM2.sam 2> log_files/mapping_BS/bowtie_MNase-LM2.log &
+●
+Get filtering results using Samtools 
+A
+B
+C
+D
+E
+F
+G
+1
+Mapped reads to start 	MAPQ>=30, paired, in nucleus	MAPQ>=30, paired, in nucleus, no dup.	Average fragment size		
+2
+ATAC-24hrMockB	13937616	12990626	11954756	110.221		
+3
+ATAC-24hrMockB-Spikein	16371882	15603984	11606516	107.863		
+4
+ATAC-6hrDexA	22195354	21598930	18201424	114.827		
+5
+ATAC-6hrDexB	22211318	21688746	17983100	113.603		
+6
+ATAC-6hrMockA	17962720	17430810	15603468	114.133		
+7
+ATAC-6hrMockB	18098282	17538954	15530098	114.039		
+8
+MNase-HM1	51562800	51030706	42328778	160.312		
+9
+MNase-LM1	32050608	31560990	27932500			
+Table6
+
+
+
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 ATAC-24hrMockB.sam
+samtools view -c -F 4 ATAC-24hrMockB-Spikein.sam
+samtools view -c -F 4 ATAC-6hrDexA.sam
+samtools view -c -F 4 ATAC-6hrDexB.sam
+samtools view -c -F 4 ATAC-6hrMockA.sam
+samtools view -c -F 4 ATAC-6hrMockB.sam
+samtools view -c -F 4 MNase-HM1.sam
+samtools view -c -F 4 MNase-LM1.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c ATAC-24hrMockB.filter.bam 
+samtools view -c ATAC-24hrMockB-Spikein.filter.bam
+samtools view -c ATAC-6hrDexA.filter.bam
+samtools view -c ATAC-6hrDexB.filter.bam
+samtools view -c ATAC-6hrMockA.filter.bam
+samtools view -c MNase-HM1.filter.bam
+samtools view -c MNase-LM1.filter.bam
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 -f 3 ATAC-24hrMockB.final.bam
+samtools view -c -F 4 -f 3 ATAC-24hrMockB-Spikein.final.bam
+samtools view -c -F 4 -f 3 ATAC-6hrDexA.final.bam
+samtools view -c -F 4 -f 3 ATAC-6hrDexB.final.bam
+samtools view -c -F 4 -f 3 ATAC-6hrMockA.final.bam
+samtools view -c -F 4 -f 3 ATAC-6hrMockB.final.bam
+samtools view -c -F 4 -f 3 MNase-HM1.final.bam
+samtools view -c -F 4 -f 3 MNase-LM1.final.bam
+●
+Get average fragment size
+samtools view -f 3 -F 4 ATAC-24hrMockB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrMockB-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-6hrDexA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-6hrDexB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-6hrMockA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-6hrMockB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 MNase-HM1.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 MNase-LM1.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+MONDAY, 10/29/2018×
+●
+Previous mapping of MNase using -v 2 -m 3 works better than -m 1 -- best 
+○
+Decided to use this parameter: H2 and M2 get error messages: RERUN
+●
+For the HM1 and LM1, as well as the ATAC-6hrMockA.sam, ATAC-6hrMockB.sam -- run the filtering program 
+○
+Edited the SRX.list
+ATAC-6hrMockA
+ATAC-6hrMockB
+MNase-HM1
+MNase-LM1
+
+source ~/custom_scripts/create_ATAC_filtering.sh > ~/custom_scripts/ATAC_filtering.sh
+
+chmod 755 ~/custom_scripts/ATAC_filtering.sh
+module load java/1.8
+
+nohup ~/custom_scripts/ATAC_filtering.sh > ../log_files/ATAC_filtering.log 2>&1 &
+
+Steps to visualize in IGV
+●
+get bigwig files
+○
+get bigwig files for each replicate
+■
+example command
+●
+Copy sammy's custom scrip at the following directory:
+cp /home/wagner-lab/sklasfeld/custom_scripts/bam2big_pairedEnd.sh /home/runjin/sammy_custom_scripts
+source ~/sammy_custom_scripts/bam2big_pairedEnd.sh ATAC-6hrMockA.final.bam ~/Araport11/TAIR10_chr_count.txt .
+●
+Build kentUtils for the script and send PATH for it:
+/home/runjin/kent/src/utils/
+●
+get bigGraph files
+○
+get bedGraph files for each replicate
+■
+example command
+source ~/custom_scripts/bam2big_pairedEnd.sh 6hrDexA.final.bam ~/Araport11/TAIR10_chr_count.txt .
+■
+batch script
+awk 'BEGIN{print "echo \42START\42"}{print "nohup ~/sammy_custom_scripts/bam2big_pairedEnd.sh "$0".final.bam ~/Araport11/TAIR10_chr_count.txt . &"}NR%3==0{x++;print "wait\necho \42WAIT "x"/4 COMPLETE\42"}' ../meta/SRX.list > ../scripts/visualize.sh
+
+chmod 755 ../scripts/visualize.sh
+
+nohup ../scripts/visualize.sh > ../log_files/visualize.log 2>&1 &
+○
+merge the bedgraph replicates
+■
+run all at once
+awk 'NR%2==1{print "bedtools unionbedg -i "$0".final.bg "}NR%2==0{a=$0; sub("_rep2","",a); printf $0".final.bg > "a".unionbed\n"}' ../meta/SRX.list > ../scripts/union_bedgraph.sh
+
+chmod 755 ../scripts/union_bedgraph.sh
+
+nohup ../scripts/union_bedgraph.sh > ../log_files/union_bedgraph.log 2>&1 &
+■
+OR run one at a time
+nohup bedtools unionbedg -i ATAC-6hrMockA.final.bg ATAC-6hrMockB.final.bg > ATAC-6hrMock.unionbed &
+nohup bedtools unionbedg -i ATAC-6hrDexA.final.bg ATAC-6hrDexB.final.bg > ATAC-6hrDex.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrDexA.final.bg ATAC-24hrDexB.final.bg > ATAC-24hrDex.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrMockA.final.bg ATAC-24hrMockB.final.bg > ATAC-24hrMock.unionbed &
+○
+get average of each row in the unionbedg (scripts/avg_unionbg.sh) - and make bigwig files for that 
+awk 'NR%2==0{sub("_rep2","",$0); print "awk \47BEGIN{OFS=\42\\t\42} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}\47 "$0".unionbed > "$0".bedgraph\nbedGraphToBigWig "$0".bedgraph ~/Araport11/TAIR10_chr_count.txt "$0".bigwig"}' ../meta/SRX.list > ../scripts/avg_unionbg.sh
+
+chmod 755 ../scripts/avg_unionbg.sh
+
+nohup ../scripts/avg_unionbg.sh 
+
+#Individual samples look like this: 
+awk 'BEGIN{OFS="\t"; print "track name=\42 6hr DEX\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrDex.unionbed > 6hrDex.bedgraph
+bedGraphToBigWig 6hrDex.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hrDex.bigwig
+awk 'BEGIN{OFS="\t"; print "track name=\426hr DEX\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrMock.unionbed > 6hrMock.bedgraph
+bedGraphToBigWig 6hrMock.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hrMock.bigwig
+
+
+TUESDAY, 10/30/2018×
+●
+Run the filtering for LM2 and HM2 
+●
+For the HM2 and LM2, as well as the ATAC-6hrMockA.sam, ATAC-6hrMockB.sam -- run the filtering program 
+○
+Edited the SRX.list
+○
+Although it says ATAC -- but it should be good enough for MNase as well 
+MNase-HM2
+MNase-LM2
+
+source ~/custom_scripts/create_ATAC_filtering.sh > ~/custom_scripts/ATAC_filtering.sh
+
+chmod 755 ~/custom_scripts/ATAC_filtering.sh
+module load java/1.8
+
+nohup ~/custom_scripts/ATAC_filtering.sh > ../log_files/ATAC_filtering.log 2>&1 &
+
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 MNase-HM2.sam
+samtools view -c -F 4 MNase-LM2.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c MNase-HM2.filter.bam
+samtools view -c MNase-LM2.filter.bam
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 -f 3 MNase-HM2.final.bam
+samtools view -c -F 4 -f 3 MNase-LM2.final.bam
+●
+Get average fragment size
+samtools view -f 3 -F 4 MNase-HM2.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 MNase-LM2.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+A
+B
+C
+D
+E
+F
+G
+1
+Mapped reads to start 	MAPQ>=30, paired, in nucleus	MAPQ>=30, paired, in nucleus, no dup.	Average fragment size		
+2
+MNase-HM1	51562800	51030706	42328778	160.312		
+3
+MNase-HM2	77180996	76292864	59488598	156.372		
+4
+MNase-LM1	32050608	31560990	27932500	163.387		
+5
+MNase-LM2	60958094	59940464	48579332	171.074		
+Table7
+
+
+
+●
+Run MAC2 and Homer for ATAC-seq files and figure out which one work better 
+python setup.py install --prefix /home/runjin/local
+●
+Working directory for MACS2
+/home/runjin/LFY/peakcalling
+●
+run MACS2 on each of the pooled samples
+○
+filter for qval<10^-10
+●
+run HOMER on each of the pooled samples
+○
+HOME v4.10 (5-16-2018) [GPLv3]
+WEDNESDAY, 10/31/2018×
+●
+Run MACS2 -- parameters used:
+○
+# control file = None
+○
+# effective genome size = 1.01e+08
+○
+# band width = 300
+○
+# model fold = [5, 50]
+○
+# qvalue cutoff = 5.00e-02
+○
+# The maximum gap between significant sites is assigned as the read length/tag size.
+○
+# The minimum length of peaks is assigned as the predicted fragment length "d".
+○
+# Larger dataset will be scaled towards smaller dataset.
+○
+# Range for calculating regional lambda is: 10000 bps
+○
+# Broad region calling is off
+○
+# Paired-End mode is on
+macs2 callpeak -t mapping/ATAC-6hrDexA.final.bam mapping/ATAC-6hrDexB.final.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-truePooled -n ATAC-6hrDex
+
+macs2 callpeak -t mapping/ATAC-6hrMockA.final.bam mapping/ATAC-6hrMockB.final.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-truePooled -n ATAC-6hrMock
+
+macs2 callpeak -t mapping/ATAC-24hrMockA.final.bam mapping/ATAC-24hrMockB.final.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-truePooled -n ATAC-24hrMock
+
+macs2 callpeak -t mapping/ATAC-24hrDexA.final.bam mapping/ATAC-24hrDexB.final.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-truePooled -n ATAC-24hrDex
+
+#true replicates 
+echo "EXPERIMENT:6hr DexA"
+macs2 callpeak -t mapping/ATAC-6hrDexA.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC_6hrDexA
+
+macs2 callpeak -t mapping/ATAC-6hrDexB.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC_6hrDexB
+
+macs2 callpeak -t mapping/ATAC-6hrMockA.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC_6hrMockA
+
+macs2 callpeak -t mapping/ATAC-6hrMockA.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC_6hrMockB
+
+macs2 callpeak -t mapping/ATAC-24hrMockA.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC_24hrMockA
+
+macs2 callpeak -t mapping/ATAC-24hrMockB.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC_24hrMockB
+
+macs2 callpeak -t mapping/ATAC-24hrDexA.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC-24hrDexA
+
+macs2 callpeak -t mapping/ATAC-24hrDexB.final.bam  -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC_trueReplicates -n ATAC-24hrDexB
+●
+To check the # of peaks that it gets:
+wc -l ATAC-truePooled/*.narrowPeak
+
+# $9 is the qval column and that selects for the qval > -10 -- getting qval peaks for all of them:
+awk '$9>=10' ATAC-truePooled/ATAC-24hrDex_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC-truePooled/ATAC-24hrMock_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC-truePooled/ATAC-6hrDex_peaks.narrowPeak| wc -l
+A
+B
+C
+1
+All peaks	qval-10
+2
+24hrDex	16508	1335
+3
+24hrMock	10613	1336
+4
+6hrDex	13512	3269
+5
+6hrMock	13747	3750
+Table9
+
+
+
+●
+Make Greenscreen 
+○
+First tried different values for qval and fc to see which ones give the good number of regions that I want to remove -- this the greenscreen1 & 2 --> look at them and they look werid 
+○
+Then load the narrowpeak file in IGV after MACS2 and decide which qvalue and fc I want to use
+○
+Tried running those parameters and 
+●
+Summarized in this table: 
+○
+# is the # of regions 
+○
+If only one number, from 6hrMock sample, if 2 numbers, first is mock and second is dex 
+A
+B
+C
+D
+E
+1
+FC2	FC3	FC5	FC10
+2
+qval50	NC	NC	NC	29/34
+3
+qval150	64/67	NC	39/44	NC
+4
+qval200	52	NC	NC	NC
+5
+qval300	37	34	25	NC
+6
+qval350	31	30	23	NC
+7
+qval400	24	NC	22	NC
+8
+qval500	17	NC	17	NC
+Table11
+
+
+qval 200 merge5k 
+#Decide which parameters to use: use the following command to see how many peaks to remove: 
+     -- && means filter on that as well 
+awk '$9>=50 && $7>=10' ATAC-truePooled/ATAC-24hrMock_peaks.narrowPeak| wc -l 
+awk '$9>=50 && $7>=10' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak| wc -l 
+
+#to make it into a bed file 
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=10{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval50_fc10.bed
+awk 'BEGIN{OFS="\t"}$9>=50 && $7>=10{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-24hrMock_peaks.narrowPeak > GreenScreen/ATAC-24hrMock_qval50_fc10.bed
+
+awk 'BEGIN{OFS="\t"}$9>=150 && $7>=2{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval150_fc2.bed
+
+awk 'BEGIN{OFS="\t"}$9>=150 && $7>=2{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-24hrMock_peaks.narrowPeak > GreenScreen/ATAC-24hrMock_qval150_fc2.bed
+
+awk 'BEGIN{OFS="\t"}$9>=150 && $7>=5{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval150_fc5.bed
+
+awk 'BEGIN{OFS="\t"}$9>=150 && $7>=5{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-24hrMock_peaks.narrowPeak > GreenScreen/ATAC-24hrMock_qval150_fc5.bed
+
+awk 'BEGIN{OFS="\t"}$9>=300 && $7>=2{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval300_fc2.bed
+
+awk 'BEGIN{OFS="\t"}$9>=300 && $7>=3{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval300_fc3.bed
+
+awk 'BEGIN{OFS="\t"}$9>=300 && $7>=5{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval300_fc5.bed
+
+awk 'BEGIN{OFS="\t"}$9>=350 && $7>=2{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval350_fc2.bed
+
+awk 'BEGIN{OFS="\t"}$9>=350 && $7>=3{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval350_fc3.bed
+
+awk 'BEGIN{OFS="\t"}$9>=350 && $7>=5{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval350_fc5.bed
+
+awk 'BEGIN{OFS="\t"}$9>=400 && $7>=2{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval400_fc2.bed
+
+awk 'BEGIN{OFS="\t"}$9>=500 && $7>=2{print $1,$2,$3,$4,$7,$6}' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval500_fc2.bed
+
+#go into nano and add the following to 1) give it a name & 2) give color 
+track name="my first green" useScore=1
+track name="my second green" useScore=1
+
+track name="6hrMock qval150 fc2" useScore=1
+track name="6hrMock qval150 fc5" useScore=1
+
+track name="24hrMock qval150 fc2" useScore=1
+track name="24hrMock qval150 fc5" useScore=1
+
+track name="6hrMock qval300 fc2" useScore=1
+track name="6hrMock qval400 fc2" useScore=1
+track name="6hrMock qval500 fc2" useScore=1
+
+track name="6hrMock qval300 fc3" useScore=1
+track name="6hrMock qval300 fc5" useScore=1
+track name="6hrMock qval350 fc3" useScore=1
+track name="6hrMock qval350 fc5" useScore=1
+●
+After testing everything, decided to use: qval300, FC=2 
+#get narrowpeak file with the regions that I don't want first:
+awk '$9>=300 && $7>=2' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval300_fc2.narrowPeak
+
+#get merged file with anything within 1kb to be merged together: 
+bedtools merge -d 1000 -c 1,7 -o count,max -i GreenScreen/ATAC-6hrMock_qval300_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"atac6mock"x,$4,".";x++}'> GreenScreen/ATAC-6hrMock_qval300_fc2_merge1k.bed
+●
+Run greenscreen by using the samtools
+○
+'-L' tells it to look for whatever that is in the bed file 
+○
+'-U' tells it to put whatever that is NOT in the bed file into this file 
+○
+'-o' puts the reads overlap with the greenscreen to the garbage.bam 
+○
+Changes the meta/SRX.list into the base names of the files
+●
+The './' in front of the script tells it that it's a bash script 
+mkdir mapping/greenscreen1
+
+awk '{print "samtools view -L GreenScreen/ATAC-6hrMock_qval300_fc2_merge1k.bed -U mapping/greenscreen1/"$0".greenscreen1.bam mapping/"$0".final.bam -o mapping/greenscreen1/"$0".garbage.bam Chr1 Chr2 Chr3 Chr4 Chr5"}' meta/SRX.list > scripts/greenscreen1.sh
+
+chmod 755 scripts/greenscreen1.sh
+
+nohup ./scripts/greenscreen1.sh > log_files/rungreenscreen1.log 2>&1 &
+
+qlogin -l h=node05.gpc-global
+
+rm mapping/greenscreen1/*.garbage.bam
+●
+Try calling peaks for MACS2 again
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrDexB.greenscreen1.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS1-6hrDex
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrMockB.greenscreen1.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS1-6hrMock
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-24hrMockA.greenscreen1.bam mapping/greenscreen1/ATAC-24hrMockB.greenscreen1.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS1-24hrMock
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-24hrDexA.greenscreen1.bam mapping/greenscreen1/ATAC-24hrDexB.greenscreen1.bam -f BAMPE --nomodel -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS1-24hrDex
+
+●
+Check the number of peaks I get:
+wc -l ATAC-GS-truePooled/*.narrowPeak
+
+# $9 is the qval column and that selects for the qval > -10 -- getting qval peaks for all of them:
+awk '$9>=10' ATAC-GS-truePooled/ATAC-GS1-24hrDex_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC-GS-truePooled/ATAC-GS1-24hrMock_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC-GS-truePooled/ATAC-GS1-6hrDex_peaks.narrowPeak| wc -l
+awk '$9>=10' ATAC-GS-truePooled/ATAC-GS1-6hrMock_peaks.narrowPeak| wc -l
+A
+B
+C
+D
+E
+F
+1
+Before GreenScreening	After GreenScreening1	After GS1
+2
+All peaks	qval-10	All peaks	qval-10	Average Size
+3
+24hrDex	16508	1335	16539	1398	113.3
+4
+24hrMock	10613	1336	10699	1311	109.9
+5
+6hrDex	13512	3269	14548	3350	114.6
+6
+6hrMock	13747	3750	14812	3848	113.8
+Table8
+
+
+
+●
+Trying out different parameters for MACS2:
+#methodA
+#for truereplicates:
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexA.greenscreen1.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-trueReplicates/methodA -n ATAC-GS1-6hrDexA
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexB.greenscreen1.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-trueReplicates/methodA -n ATAC-GS1-6hrDexB
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockA.greenscreen1.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-trueReplicates/methodA -n ATAC-GS1-6hrMockA
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockB.greenscreen1.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-trueReplicates/methodA -n ATAC-GS1-6hrMockB
+
+#for truepooled samples:
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrDexB.greenscreen1.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled/methodA -n ATAC-GS1-6hrDex
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrMockB.greenscreen1.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled/methodA -n ATAC-GS1-6hrMock
+
+#Count the number of peaks get:
+wc -l ATAC-GS-trueReplicates/methodA/*.narrowPeak 
+wc -l ATAC-GS-truePooled/methodA/*.narrowPeak 
+wc -l ATAC-GS-truePooled/methodB/*.narrowPeak 
+wc -l ATAC-GS-truePooled/methodC/*.narrowPeak
+
+awk '$9>=10' ATAC-GS-trueReplicates/methodA/ATAC-GS1-6hrDexA.narrowPeak| wc -l 
+awk '$9>=10' ATAC-GS-trueReplicates/methodA/ATAC-GS1-6hrDexB.narrowPeak| wc -l 
+awk '$9>=10' ATAC-GS-trueReplicates/methodA/ATAC-GS1-6hrMockA.narrowPeak| wc -l 
+awk '$9>=10' ATAC-GS-trueReplicates/methodA/ATAC-GS1-6hrMockB.narrowPeak| wc -l 
+
+awk '$9>=10' ATAC-GS-truePooled/methodA/ATAC-GS1-6hrDex.narrowPeak| wc -l 
+awk '$9>=10' ATAC-GS-truePooled/methodA/ATAC-GS1-6hrMock.narrowPeak| wc -l 
+
+#methodB
+#truereplicates
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexA.greenscreen1.bam -f BAMPE --nomodel --shift -37 --extsize 73 -g 101274395 --outdir ATAC-GS-trueReplicates/methodB -n ATAC-GS1-6hrDexA
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexB.greenscreen1.bam -f BAMPE --nomodel --shift -37 --extsize 73 -g 101274395 --outdir ATAC-GS-trueReplicates/methodB -n ATAC-GS1-6hrDexB
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockA.greenscreen1.bam -f BAMPE --nomodel --shift -37 --extsize 73 -g 101274395 --outdir ATAC-GS-trueReplicates/methodB -n ATAC-GS1-6hrMockA
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockB.greenscreen1.bam -f BAMPE --nomodel --shift -37 --extsize 73 -g 101274395 --outdir ATAC-GS-trueReplicates/methodB -n ATAC-GS1-6hrMockB
+
+#for truepooled samples:
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrDexB.greenscreen1.bam -f BAMPE --nomodel --shift -37 --extsize 73 -g 101274395 --outdir ATAC-GS-truePooled/methodB -n ATAC-GS1-6hrDex
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrMockB.greenscreen1.bam -f BAMPE --nomodel --shift -37 --extsize 73 -g 101274395 --outdir ATAC-GS-truePooled/methodB -n ATAC-GS1-6hrMock
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrDexA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrDexB.greenscreen1.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --outdir ATAC-GS-truePooled/methodC -n ATAC-GS1-6hrDex
+
+macs2 callpeak -t mapping/greenscreen1/ATAC-6hrMockA.greenscreen1.bam mapping/greenscreen1/ATAC-6hrMockB.greenscreen1.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --outdir ATAC-GS-truePooled/methodC -n ATAC-GS1-6hrMock
+
+●
+Summary: 
+○
+MACS2 parameters for ATAC - they all give the same number of peaks - same as the default 
+■
+MethodA: “--nomodel --shift -100 --extsize 200” – suppose to get cutting sites
+●
+The reason why a 200 bp window is often used (--shift -100 --extsize 200), is that it is reasonable to assume that ATAC-seq peaks are at least 200 bp long because this is about the size of a nucleosome-free region with a single nucleosome removed. Some people may use --shift -75 --extsize 150, with the assumption that the length of an accessible region  with a single nucleosome removed is about 150 bp, which is also reasonable.
+●
+Now you can shift then extend reads using callpeak command to mimic what Anshul did for some DNAse-seq data. For example, if you want to smooth the cutting ends pileup with 200bps window, then
+■
+Method B: “ --nomodel --shift -37 --extsize 73” – suppose to give single nucleosome
+■
+Method C: "--nomodel --shift -75 --extsize 150" - suppose to only give open regions that are within 150bp
+●
+If you are looking for the significant ‘cutting ends’, you can use '--half-ext —nomodel —extsize XX’, e.g. XX=100. In this case, a read will be extended to a 100 bps fragment *centered* around the 5’ cutting end, with a 100bps smoothing window.
+●
+Conclusions:
+○
+Peakcalling does NOT matter which parameters I use -- maybe play with  background noise thing a bit 
+○
+Greenscreening helps with finding peaks
+■
+Decided to go with methodB since it makes more sense and remove all other folders -- all the files there are mapped with methodB 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+1
+After GS - Sammy	After GS - OpenRegion (MethodA)	After GS - MonoNuc (MethodB)	After GS - Method C
+2
+OutDir & files used 	Sample Name	All peaks	qval-10	All peaks	qval-10	All peaks	qval-10	All peaks	qval-10
+3
+ATAC-GS-truePooled - from greenscreen1.bam	ATAC-6hrDex	14548	3350	14548	3350	14548	3350	
+4
+ATAC-6hrMock	14812	3848	14812	3848	14812	3848	14812	3848
+5
+ATAC-GS-trueReplicates - from greenscreen1.bam	ATAC-6hrDexA		9680	1073		
+6
+ATAC-6hrDexB	8241	804
+7
+ATAC-6hrMockA	9165	1113
+8
+ATAC-6hrMockB	9344	1308
+Table10
+
+
+
+#For visualization of individual files after greenscreen1 - wd = LFY/mapping/greenscreen1: 
+samtools sort -o ATAC-6hrDexA.greenscreen1.sorted.bam ATAC-6hrDexA.greenscreen1.bam
+samtools index ATAC-6hrDexA.greenscreen1.sorted.bam
+bamCoverage -b ATAC-6hrDexA.greenscreen1.sorted.bam -o ATAC-6hrDexA.greenscreen1.bw
+●
+The default parameters:
+○
+it seems like we can actually use 'blackListFileName' parameter to do that
+○
+Try seeing the bamCoverage 'blackListFileName' results vs. nofile+manual GS 
+○
+Try different bin width and other parameters for visualization 
+stepSize: 50
+smoothLength: None
+blackListFileName: None
+center_read: False
+ignoreDuplicates: False
+defaultFragmentLength: read length
+chrsToSkip: []
+region: None
+maxPairedFragmentLength: 1000
+samFlag_include: None
+binLength: 50
+maxFragmentLength: 0
+minMappingQuality: None
+zerosToNans: False
+THURSDAY, 11/1/2018×
+●
+Try deepTools parameters:
+○
+Try seeing the bamCoverage 'blackListFileName' results vs. nofile+manual GS
+○
+Try different bin width and other parameters for visualization
+●
+Try the following parameters for bamCoverage -- just for visualization 
+○
+-- centerReads: 
+■
+By adding this option, reads are centered with respect to the fragment length. For paired-end data, the read is centered at the fragment length defined by the two ends of the fragment. For single-end data, the given fragment length is used. This option is useful to get a sharper signal around enriched regions.
+○
+--normalizeUsing: 
+■
+RPGC = reads per genomic content (1x normalization)
+○
+--ignoreDuplicates: this might not be a good parameter to use 
+○
+--blackListFileName
+■
+A BED or GTF file containing regions that should be excluded from all analyses. Currently this works by rejecting genomic chunks that happen to overlap an entry. Consequently, for BAM files, if a read partially overlaps a blacklisted region or a fragment spans over it, then the read/fragment might still be considered. Please note that you should adjust the effective genome size, if relevant.
+wd = LFY/mapping/greenscreen1
+
+bamCoverage -b ATAC-6hrDexA.greenscreen1.sorted.bam --effectiveGenomeSize 101274395 --binSize 1 --ignoreDuplicates --centerReads -o ATAC-6hrDexA-2nd.greenscreen1.bw
+
+bamCoverage -b ATAC-6hrDexA.greenscreen1.sorted.bam --effectiveGenomeSize 101274395 --binSize 1 --normalizeUsing RPGC --centerReads -o ATAC-6hrDexA-3rd.greenscreen1.bw
+
+bamCoverage -b ATAC-6hrDexA.greenscreen1.sorted.bam --effectiveGenomeSize 101274395 --binSize 1 --centerReads --blackListFileName ../../GreenScreen/ATAC-6hrMock_qval300_fc2.bed -o ATAC-6hrDexA-4th.greenscreen1.bw
+
+wd = LFY/mapping
+bamCoverage -b ATAC-6hrDexA.bam --effectiveGenomeSize 101274395 --binSize 1 --centerReads --blackListFileName ../GreenScreen/ATAC-6hrMock_qval300_fc2.bed -o greenscreen1/ATAC-6hrDexA-5th.greenscreen1.bw
+
+bamCoverage -b ATAC-6hrDexA.bam --effectiveGenomeSize 101274395 --binSize 50 --centerReads --blackListFileName ../GreenScreen/ATAC-6hrMock_qval300_fc2.bed -o greenscreen1/ATAC-6hrDexA-6th.greenscreen1.bw
+
+bamCoverage -b ATAC-6hrDexA.bam --effectiveGenomeSize 101274395 --binSize 100 --centerReads --blackListFileName ../GreenScreen/ATAC-6hrMock_qval300_fc2.bed -o greenscreen1/ATAC-6hrDexA-7th.greenscreen1.bw
+
+●
+The zoomed out ad zoomed in images look something like this: 
+■
+The first one is wrong because it does not correct for genome size
+■
+The third one is no good -- so additional normalization is not required 
+○
+By taking closer look -- number 5 seems to be the best 
+■
+Decided to further do a binning of 50bp to see whether that smoothes out the results  -- the signals are so much stronger!!
+■
+The 7th bins together 100bp --> which gives even more signals 
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
+
+●
+Make visualization files after greenscreening 
+●
+After looking at the tracks -- decide to merge 5k and make greenscreen again:
+bedtools merge -d 5000 -c 1,7 -o count,max -i GreenScreen/ATAC-6hrMock_qval300_fc2.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>2{print $1,$2,$3,"atac6mock5k"x,$4,".";x++}'> GreenScreen/ATAC-6hrMock_qval300_fc2_merge5k.bed
+mkdir mapping/greenscreen2
+
+awk '{print "samtools view -L GreenScreen/ATAC-6hrMock_qval300_fc2_merge5k.bed -U mapping/greenscreen2/"$0".greenscreen2.bam mapping/"$0".final.bam -o mapping/greenscreen2/"$0".garbage.bam Chr1 Chr2 Chr3 Chr4 Chr5"}' meta/SRX.list > scripts/greenscreen2.sh
+
+chmod 755 scripts/greenscreen2.sh
+
+nohup ./scripts/greenscreen2.sh > log_files/rungreenscreen2.log 2>&1 &
+
+qlogin -l h=node05.gpc-global
+
+rm mapping/greenscreen2/*.garbage.bam
+●
+Check to see whehter the next version of GreenScreening with 5k merge helps:
+○
+Seems to help a little bit --> but that will be the most I want to do to my samples 
+cd LFY/mapping
+
+bamCoverage -b ATAC-6hrDexA.bam --effectiveGenomeSize 101274395 --binSize 50 --centerReads --blackListFileName ../GreenScreen/ATAC-6hrMock_qval300_fc2_merge5k.bed -o greenscreen2/ATAC-6hrDexA-8th.greenscreen2.bw
+
+cd LFY/mapping/greenscreen2
+
+samtools sort -o ATAC-6hrDexA.greenscreen2.sorted.bam ATAC-6hrDexA.greenscreen2.bam
+bamCoverage -b ATAC-6hrDexA.greenscreen2.sorted.bam --effectiveGenomeSize 101274395 --binSize 50 --centerReads -o ATAC-6hrDexA.greenscreen2.bw
+
+●
+Try calling peaks with MACS2 again after the 2nd greenscreen:
+#for pooled samples: 
+macs2 callpeak -t mapping/greenscreen2/ATAC-6hrDexA.greenscreen2.bam mapping/greenscreen2/ATAC-6hrDexB.greenscreen2.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS2-6hrDex
+
+macs2 callpeak -t mapping/greenscreen2/ATAC-6hrMockA.greenscreen2.bam mapping/greenscreen2/ATAC-6hrMockB.greenscreen2.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS2-6hrMock
+
+macs2 callpeak -t mapping/greenscreen2/ATAC-24hrMockA.greenscreen2.bam mapping/greenscreen2/ATAC-24hrMockB.greenscreen2.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS2-24hrMock
+
+macs2 callpeak -t mapping/greenscreen2/ATAC-24hrDexA.greenscreen2.bam mapping/greenscreen2/ATAC-24hrDexB.greenscreen2.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS2-24hrDex
+A
+B
+C
+D
+E
+F
+G
+H
+1
+Before GreenScreening	After GreenScreening1	After GS2
+2
+All peaks	qval-10	All peaks	qval-10	Average Size	All peaks	qval-10
+3
+24hrDex	16508	1335	16539	1398	113.3	19522	1386
+4
+24hrMock	10613	1336	10699	1311	109.9	10695	1354
+5
+6hrDex	13512	3269	14548	3350	114.6	14534	3331
+6
+6hrMock	13747	3750	14812	3848	113.8	14802	3830
+Table12
+
+
+
+
+image.png
+thumbnail
+
+As can be seen above -- the bed file do not remove everything -- it still leaves some out --> that is the issue when I didn't zoom in when deciding which cutoff to use: switch to qval200, no fc, merge5k: 
+#get narrowpeak file with the regions that I don't want first:
+awk '$9>=200 && $7>=2' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval200_fc2.narrowPeak
+#52 regions are being marked 
+awk '$9>=200' ATAC-truePooled/ATAC-6hrMock_peaks.narrowPeak > GreenScreen/ATAC-6hrMock_qval200.narrowPeak
+#55 regions are being marked 
+
+#get merged file with anything within 5kb to be merged together: 
+bedtools merge -d 5000 -c 1,7 -o count,max -i GreenScreen/ATAC-6hrMock_qval200.narrowPeak | awk -F"\t" 'BEGIN{OFS="\t";x=1}$5>1{print $1,$2,$3,"atac6mQ200k5"x,$4,".";x++}'> GreenScreen/ATAC-6hrMock_qval200_merge5k.bed
+●
+Run greenscreen by using the samtools
+●
+The './' in front of the script tells it that it's a bash script 
+mkdir mapping/greenscreen3
+
+awk '{print "samtools view -L GreenScreen/ATAC-6hrMock_qval200_merge5k.bed -U mapping/greenscreen3/"$0".greenscreen3.bam mapping/"$0".final.bam -o mapping/greenscreen3/"$0".garbage.bam Chr1 Chr2 Chr3 Chr4 Chr5"}' meta/SRX.list > scripts/greenscreen3.sh
+
+chmod 755 scripts/greenscreen3.sh
+
+nohup ./scripts/greenscreen3.sh > log_files/rungreenscreen3.log 2>&1 &
+
+qlogin -l h=node03.gpc-global
+
+rm mapping/greenscreen1/*.garbage.bam
+A
+B
+C
+D
+E
+1
+Before GreenScreening	After GS3
+2
+All peaks	qval-10	All peaks	qval-10
+3
+24hrDex	16508	1335	19736	1377
+4
+24hrMock	10613	1336	12836	1345
+5
+6hrDex	13512	3269	15617	3326
+6
+6hrMock	13747	3750	14818	3936
+Table13
+
+
+
+#for pooled samples: 
+
+macs2 callpeak -t mapping/greenscreen/ATAC-6hrMockA.greenscreen3.bam mapping/greenscreen/ATAC-6hrMockB.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS3-6hrMock
+
+macs2 callpeak -t mapping/greenscreen/ATAC-6hrDexA.greenscreen3.bam mapping/greenscreen/ATAC-6hrDexB.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS3-6hrDex
+
+macs2 callpeak -t mapping/greenscreen/ATAC-24hrMockA.greenscreen3.bam mapping/greenscreen/ATAC-24hrMockB.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS3-24hrMock
+
+macs2 callpeak -t mapping/greenscreen/ATAC-24hrDexA.greenscreen3.bam mapping/greenscreen/ATAC-24hrDexB.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-GS3-24hrDex
+
+
+●
+For making the new visualization files: 
+○
+Use final.bam files 
+cd ~/LFY/mapping
+bamCoverage -b ATAC-6hrDexA.final.bam --effectiveGenomeSize 101274395 --binSize 50 --centerReads --blackListFileName ../GreenScreen/ATAC-6hrMock_qval200_merge5k.bed -o ../visualization/greenscreen/ATAC-6hrDexA.greenscreen.bw
+
+●
+Use the 24hrDex and Mock spikein files for pooling and peak calling together: 
+mkdir mapping/greenscreen
+
+awk '{print "samtools view -L GreenScreen/ATAC-6hrMock_qval200_merge5k.bed -U mapping/greenscreen/"$0"-Spikein.greenscreen3.bam mapping/"$0"-Spikein.final.bam -o mapping/greenscreen/"$0"-Spikein.garbage.bam Chr1 Chr2 Chr3 Chr4 Chr5"}' meta/SRX.list > scripts/greenscreen3.sh
+
+chmod 755 scripts/greenscreen3.sh
+
+nohup ./scripts/greenscreen3.sh > log_files/rungreenscreen3.log 2>&1 &
+
+qlogin -l h=node03.gpc-global
+
+rm mapping/greenscreen1/*.garbage.bam
+A
+B
+C
+D
+E
+1
+Before GreenScreening	After GS3
+2
+All peaks	qval-10	All peaks	qval-10
+3
+24hrDex	16508	1335	19736	1377
+4
+24hrDex-Spikein	9253	1447	10483	1463
+5
+24hrDex-all	All peaks: 9307	qval-10: 1448
+6
+24hrMock	10613	1336	12836	1345
+7
+24hrMock-Spikein	7112	779	8163	710
+8
+24hrMock-all	All peaks: 7112	qval-10: 779
+9
+6hrDex	13512	3269	15617	3326
+10
+6hrMock	13747	3750	14818	3936
+Table14
+
+
+
+●
+Try calling peaks for all the Spikein files as well -- before and after greenscreening
+○
+The goal is to combine the four 24hr samples as two replicates and call peaks -- to get more signals and computationally 'pool'
+#call peak for pooled samples: 
+macs2 callpeak -t mapping/ATAC-24hrDexA-Spikein.final.bam mapping/ATAC-24hrDexB-Spikein.final.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-truePooled -n ATAC-24hrDex-Spikein
+
+macs2 callpeak -t mapping/ATAC-24hrMockA-Spikein.final.bam mapping/ATAC-24hrMockB-Spikein.final.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-truePooled -n ATAC-24hrMock-Spikein
+
+#call peaks for pooled samples after greenscreening: 
+macs2 callpeak -t mapping/greenscreen/ATAC-24hrDexA-Spikein.greenscreen3.bam mapping/greenscreen/ATAC-24hrDexB-Spikein.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-24hrDex-GS3-Spikein
+
+macs2 callpeak -t mapping/greenscreen/ATAC-24hrMockA-Spikein.greenscreen3.bam mapping/greenscreen/ATAC-24hrMockB-Spikein.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-GS-truePooled -n ATAC-24hrMock-GS3-Spikein
+
+#view the number of peaks:
+wc -l *-Spikein_peaks.narrowPeak
+
+#view the number of peaks qval>10 -10:
+awk '$9>=10' ./ATAC-truePooled/ATAC-24hrMock-Spikein_peaks.narrowPeak| wc -l
+awk '$9>=10' ./ATAC-truePooled/ATAC-24hrDex-Spikein_peaks.narrowPeak| wc -l
+awk '$9>=10' ./ATAC-truePooled/ATAC-24hrMock-GS3-Spikein.narrowPeak| wc -l
+awk '$9>=10' ./ATAC-truePooled/ATAC-24hrDex-GS3-Spikein.narrowPeak| wc -l
+
+#what if we pool 4 samples together to call peaks:
+macs2 callpeak -t mapping/ATAC-24hrDexA-Spikein.final.bam mapping/ATAC-24hrDexB-Spikein.final.bam mapping/greenscreen/ATAC-24hrDexA-Spikein.greenscreen3.bam mapping/greenscreen/ATAC-24hrDexB-Spikein.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-truePooled -n ATAC-24hrDex-all
+
+macs2 callpeak -t mapping/ATAC-24hrMockA-Spikein.final.bam mapping/ATAC-24hrMockB-Spikein.final.bam mapping/greenscreen/ATAC-24hrMockA-Spikein.greenscreen3.bam mapping/greenscreen/ATAC-24hrMockB-Spikein.greenscreen3.bam -f BAMPE --nomodel --shift -100 --extsize 200 -g 101274395 --outdir ATAC-truePooled -n ATAC-24hrMock-all
+
+wc -l *-all_peaks.narrowPeak
+
+
+FRIDAY, 11/2/2018×
+●
+For visualization and multiBigwig comparison, PCA plot -- sort BAM files and index the file: 
+○
+Decide to use the following parameters for visualziation: 
+■
+--effectiveGenomeSize 101274395 --binSize 50 --centerReads --blackListFileName ./GreenScreen/ATAC-6hrMock_qval200_merge5k.bed
+■
+Give it a blacklist just for doublesecure 
+samtools sort -o ATAC-6hrDexA.greenscreen1.sorted.bam ATAC-6hrDexA.greenscreen1.bam
+samtools index ATAC-6hrDexA.greenscreen1.sorted.bam
+cd mapping/
+
+bamCoverage -b mapping/greenscreen/ATAC-6hrDexA.greenscreen3.sorted.bam --effectiveGenomeSize 101274395 --binSize 50 --centerReads --blackListFileName ./GreenScreen/ATAC-6hrMock_qval200_merge5k.bed -o ./visualization/greenscreen/ATAC-6hrDexA.greenscreen.bw
+
+#make batch script for bam sorting: 
+awk '{print "samtools sort -o ./mapping/greenscreen/"$0".greenscreen3.sorted.bam ./mapping/greenscreen/"$0".greenscreen3.bam"}' meta/SRX.list > scripts/sortbam.sh 
+
+#make batch script for indexting:
+awk '{print "samtools index ./mapping/greenscreen/"$0".greenscreen3.sorted.bam"}' meta/SRX.list > scripts/index_sortedbam.sh
+
+#make visualization for sorted and indexed bam:
+awk '{print "bamCoverage -b ./mapping/greenscreen/"$0".greenscreen3.sorted.bam --effectiveGenomeSize 101274395 --binSize 50 --centerReads --blackListFileName ./GreenScreen/ATAC-6hrMock_qval200_merge5k.bed -o ./visualization/greenscreen/"$0".greenscreen3.bw"}' meta/SRX.list > scripts/greenscreen_bw.sh
+
+chmod 755 scripts/sortbam.sh
+chmod 755 scripts/index_sortedbam.sh
+chmod 755 scripts/greenscreen_bw.sh
+
+nohup ./scripts/sortbam.sh > log_files/sortbam.log 2>&1 &
+nohup ./scripts/index_sortedbam.sh > log_files/indexbam.log 2>&1 &
+nohup ./scripts/greenscreen_bw.sh > log_files/greenscreenbw.log 2>&1 &
+
+qlogin -l h=node04.gpc-global
+●
+get bigGraph files:
+○
+get bedGraph files for each replicate
+○
+make unionbed graph and make a bedgraph with the rows calculaing together 
+○
+Then convert that into bigwig file 
+cd LFY 
+awk '{print "bedtools genomecov -ibam ./mapping/greenscreen/"$0".greenscreen3.bam -bga > ./mapping/greenscreen/"$0".greenscreen3.bg"}' ./meta/SRX.list > ./scripts/bam2bg_greenscreen.sh
+
+chmod 755 ./scripts/bam2bg_greenscreen.sh
+
+nohup ./scripts/bam2bg_greenscreen.sh > ./log_files/bam2bg_greenscreen.log 2>&1 &
+■
+The union graph can be run one at a time
+●
+or a batch script can be made 
+#change the meta/SRX.list into base names without A or B: 
+cd LFY
+awk '{print "bedtools unionbedg -i ./mapping/greenscreen/"$0"A.greenscreen3.bg ./mapping/greenscreen/"$0"B.greenscreen3.bg > ./mapping/greenscreen/"$0".greenscreen3.unionbed"}' ./meta/SRX.list > ./scripts/union_greenscreen.sh
+
+chmod 755 ./scripts/union_greenscreen.sh
+
+nohup ./scripts/union_greenscreen.sh > ./log_files/union_greenscreen.log 2>&1 &
+
+#individual code looks like this: 
+nohup bedtools unionbedg -i ATAC-6hrMockA.greenscreen3.bg ATAC-6hrMockB.greenscreen3.bg > ATAC-6hrMock.greenscreen3.unionbed &
+nohup bedtools unionbedg -i ATAC-6hrDexA.greenscreen3.bg ATAC-6hrDexB.greenscreen3.bg > ATAC-6hrDex.greenscreen3.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrDexA.greenscreen3.bg ATAC-24hrDexB.greenscreen3.bg > ATAC-24hrDex.greenscreen3.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrMockA.greenscreen3.bg ATAC-24hrMockB.greenscreen3.bg > ATAC-24hrMock.greenscreen3.unionbed &
+
+nohup bedtools unionbedg -i ATAC-24hrMock-SpikeinA.greenscreen3.bg ATAC-24hrMock-SpikeinB.greenscreen3.bg > ATAC-24hrMock-Spikein.greenscreen3.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrDex-SpikeinA.greenscreen3.bg ATAC-24hrDex-SpikeinB.greenscreen3.bg > ATAC-24hrDex-Spikein.greenscreen3.unionbed &
+SATURDAY, 11/3/2018×
+○
+get sum or average of each row in the unionbedg (scripts/sum_unionbg.sh) - and make bigwig files for that 
+#batch script looks like this:
+awk 'NR%2==0{print "awk \47BEGIN{OFS=\42\\t\42}NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}\47 "$0".unionbed > "$0".bedgraph\nbedGraphToBigWig "$0".greenscreen3.bedgraph ~/Araport11/TAIR10_chr_count.txt "$0".greenscreen3.bigwig"}' ../../meta/SRX.list > ../../scripts/pool_GS_vis.sh
+
+chmod 755 ../../scripts/pool_GS_vis.sh
+
+nohup ../../scripts/pool_GS_vis.sh > ../../log_files/pool_GS_vis.log 2>&1 & 
+
+#Individual samples look like this: 
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 ATAC-6hr-GS-Dex\42 useScore=1"}NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-6hrDex.greenscreen3.unionbed > ATAC-6hrDex.greenscreen3.bedgraph
+bedGraphToBigWig ATAC-6hrDex.greenscreen3.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-6hrDex.greenscreen3.bigwig
+
+awk 'BEGIN{OFS="\t"; print "track name=\42 ATAC-24hr-GS-Dex\42 useScore=1"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex.greenscreen3.unionbed > ATAC-24hrDex.greenscreen3.bedgraph
+bedGraphToBigWig ATAC-24hrDex.greenscreen3.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hrDex.greenscreen3.bigwig
+●
+Make graph for plotPCA and plot Correlation analysis:
+multiBamSummary bins --bamfiles ATAC-24hrDexA.greenscreen3.sorted.bam ATAC-24hrDexB.greenscreen3.sorted.bam ATAC-24hrDexA-Spikein.greenscreen3.sorted.bam ATAC-24hrDexB-Spikein.greenscreen3.sorted.bam ATAC-24hrMockA.greenscreen3.sorted.bam ATAC-24hrMockB.greenscreen3.sorted.bam ATAC-24hrMockA-Spikein.greenscreen3.sorted.bam ATAC-24hrMockB-Spikein.greenscreen3.sorted.bam ATAC-6hrDexA.greenscreen3.sorted.bam ATAC-6hrDexB.greenscreen3.sorted.bam ATAC-6hrMockA.greenscreen3.sorted.bam ATAC-6hrMockB.greenscreen3.sorted.bam -o ATAC_all_10062018.npz
+
+#plotCorrelation [-h] --corData FILE --corMethod {spearman,pearson}
+                       --whatToPlot {heatmap,scatterplot} [--plotFile FILE]
+                       [--skipZeros]
+                       [--labels sample1 sample2 [sample1 sample2 ...]]
+                       [--plotTitle PLOTTITLE] [--plotFileFormat FILETYPE]
+                       [--removeOutliers] [--version]
+                       [--outFileCorMatrix FILE] [--plotHeight PLOTHEIGHT]
+                       [--plotWidth PLOTWIDTH] [--zMin ZMIN] [--zMax ZMAX]
+                       [--colorMap] [--plotNumbers] [--xRange XRANGE XRANGE]
+                       [--yRange YRANGE YRANGE] [--log1p]
+
+plotCorrelation --corData ATAC_all_10062018.npz --corMethod pearson --whatToPlot heatmap --plotFile ATAC_all_100618.pearson --plotTitle ATAC_all_100618.pearson --plotFileFormat pdf --removeOutliers 
+
+plotCorrelation --corData ATAC_all_10062018.npz --corMethod spearman --whatToPlot heatmap --plotFile ATAC_all_100618.spearman.pdf --plotTitle ATAC_all_100618.spearman --plotFileFormat pdf --removeOutliers
+●
+By looking at the graph -- interestingly, spearman seems to give better results
+SUNDAY, 11/4/2018×
+●
+Try using the spearman with all the Spikein -- realized that I forgot to add the Spikein for 24hrMock
+plotCorrelation --corData ATAC_all_10062018.npz --corMethod spearman --whatToPlot heatmap --plotFile ATAC_all_100618.spearman.png --labels ATAC-24hrDexA-GS ATAC-24hrDexB-GS ATAC-24hrMockA-GS ATAC-24hrMockA-Spikein-GS ATAC-24hrMockB-GS ATAC-24hrMockB-Spikein-GS ATAC-6hrDexA ATAC-6hrDexB ATAC-6hrMockA ATAC-6hrMockB --plotTitle ATAC_all_100618.spearman --plotFileFormat png --removeOutliers 
+●
+Try looking at the PCA: 
+#usage: plotPCA [-h] --corData FILE [--plotFile FILE]
+               [--labels sample1 sample2 [sample1 sample2 ...]]
+               [--plotTitle PLOTTITLE] [--plotFileFormat FILETYPE]
+               [--plotHeight PLOTHEIGHT] [--plotWidth PLOTWIDTH]
+               [--outFileNameData file.tab] [--ntop NTOP] [--PCs PCS PCS]
+               [--log2] [--colors COLORS [COLORS ...]]
+               [--markers MARKERS [MARKERS ...]] [--version]
+               [--transpose | --rowCenter]
+
+plotPCA --corData ATAC_all_10062018.npz --labels ATAC-24hrDexA-GS ATAC-24hrDexB-GS ATAC-24hrMockA-GS ATAC-24hrMockA-Spikein-GS ATAC-24hrMockB-GS ATAC-24hrMockB-Spikein-GS ATAC-6hrDexA ATAC-6hrDexB ATAC-6hrMockA ATAC-6hrMockB --plotTitle ATAC_100618_PCA --plotFileFormat png -o ATAC_100618_PCA.png
+
+plotCorrelation --corData ATAC_all_10062018.npz --corMethod pearson --whatToPlot heatmap --plotFile ATAC_all_100618.pearson.png --labels ATAC-24hrDexA-GS ATAC-24hrDexB-GS ATAC-24hrMockA-GS ATAC-24hrMockA-Spikein-GS ATAC-24hrMockB-GS ATAC-24hrMockB-Spikein-GS ATAC-6hrDexA ATAC-6hrDexB ATAC-6hrMockA ATAC-6hrMockB --plotTitle ATAC_all_100618.pearson --plotHeight 20 --plotWidth 20 --plotFileFormat png --removeOutliers 
+
+bamPEFragmentSize -hist ATAC-6hr-fragmentSize.png -b ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam --plotTitle Fragment_size_ATAC_6hr --table Fragment_size_ATAC_6hr.xls
+
+bamPEFragmentSize -hist ATAC-24hr-fragmentSize.png -b ATAC-24hrDexA.greenscreen3.sorted.bam ATAC-24hrDexB.greenscreen3.sorted.bam ATAC-24hrMockA.greenscreen3.sorted.bam ATAC-24hrMockB.greenscreen3.sorted.bam --plotTitle Fragment_size_ATAC_24hr --table Fragment_size_ATAC_24hr.xls
+
+#run fragment size histogram with picard and bam files: 
+java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics \
+      I=ATAC-24hrDexA.greenscreen3.sorted.bam \
+      O=ATAC-24hrDexA_insert_size_metrics.txt \
+      H=ATAC-24hrDexA_insert_size_histogram.png \
+      M=0.5
+#path for picard.jar:
+~/Downloads/picard/build/libs/picard.jar
+
+java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics I=ATAC-6hrDexA.greenscreen3.sorted.bam O=ATAC-6hrDexA_insert_size_metrics.txt H=ATAC-6hrDexA_insert_size_histogram.png M=0.5
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+1
+ATAC-6hrDexA	ATAC-6hrDexB	ATAC-6hrMockA	ATAC-6hrMockB								
+2
+Sample Size	8676	8152	7249	7267								
+3
+Min.	41.0	42	42	42								
+4
+1st Qu.	70.0	70	70	70								
+5
+Mean	114.159981558	113.053571429	113.24499931	112.799367002								
+6
+Median	100.0	99.0	100.0	99.0								
+7
+3rd Qu.	151.0	164.0	147.0	147.0								
+8
+Max	250.0	205.0	250.0	250.0								
+9
+Std	54.359294625	53.8209899835	53.0630809662	53.0299777834								
+10
+MAD	36.0	34.0	35.0	34.0								
+11
+Len. 10%	54	54	54	54								
+12
+Len. 20%	65	65	65	65								
+13
+Len. 30%	76	75	76	76								
+14
+Len. 40%	87	86	88	86								
+15
+Len. 60%	116	114	115	115								
+16
+Len. 70%	138	134	136	134								
+17
+Len. 80%	165	163	161	161								
+18
+Len. 90%	220	200	197	197								
+19
+Len. 99%	243.25	243	244	244								
+20
+Table15
+
+
+
+●
+Make batch scripts for making diagram of the insert size:
+awk '{print "java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics I="$0".greenscreen3.sorted.bam O="$0"_insert_size_metrics.txt H="$0"_insert_size_histogram.png M=0.5"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/insert_size.sh
+
+chmod 755 ~/LFY/scripts/insert_size.sh
+
+nohup ~/LFY/scripts/insert_size.sh &
+
+ATAC-24hrDexB-Spikein_insert_size_histogram.pdf
+
+●
+Make the compute matrix for plotHeatmap and plotProfile with the protein_coding.bed from Araport11:
+cd ~/Araport11/Araport11_protein_coding.201606.bed 
+
+nohup computeMatrix scale-regions -S ATAC-24hrDex.greenscreen3.bigwig ATAC-24hrMock.greenscreen3.bigwig ATAC-6hrDex.greenscreen3.bigwig ATAC-6hrMock.greenscreen3.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 1000 -m 5000 -bs 10 -o ATAC-GS-100618.mat.gz &
+
+●
+For the MNase files -- use the sorted bam to make bigwig files and use the protein coding.bed for heatmapping -- to see whether that gives a good gene profiling 
+○
+Also get the bam files from Sammy for second LFY ChIP -- and get the comparison graphs 
+○
+Next: need to see what others are doing for the analysis -- for example, subgroup them by insertion size and see how that changes 
+awk '{print "bamCoverage -b ./mapping_BS/"$0".final.bam --effectiveGenomeSize 101274395 --binSize 50 --centerReads -o ./visualization/MNase/"$0".final.bw"}' meta/SRX.list > scripts/MNase_bw.sh
+
+chmod 755 ./scripts/MNase_bw.sh
+
+nohup ./scripts/MNase_bw.sh & 
+
+qlogin -l h=node03.gpc-global
+MONDAY, 11/5/2018×
+●
+Use the matrix file generated before for plotting profiles:
+#try very basic profile graph - to 
+nohup plotProfile --matrixFile ATAC-GS-100618.mat.gz --outFileName ../../graphs/ATAC-GS-100618_profile.png --numPlotsPerRow 2 &
+
+plotProfile --matrixFile ATAC-GS-100618.mat.gz --outFileName ../../graphs/ATAC-GS-100618_km2profile.png --numPlotsPerRow 2 --kmeans 2
+
+plotProfile --matrixFile ATAC-GS-100618.mat.gz --outFileName ../../graphs/ATAC-GS-100618_km2_grprofile.png --numPlotsPerRow 2 --kmeans 2 --perGroup 
+
+plotProfile --matrixFile ATAC-GS-100618.mat.gz --outFileName ../../graphs/ATAC-GS-100618_km2_grheatmap.png --plotType heatmap --kmeans 2 --perGroup 
+
+Runs-MacBook-Air:/Users/RunJin
+
+ATAC-GS-100618_km2_grprofile.png
+thumbnail
+
+
+ATAC-GS-100618_profile.png
+thumbnail
+
+nohup computeMatrix scale-regions -S ATAC-24hrDexA-Spikein.greenscreen3.bw ATAC-24hrDexB-Spikein.greenscreen3.bw ATAC-24hrMockA-Spikein.greenscreen3.bw ATAC-24hrMockB-Spikein.greenscreen3.bw -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC-GS-Spikein-100618.mat.gz &
+
+# running in node 01
+●
+Try mapping with X = 2000 -- see whether it gives better result: 
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 -X 2000 /home/runjin/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-24hrDexA-Spikein_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrDexA-Spikein_R2.paired.fastq > mapping_2k/ATAC-24hrDexA-Spikein.sam 2> log_files/mapping_2k/ATAC-24hrDexA-Spikein.log &
+●
+Make batch script for mapping with X = 2000 and v2 m3 -- for all the trimmed ATACseq
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    -v 2 -m 3 -X 2000 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_fastq/"$1"_R2.paired.fastq > mapping_BS/"$1".sam \
+    2> log_files/mapping_2k/bowtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/7 WAIT\42"}' \
+    meta/SRX.list > scripts/mapping_2k.sh
+
+chmod 755 scripts/mapping_2k.sh
+mkdir log_files/mapping_2k
+
+nohup ./scripts/mapping_2k.sh > log_files/mapping_2k.log &
+TUESDAY, 11/6/2018×
+●
+Use the matrix file generated before for plotting profiles -- this time for the Spikein that we didn't plot before: 
+#try very basic profile graph - to 
+nohup plotProfile --matrixFile ATAC-GS-Spikein-100618.mat.gz --outFileName ../../graphs/ATAC-GS-Spikein-100618_profile.png --numPlotsPerRow 2 &
+
+nohup plotProfile --matrixFile ATAC-GS-Spikein-100618.mat.gz --outFileName ../../graphs/ATAC-GS-Spikein-100618_km2profile.png --numPlotsPerRow 2 --kmeans 2 &
+
+nohup plotProfile --matrixFile ATAC-GS-Spikein-100618.mat.gz --outFileName ../../graphs/ATAC-GS-Spikein-100618_km2_grprofile.png --numPlotsPerRow 2 --kmeans 2 --perGroup &
+
+nohup plotProfile --matrixFile ATAC-GS-Spikein-100618.mat.gz --outFileName ../../graphs/ATAC-GS-Spikein-100618_km2_grheatmap.png --plotType heatmap --kmeans 2 --perGroup &
+
+Runs-MacBook-Air:/Users/RunJin
+
+
+ATAC-GS-Spikein-100618_km2_grheatmap.png
+thumbnail
+
+
+ATAC-GS-Spikein-100618_km2_grprofile.png
+thumbnail
+
+●
+Use the bigwig file generated using deepTools for MNase and compute a matrix with that -- try to see whehter we can good banding -- try visualization again with Danpos and see whether that looks better
+○
+Use reference point instead of scale-region 
+●
+Matrix computations are all region-scale for ATAC:
+○
+Try computing the matrix for Bob Schmit's data 
+○
+Try computing matrix for old ATAC 6hr data
+nohup computeMatrix reference-point -S MNase-HM1.final.bw MNase-HM2.final.bw MNase-LM1.final.bw MNase-LM2.final.bw -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 10 --sortRegions descend -o MNase-100618-Deeptools.mat.gz &
+
+running in node1
+
+nohup computeMatrix scale-regions -S Col-0_50k_crude_nuclei_R2.bigwig Col-0_50k_root_nuclei_R2.bigwig Col-0_50k_seedling_nuclei_R2.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC-Schmits.mat.gz &
+
+nohup computeMatrix scale-regions -S 6hrDex.bigwig 6hrMock.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC-old.mat.gz &
+●
+Map 24hrMockA & B and 24hrDexA & B first -- and then remove all the fastq files 
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    -v 2 -m 3 -X 2000 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_fastq/"$1"_R2.paired.fastq > mapping_2k/"$1".sam \
+    2> log_files/mapping_2k/bowtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/2 WAIT\42"}' \
+    meta/SRX.list > scripts/mapping_2k.sh
+
+chmod 755 scripts/mapping_2k.sh
+
+nohup ./scripts/mapping_2k.sh > log_files/mapping_2k.log &
+●
+See how the heatmap for Mnase looks like:
+nohup plotProfile --matrixFile MNase-100618-Deeptools.mat.gz --outFileName ../../graphs/MNase-100618_profile.png --numPlotsPerRow 2 &
+
+nohup plotProfile --matrixFile MNase-100618-Deeptools.mat.gz --outFileName ../../graphs/MNase-100618_heatmap.png --plotType heatmap &
+
+qlogin -l h=node01.gpc-global
+
+MNase-100618_heatmap.png
+thumbnail
+
+
+MNase-100618_profile.png
+thumbnail
+
+●
+Use the matrix file generated from old ATAC bigwig files:
+#try very basic profile graph - to 
+nohup plotProfile --matrixFile ATAC-old.mat.gz --outFileName ../../graphs/ATAC-old-profile.png --numPlotsPerRow 2 &
+
+nohup plotProfile --matrixFile ATAC-old.mat.gz --outFileName ../../graphs/ATAC-old_km2_grprofile.png --numPlotsPerRow 2 --kmeans 2 --perGroup &
+
+nohup plotProfile --matrixFile ATAC-old.mat.gz --outFileName ../../graphs/ATAC-old_km2_grheatmap.png --plotType heatmap --kmeans 2 --perGroup &
+
+Runs-MacBook-Air:/Users/RunJin
+
+
+ATAC-old_km2_grheatmap.png
+thumbnail
+
+
+ATAC-old_km2_grprofile.png
+thumbnail
+
+
+ATAC-old-_profile.png
+thumbnail
+
+●
+Try to see how Schmit's data looks:
+#try very basic profile graph 
+nohup plotProfile --matrixFile ATAC-Schmits.mat.gz --outFileName ../../graphs/ATAC-Schmits-profile.png --numPlotsPerRow 2 &
+
+nohup plotProfile --matrixFile ATAC-Schmits.mat.gz --outFileName ../../graphs/ATAC-Schmits_km2_grprofile.png --numPlotsPerRow 2 --kmeans 2 --perGroup &
+
+nohup plotProfile --matrixFile ATAC-Schmits.mat.gz --outFileName ../../graphs/ATAC-Schmits_km2_grheatmap.png --plotType heatmap --kmeans 2 --perGroup &
+
+qlogin -l h=node03.gpc-global
+
+ATAC-Schmits_km2_grheatmap.png
+thumbnail
+
+
+ATAC-Schmits-profile.png
+thumbnail
+
+
+ATAC-Schmits_km2_grprofile.png
+thumbnail
+
+●
+How it looks with the mapping parameter of -v 2 -m 3 -X 2000
+○
+Currently mapping in node03
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+1
+# of reads processed	# of reads mapped (% mapped)	% dropped due to non unique mapping	Mapped reads to start 	MAPQ>=30, paired, in nucleus	MAPQ>=30, paired, in nucleus, no dup.	Average fragment size		
+2
+ATAC-6hrDexA	27889031	12494131 (44.80%)	5.88%						
+3
+ATAC-6hrDexB	27719182	12423578 (44.82%)	5.77%						
+4
+ATAC-6hrMockA	24546624	10056809 (40.97%)	5.42%						
+5
+ATAC-6hrMockB	24646722	10026228 (40.68%)	5.52%						
+6
+ATAC-24hrMockA	28489512	7375834 (25.89%)	4.07%						
+7
+ATAC-24hrMockB	32649978	8268666 (25.33%)	3.97%						
+8
+ATAC-24hrDexA	31173862	7406248 (23.76%)	3.98%						
+9
+ATAC-24hrDexB	39380479	9238256 (23.46%)	3.86%						
+10
+ATAC-24hrMockA-Spikein	28757472	7587330 (26.38%)	3.27%						
+11
+ATAC-24hrMockB-Spikein	32607430	8755182 (26.85%)	3.38%						
+12
+ATAC-24hrDexA-Spikein	47673812	11105937 (23.30%)	3.54%						
+13
+ATAC-24hrDexB-Spikein	37649925	9012707 (23.94%)	3.63%						
+14
+ATAC-old-6hrDexA	37174635	14784161 (39.77%)	2.31%						
+15
+ATAC-old-6hrDexB	39498391	10418500 (26.38%)	1.64%						
+16
+ATAC-old-6hrMockA	32770273	13646082 (41.64%)	1.40%						
+17
+ATAC-old-6hrMockB	47175587	6901416 (14.63%)	0.89%						
+Table16
+
+
+
+WEDNESDAY, 11/7/2018×
+qlogin -l h=node03.gpc-global
+●
+Decided to make a huge matrix and see how that looks  
+nohup computeMatrix scale-regions -S ATAC-24hrDexA-Spikein.greenscreen3.bw ATAC-24hrDexB-Spikein.greenscreen3.bw ATAC-24hrMockA-Spikein.greenscreen3.bw ATAC-24hrMockB-Spikein.greenscreen3.bw ATAC-24hrDex.greenscreen3.bigwig ATAC-24hrMock.greenscreen3.bigwig Col-0_50k_seedling_nuclei_R2.bigwig Col-0_50k_crude_nuclei_R2.bigwig Col-0_50k_root_nuclei_R2.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_new_Schmits.mat.gz &
+
+nohup computeMatrix scale-regions -S ATAC-6hrDex.greenscreen3.bigwig ATAC-6hrMock.greenscreen3.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_new_6hr.mat.gz &
+# doesn't work -- does not have the SAME chromosome being present since I did greenscreening first 
+
+nohup plotProfile --matrixFile ATAC_new_6hr.mat.gz --outFileName ../../graphs/ATAC-6hrNew-profile.png --perGroup &
+
+●
+Use samtools for the analysis again:
+Use custom scripts from Kaufmann for filtering and removing ChrFromSam: 
+
+create_ATAC_filtering.sh
+
+#!/bin/bash
+
+# **************** 9. Filtering ****************
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment,
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+myWorkDIR=/home/runjin/LFY/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs ## path for Picard tools
+maxFragLen=1000
+minFragLen=40
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512)$
+        [[ ! -f $SRX.bam ]] && echo """samtools view -@ ${NTHREADS} -h ${SRX}.sam -o ${SRX}.bam
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.bam Chr1 Chr2 Chr3 Chr4 Chr5 | \
+                samtools sort - -o ${SRX}.filter.bam """
+        [[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+        [[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $PICARD/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SOR$
+        [[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+        [[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+        done
+cd /home/runjin/LFY/mapping_2k
+#run the script in mapping_2k directory
+source ~/custom_scripts/create_ATAC_filtering.sh > ~/custom_scripts/ATAC_filtering.sh
+
+chmod 755 ~/custom_scripts/ATAC_filtering.sh
+
+#remember to load the module for java
+nohup ~/custom_scripts/ATAC_filtering.sh > ../log_files/ATAC_filtering.log 2>&1 &
+●
+get number of mapped reads in the sam file
+samtools view -c -F 4 ATAC-24hrDexA.sam
+samtools view -c -F 4 ATAC-24hrDexA-Spikein.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c ATAC-24hrDexA.filter.bam 
+samtools view -c ATAC-24hrDexA-Spikein.filter.bam
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 -f 3 ATAC-24hrDexA.final.bam
+samtools view -c -F 4 -f 3 ATAC-24hrDexA-Spikein.final.bam
+●
+Get average fragment size
+samtools view -f 3 -F 4 ATAC-24hrDexA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrDexA-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-6hrMockA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}' 
+samtools view -f 3 -F 4 ATAC-6hrMockB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}' 
+samtools view -f 3 -F 4 ATAC-24hrMockA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrMockB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrDexA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrDexB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+samtools view -f 3 -F 4 ATAC-24hrMockA-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}' 
+samtools view -f 3 -F 4 ATAC-24hrMockB-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}' 
+samtools view -f 3 -F 4 ATAC-24hrDexA-Spikein.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}' 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+1
+# of reads processed	# of reads mapped (% mapped)	% dropped due to non unique mapping	Mapped reads to start 	MAPQ>=30, paired, in nucleus	MAPQ>=30, paired, in nucleus, no dup.	Average fragment size	Previous final MAPQ>=30, paired, in nucleus, no dup	Average fragment size (2k max)
+2
+ATAC-6hrDexA	27889031	12494131 (44.80%)	5.88%	24988262	24357992	20,903,812	153.792	18201424	114.827
+3
+ATAC-6hrDexB	27719182	12423578 (44.82%)	5.77%	24847156	24299788	20,506,760	151.109	17983100	113.603
+4
+ATAC-6hrMockA	24546624	10056809 (40.97%)	5.42%	20113618	19548852	17,773,626	151.482	15603468	114.133
+5
+ATAC-6hrMockB	24646722	10026228 (40.68%)	5.52%	20052456	19457684	17,508,270	148.83	15530098	114.039
+6
+ATAC-24hrMockA	28489512	7375834 (25.89%)	4.07%	16537332	15473646	14,368,836	136.744	
+7
+ATAC-24hrMockB	32649978	8268666 (25.33%)	3.97%	14751668	13773730	12,865,134	136.287
+8
+ATAC-24hrDexA	31173862	7406248 (23.76%)	3.98%	14812496	13957778	12,993,598	145.804
+9
+ATAC-24hrDexB	39380479	9238256 (23.46%)	3.86%	18476512	17409868	16,051,762	145.604
+10
+ATAC-24hrMockA-Spikein	28757472	7587330 (26.38%)	3.27%	15174660	14454636	11,138,732	150.184
+11
+ATAC-24hrMockB-Spikein	32607430	8755182 (26.85%)	3.38%	17510364	16710334	12,684,364	136.559
+12
+ATAC-24hrDexA-Spikein	47673812	11105937 (23.30%)	3.54%	22211874	20867318	18,892,308	159.643
+13
+ATAC-24hrDexB-Spikein	37649925	9012707 (23.94%)	3.63%	18025414	16899562	15,399,660	154.663
+14
+ATAC-old-6hrDexA	37174635	14784161 (39.77%)	2.31%	29568322	17422022	14,750,906	96.7553
+15
+ATAC-old-6hrDexB	39498391	10418500 (26.38%)	1.64%	20837000	11431910	9,744,518	96.2971
+16
+ATAC-old-6hrMockA	32770273	13646082 (41.64%)	1.40%	27292164	18102066	16,042,512	104.054
+17
+ATAC-old-6hrMockB	47175587	6901416 (14.63%)	0.89%	13802832	7691590	6,763,460	93.1626
+Table17
+
+
+
+●
+Decided to run insert size to see whether we see nucleosomes:
+#run fragment size histogram with picard and bam files: 
+java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics \
+      I=ATAC-6hrDexA.final.bam \
+      O=ATAC-24hrDexA_insert_size_metrics.txt \
+      H=ATAC-6hrDexA_final_insert.png \
+      M=0.5
+#path for picard.jar:
+~/Downloads/picard/build/libs/picard.jar
+
+java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics I=ATAC-6hrDexA.greenscreen3.sorted.bam O=ATAC-6hrDexA_insert_size_metrics.txt H=ATAC-6hrDexA_insert_size_histogram.png M=0.5
+THURSDAY, 11/8/2018×
+plotProfile --matrixFile ATAC_new_6hr.mat.gz --outFileName ../../graphs/ATAC-6hrNew-profile.png --perGroup &
+plotProfile --matrixFile ATAC-Schmits.mat.gz --outFileName ../../graphs/ATAC-Schmitsall_profile.png --perGroup &
+plotProfile --matrixFile ATAC-old.mat.gz --outFileName ../../graphs/ATAC-old6hrall_profile.png --perGroup &
+●
+There seems to be normalization issues with the bigwig files :
+
+ATAC-6hrNew-profile.png
+thumbnail
+
+
+ATAC-old6hrall_profile.png
+thumbnail
+
+
+ATAC-Schmitsall_profile.png
+thumbnail
+
+module load python/anaconda/2.4.1
+conda create -n python_rpy2 --clone base
+source activate python_rpy2
+●
+Generate bigwig files for all the mapped things -- try to see whether it works 
+awk 'BEGIN{print "echo \42START\42"}{print "nohup ~/sammy_custom_scripts/bam2big_pairedEnd.sh "$0".final.bam ~/Araport11/TAIR10_chr_count.txt . &"}NR%3==0{x++;print "wait\necho \42WAIT "x"/6 COMPLETE\42"}' ../meta/SRX.list > ../scripts/visualize.sh
+
+chmod 755 ../scripts/visualize.sh
+
+nohup ../scripts/visualize.sh > ../log_files/visualize.log 2>&1 &
+
+Currently running in headnode -- 76080 job #
+#merge the bigwig replicates
+#run all at once
+awk 'NR%2==1{printf "bedtools unionbedg -i "$0"A.final.bg "}NR%2==0{a=$0; sub("_rep2","",a); printf $0"B.final.bg > "a".unionbed\n"}' ../meta/SRX.list > ../scripts/union_bedgraph.sh
+cd ~/LFY/visualization/ATAC_2k
+chmod 755 ../../scripts/union_bedgraph.sh
+
+nohup ../scripts/union_bedgraph.sh > ../log_files/union_bedgraph.log 2>&1 &
+#OR run one at a time
+nohup bedtools unionbedg -i 6hrDexA.final.bg 6hrDexB.final.bg > 6hrDex.unionbed &
+nohup bedtools unionbedg -i 6hrMockA.final.bg 6hrMockB.final.bg > 6hrMock.unionbed &
+nohup bedtools unionbedg -i ATAC-6hrMockA.final.bg ATAC-6hrMockB.final.bg > ATAC-6hrMock.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrMockA.final.bg ATAC-24hrMockB.final.bg > ATAC-24hrMock.unionbed &
+nohup bedtools unionbedg -i ATAC-6hrDexA.final.bg ATAC-6hrDexB.final.bg > ATAC-6hrDex.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrDexA.final.bg ATAC-24hrDexB.final.bg > ATAC-24hrDex.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrMockA-Spikein.final.bg ATAC-24hrMockB-Spikein.final.bg > ATAC-24hrMock-Spikein.unionbed &
+nohup bedtools unionbedg -i ATAC-24hrDexA-Spikein.final.bg ATAC-24hrDexB-Spikein.final.bg > ATAC-24hrDex-Spikein.unionbed &
+
+#get average of each row in the unionbedg (scripts/avg_unionbg.sh)
+awk 'NR%2==0{sub("_rep2","",$0); print "awk \47BEGIN{OFS=\42\\t\42} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}\47 "$0".unionbed > "$0".bedgraph\nbedGraphToBigWig "$0".bedgraph ~/Araport11/TAIR10_chr_count.txt "$0".bigwig"}' ../../meta/SRX.list > ../../scripts/avg_unionbg.sh
+
+nohup ../../scripts/avg_unionbg.sh &
+#individual samples look like this: 
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-6hrDex.unionbed > ATAC-6hrDex.bedgraph
+bedGraphToBigWig ATAC-6hrDex.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-6hrDex.bigwig
+
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-6hrMock.unionbed > ATAC-6hrMock.bedgraph
+bedGraphToBigWig ATAC-6hrMock.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-6hrMock.bigwig
+
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex.unionbed > ATAC-24hrDex.bedgraph
+bedGraphToBigWig ATAC-24hrDex.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hrDex.bigwig
+
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock.unionbed > ATAC-24hrMock.bedgraph
+bedGraphToBigWig ATAC-24hrMock.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hrMock.bigwig
+
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrDex-Spikein.unionbed > ATAC-24hrDex-Spikein.bedgraph
+bedGraphToBigWig ATAC-24hrDex-Spikein.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hrDex-Spikein.bigwig
+
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock-Spikein.unionbed > ATAC-24hrMock-Spikein.bedgraph
+bedGraphToBigWig ATAC-24hrMock-Spikein.bedgraph ~/Araport11/TAIR10_chr_count.txt ATAC-24hrMock-Spikein.bigwig
+
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrDex.unionbed > 6hrDex.bedgraph
+bedGraphToBigWig 6hrDex.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hrDex.bigwig
+
+awk 'BEGIN{OFS="\t"} NR>1{avg=($4+$5)/2; print $1,$2,$3,avg}' 6hrMock.unionbed > 6hrMock.bedgraph
+bedGraphToBigWig 6hrMock.bedgraph ~/Araport11/TAIR10_chr_count.txt 6hrMock.bigwig
+●
+Using all the new bigwig files to compute matrix -- hopefully this is normalized:
+nohup computeMatrix scale-regions -S ATAC-6hrDex.bigwig ATAC-6hrMock.bigwig ATAC-24hrDex.bigwig ATAC-24hrMock.bigwig ATAC-24hrDex-Spikein.bigwig ATAC-24hrMock-Spikein.bigwig 6hrMock.bigwig 6hrDex.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_2k_all.mat.gz &
+
+currently computing in node01
+FRIDAY, 11/9/2018×
+●
+Plot profile again using the new matrix	
+plotProfile --matrixFile ATAC_2k_all.mat.gz --outFileName ../../graphs/ATAC_2k_all.png --perGroup &
+●
+Bottom line is the normalization seems to work now -- but there is still higher background in the newer data 
+○
+Since previously the fragment size is lower and that seems to work better: I am thinking about only using reads with fragment length less than 100bp
+
+ATAC_2k_all.png
+thumbnail
+
+java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics \
+      I=6hrDexB.final.bam \
+      O=6hrDexB_insert_size_metrics.txt \
+      H=6hrDexB_final_insert.png \
+      M=0.5
+
+java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics \
+      I=6hrMockB.final.bam \
+      O=6hrMockB_insert_size_metrics.txt \
+      H=6hrMockB_final_insert.png \
+      M=0.5
+
+java -jar ~/Downloads/picard/build/libs/picard.jar CollectInsertSizeMetrics \
+      I=6hrMockA.final.bam \
+      O=6hrMockA_insert_size_metrics.txt \
+      H=6hrMockA_final_insert.png \
+      M=0.5
+
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
+
+
+image.png
+thumbnail
+
+●
+Start figuring out how to map the spikein:
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/s_cerevisiae/s_cerevisiae -1 trimmed_fastq/ATAC-24hrDexA-Spikein_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrDexA-Spikein_R2.paired.fastq > mapping_spikein/ATAC-24hrDexA-Spikein.sam 2> log_files/mapping_spikein/yeast_ATAC-24hrDexA.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/s_cerevisiae/s_cerevisiae -1 trimmed_fastq/ATAC-24hrDexB-Spikein_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrDexB-Spikein_R2.paired.fastq > mapping_spikein/ATAC-24hrDexB-Spikein.sam 2> log_files/mapping_spikein/yeast_ATAC-24hrDexB.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/s_cerevisiae/s_cerevisiae -1 trimmed_fastq/ATAC-24hrMockA-Spikein_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrMockA-Spikein_R2.paired.fastq > mapping_spikein/ATAC-24hrMockA-Spikein.sam 2> log_files/mapping_spikein/yeast_ATAC-24hrMockA.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 -v 2 -m 3 /home/runjin/s_cerevisiae/s_cerevisiae -1 trimmed_fastq/ATAC-24hrMockB-Spikein_R1.paired.fastq -2 trimmed_fastq/ATAC-24hrMockB-Spikein_R2.paired.fastq > mapping_spikein/ATAC-24hrMockB-Spikein.sam 2> log_files/mapping_spikein/yeast_ATAC-24hrMockB.log &
+
+Currently mapping in headnode since it does not let me qlogin
+A
+B
+C
+D
+E
+1
+Sequencing depth	Reads mapped	% mapped	
+2
+24hrDexA-Spikein	47,673,812	43,191	0.09%	
+3
+24hrDexB-Spikein	37,649,925	35,530	0.09%	
+4
+24hrMockA-Spikein	32,607,430	30,156	0.09%	
+5
+24hrMockB-Spikein	28,757,472	22,293	0.08%	
+Table18
+
+
+
+●
+Recommend 1,000-10,000 mapped spike-in reads for 1-10 million mapped experimental reads
+○
+So when doing ATAC-seq: use 1/10 of the recommended amount of heterologous yeast DNA should give around the recommended number for spike-in reads
+Steps for Motif analysis
+●
+get bed files of qval<=10^-10 Summits +/-250bp
+cd /home/wagner-lab/sklasfeld/PRE_Project/ChIPseq/TFL1
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+$10-250,$2+$10+251,$4,$9,$6}' greenScreen1r2_filter_noModel138_pooled/qval10/TFLChIP3n4_peaks.narrowPeak > greenScreen1r2_filter_noModel138_pooled/qval10/TFLChIP3n4_250pmSummit.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{print $1,$2+$10-250,$2+$10+251,$4,$9,$6}' greenScreen1r2_filter_noModel138_pooled/qval10/FDChIP3n4_peaks.narrowPeak > greenScreen1r2_filter_noModel138_pooled/qval10/FDChIP3n4_250pmSummit.bed
+●
+get target fasta files
+bedtools getfasta -name -fi ~/Araport11/TAIR10_Chr.all.fasta -bed greenScreen1r2_filter_noModel138_pooled/qval10/TFLChIP3n4_250pmSummit.bed -fo greenScreen1r2_filter_noModel138_pooled/qval10/TFLChIP3n4_250pmSummit.fasta
+
+bedtools getfasta -name -fi ~/Araport11/TAIR10_Chr.all.fasta -bed greenScreen1r2_filter_noModel138_pooled/qval10/FDChIP3n4_250pmSummit.bed -fo greenScreen1r2_filter_noModel138_pooled/qval10/FDChIP3n4_250pmSummit.fasta
+●
+go to Personal computer and add bed and  fasta files
+cd /Users/sklasfeld/Desktop/Wagner_Lab/Projects/TFL1/ChIP3/motif_analysis
+
+mkdir bed_files
+mkdir fasta_input
+
+scp klasfeld@gpc.sas.upenn.edu:/home/wagner-lab/sklasfeld/PRE_Project/ChIPseq/TFL1/greenScreen1r2_filter_noModel138_pooled/qval10/*_250pmSummit.bed bed_files
+
+scp klasfeld@gpc.sas.upenn.edu:/home/wagner-lab/sklasfeld/PRE_Project/ChIPseq/TFL1/greenScreen1r2_filter_noModel138_pooled/qval10/*_250pmSummit.fasta fasta_input
+●
+get background bed files
+Rscript ~/Desktop/Wagner_Lab/scripts/for_methods/motif_background_bed.R bed_files/TFLChIP3n4_250pmSummit.bed ~/Desktop/Wagner_Lab/Projects/TAIR10/Araport11_nucleus_protein_coding_genes.201606.bed bed_files/TFLChIP3n4_Shuffled.bed
+
+Rscript ~/Desktop/Wagner_Lab/scripts/for_methods/motif_background_bed.R bed_files/FDChIP3n4_250pmSummit.bed ~/Desktop/Wagner_Lab/Projects/TAIR10/Araport11_nucleus_protein_coding_genes.201606.bed bed_files/FDChIP3n4_Shuffled.bed
+●
+to compare find the distance from each "fake peak" to TSS vs real peaks to TSS
+mkdir check_distance2TSS
+
+Rscript ~/Desktop/Wagner_Lab/scripts/distance2tssPlot2.R \
+~/Desktop/Wagner_Lab/Projects/TAIR10/Araport11_nucleus_protein_coding_genes.201606.bed \
+    check_distance2TSS/TFL1andFD_distancePlots.pdf \
+    -i bed_files/FDChIP3n4_250pmSummit.bed \
+    bed_files/FDChIP3n4_Shuffled.bed \
+    bed_files/TFLChIP3n4_250pmSummit.bed \
+    bed_files/TFLChIP3n4_Shuffled.bed \
+    -t "FD summits" \
+        "FD shuffled" \
+        "TFL1 summits" \
+        "TFL1 shuffled" 
+●
+get background fasta files
+# remove any sequence regions not in a chromosome
+awk '$2>0' bed_files/FDChIP3n4_Shuffled.bed > 1
+mv 1 bed_files/FDChIP3n4_Shuffled.bed
+awk '$2>0' bed_files/TFLChIP3n4_Shuffled.bed > 1
+mv 1 bed_files/TFLChIP3n4_Shuffled.bed
+
+# run bedtools for fasta file
+~/bin/bedtools/bin/bedtools getfasta -name -fi /Users/sklasfeld/Desktop/Wagner_Lab/Projects/TAIR10/TAIR10_Chr.all.fasta -bed bed_files/FDChIP3n4_Shuffled.bed -fo fasta_input/FDChIP3n4_Shuffled.fasta
+
+~/bin/bedtools/bin/bedtools getfasta -name -fi /Users/sklasfeld/Desktop/Wagner_Lab/Projects/TAIR10/TAIR10_Chr.all.fasta -bed bed_files/TFLChIP3n4_Shuffled.bed -fo fasta_input/TFLChIP3n4_Shuffled.fasta
+●
+put results on server
+cd ..
+scp -r motif_analysis/ klasfeld@gpc.sas.upenn.edu:/home/wagner-lab/sklasfeld/PRE_Project/ChIPseq/TFL1/
+●
+on server run motif analysis using homer
+cd /home/wagner-lab/sklasfeld/PRE_Project/ChIPseq/TFL1/motif_analysis
+mkdir homer_results
+mkdir homer_results/FDChIP3n4
+mkdir homer_results/TFLChIP3n4
+
+PATH=${PATH}:~/bin/homer/bin/:/Users/sklasfeld/bin/weblogo
+
+qsub -V -b y -N FD_homer_motif -cwd -o ../log_files/FD_homer_motif.out -e ../log_files/FD_homer_motif.err findMotifs.pl fasta_input/FDChIP3n4_250pmSummit.fasta fasta homer_results/FDChIP3n4 -fasta fasta_input/FDChIP3n4_Shuffled.fasta
+
+qsub -V -b y -N TFL_homer_motif -cwd -o ../log_files/TFL_homer_motif.out -e ../log_files/TFL_homer_motif.err findMotifs.pl fasta_input/TFLChIP3n4_250pmSummit.fasta fasta homer_results/TFLChIP3n4 -fasta fasta_input/TFLChIP3n4_Shuffled.fasta
+●
+get bZip motif
+qsub -V -b y -N FD_bzip_motif -cwd -o homer_results/FDChIP3n4/knownResults/known1.bed -e ../log_files/FD_bzip_motif.err scanMotifGenomeWide.pl homer_results/FDChIP3n4/knownResults/known1.motif /home/wagner-lab/sklasfeld/Araport11/TAIR10_Chr.all.fasta -bed 
+
+awk -F"\t" 'BEGIN{OFS="\t";x=1}{split($0,a," ");print a[1],$2,$3,$4"_"x,$5,$6;x++}' homer_results/FDChIP3n4/knownResults/known1.bed > tmp.bed
+mv tmp.bed homer_results/FDChIP3n4/knownResults/known1.bed
+THURSDAY, 11/15/2018×
+FRiP score calculation:
+bed_files = ["peaks.bed"]
+cr = countReadsPerBin.CountReadsPerBin([bam_file1, bam_file2],
+                                        bedFile=bed_files,
+                                        numberOfProcessors=10)
+reads_at_peaks = cr.run()
+print reads_at_peaks
+~/LFY/mapping_2k
+6hrDexA.final.bam 6hrDexB.final.bam
+6hrMockA.final.bam 6hrMockB.final.bam
+
+~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/6hr_Dex_peaks.narrowPeak
+~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/6hr_Mock_peaks.narrowPeak
+
+bed_files = ["~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/6hr_Dex_peaks.narrowPeak"]
+cr = crpb.CountReadsPerBin([hrDexA.final.bam, 6hrDexB.final.bam],
+                                        bedFile=bed_files,
+                                        numberOfProcessors=10)
+reads_at_peaks = cr.run()
+print reads_at_peaks
+cr = countReadsPerBin.CountReadsPerBin(6hrDexA.final.bam, 6hrDexB.final.bam, bedFile=~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/6hr_Dex_peaks.narrowPeak, numberOfProcessors=10)
+reads_at_peaks = cr.run()
+print reads_at_peaks
+
+plotEnrichment -b 6hrDexA.final.bam 6hrDexB.final.bam \
+--BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/6hr_Dex_peaks.narrowPeak \
+-o enrichment.png --outRawCounts
+
+plotEnrichment -b 6hrMockA.final.bam 6hrMockB.final.bam --BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/6hr_Mock_peaks.narrowPeak -o enrichment_6hrmock.png --outRawCounts FRiP_6hrMock
+
+plotEnrichment -b ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam \
+--BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/ATAC-6hr_Dex_peaks.narrowPeak \
+-o enrichment_atac6hrD.png --outRawCounts ./FRiP/FRiP_6hrDex
+
+plotEnrichment -b ATAC-6hrMockA.final.bam ATAC-6hrMockB.final.bam --BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/ATAC-6hr_Mock_peaks.narrowPeak -o enrichment_atac6hrM.png --outRawCounts ./FRiP/FRiP_6hrMock
+
+A
+B
+C
+D
+E
+F
+G
+H
+1
+file	featureType	percent	featureReadCount	totalReadCount	featureReadcount_pooled	totalReadcount_pooled	FRiP_pooled
+2
+6hrDexA.final.bam	6hr_Dex_peaks.narrowPeak	31.16	4597007	14750906	7543837	24495424	0.3079692354
+3
+6hrDexB.final.bam	6hr_Dex_peaks.narrowPeak	30.24	2946830	9744518			
+4
+6hrMockA.final.bam	6hr_Mock_peaks.narrowPeak	47.33	7593591	16042512	9969996	22805972	0.4371660195
+5
+6hrMockB.final.bam	6hr_Mock_peaks.narrowPeak	35.14	2376405	6763460			
+6
+ATAC-6hrMockA.final.bam	ATAC-6hr_Mock_peaks.narrowPeak	15.89	2824251	17773626	5671922	35281896	0.1607601247
+7
+ATAC-6hrMockB.final.bam	ATAC-6hr_Mock_peaks.narrowPeak	16.26	2847671	17508270			
+8
+ATAC-6hrDexA.final.bam	ATAC-6hr_Dex_peaks.narrowPeak	14.62	3057092	20903812	5957333	41410572	0.1438601959
+9
+ATAC-6hrDexB.final.bam	ATAC-6hr_Dex_peaks.narrowPeak	14.14	2900241	20506760			
+Table19
+
+
+
+●
+For ChIP samples: >5% is better
+●
+Try to figure out the FRiP for 24hr samples:
+plotEnrichment -b ATAC-24hrMockA.final.bam ATAC-24hrMockB.final.bam --BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/ATAC-24hr_Mock_peaks.narrowPeak -o enrichment_ATAC24hrmock.png --outRawCounts FRiP_ATAC24hrMock
+
+plotEnrichment -b ATAC-24hrDexA.final.bam ATAC-24hrDexB.final.bam --BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/ATAC-24hr_Dex_peaks.narrowPeak -o enrichment_ATAC24hrDex.png --outRawCounts FRiP_ATAC24hrDex
+
+plotEnrichment -b ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam --BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/ATAC-24hr-Spikein_Mock_peaks.narrowPeak -o enrichment_ATAC24hr_spikein_mock.png --outRawCounts FRiP_ATAC24hrMockSpikein
+
+plotEnrichment -b ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam --BED ~/LFY/ATAC_downstream/macs2_bdgdiff_2nd/ATAC-24hr-Spikein_Dex_peaks.narrowPeak -o enrichment_ATAC24hr_spikein_dex.png --outRawCounts FRiP_ATAC24hrDexSpikein
+A
+B
+C
+D
+E
+F
+G
+H
+I
+1
+file	featureType	percent	featureReadCount	totalReadCount	featureReadCount_pooled	totalReadcount_pooled	FRiP_pooled	
+2
+ATAC-24hrDexA.final.bam	ATAC-24hr_Dex_peaks.narrowPeak	13.27	1724849	12993598	3754293	29045360	0.1292562048	ATAC-24hrDexA.final.bam
+3
+ATAC-24hrDexB.final.bam	ATAC-24hr_Dex_peaks.narrowPeak	12.64	2029444	16051762				ATAC-24hrDexB.final.bam
+4
+ATAC-24hrDexA-Spikein.final.bam	ATAC-24hr-Spikein_Dex_peaks.narrowPeak	10.56	1995638	18892308	3654057	34291968	0.1065572265	ATAC-24hrDexA-Spikein.final.bam
+5
+ATAC-24hrDexB-Spikein.final.bam	ATAC-24hr-Spikein_Dex_peaks.narrowPeak	10.77	1658419	15399660				ATAC-24hrDexB-Spikein.final.bam
+6
+ATAC-24hrMockA.final.bam	ATAC-24hr_Mock_peaks.narrowPeak	10.36	1488029	14368836	2825191	27233970	0.1037377584	ATAC-24hrMockA.final.bam
+7
+ATAC-24hrMockB.final.bam	ATAC-24hr_Mock_peaks.narrowPeak	10.39	1337162	12865134				ATAC-24hrMockB.final.bam
+8
+ATAC-24hrMockA-Spikein.final.bam	ATAC-24hr-Spikein_Mock_peaks.narrowPeak	9.14	1017584	11138732	2186138	23823096	0.0917654867	ATAC-24hrMockA-Spikein.final.bam
+9
+ATAC-24hrMockB-Spikein.final.bam	ATAC-24hr-Spikein_Mock_peaks.narrowPeak	9.21	1168554	12684364				ATAC-24hrMockB-Spikein.final.bam
+Table20
+
+
+
+FRIDAY, 11/16/2018×
+●
+The way to normalize the reads and get the peak calling fixed --
+○
+Use bedtools genomecov options to convert Bam to BDG with a scaling factor 
+○
+Use macs2 bdgcallpeak parameter to see how that works
+bedtools genomecov -ibam 6hrDexA.final.bam -bga -scale 0.9627727856 > ~/LFY/ATAC_downstream/normalized_FRiP/6hrDexA.FRiPnorm.bdg
+bedtools genomecov -ibam 6hrDexB.final.bam -bga -scale 0.9920634921 > ~/LFY/ATAC_downstream/normalized_FRiP/6hrDexB.FRiPnorm.bdg
+bedtools genomecov -ibam 6hrMockA.final.bam -bga -scale 0.633847454 > ~/LFY/ATAC_downstream/normalized_FRiP/6hrMockA.FRiPnorm.bdg
+bedtools genomecov -ibam 6hrMockB.final.bam -bga -scale 0.8537279454 > ~/LFY/ATAC_downstream/normalized_FRiP/6hrMockB.FRiPnorm.bdg
+# for the following parameter: for -l, predictd is around 90 so i will use that; and the -g is around 40 
+-l MINLEN, --min-length MINLEN
+                        minimum length of peak, better to set it as d value.
+                        DEFAULT: 200
+-g MAXGAP, --max-gap MAXGAP
+                        maximum gap between significant points in a peak,
+                        better to set it as tag size. DEFAULT: 30
+
+macs2 bdgpeakcall -i 6hrDexA.FRiPnorm.bdg -c 3 -l 90 -g 40 --o-prefix 6hr_FRiPnorm_DexA
+
+macs2 cmbreps -i 6hrDexA.FRiPnorm.bdg 6hrDexB.FRiPnorm.bdg -m mean -o 6hr_FRiPnorm_Dex.bdg
+macs2 cmbreps -i 6hrMockA.FRiPnorm.bdg 6hrMockB.FRiPnorm.bdg -m mean -o 6hr_FRiPnorm_Mock.bdg
+
+macs2 bdgpeakcall -i 6hr_FRiPnorm_Dex.bdg -c 3 -l 90 -g 40 --o-prefix 6hr_FRiPnorm_Dex
+macs2 bdgpeakcall -i 6hr_FRiPnorm_Dex.bdg -c 5 -l 90 -g 40 --o-prefix 6hr_FRiPnorm_Dex
+macs2 bdgpeakcall -i 6hr_FRiPnorm_Mock.bdg -c 3 -l 90 -g 40 --o-prefix 6hr_FRiPnorm_Mock
+macs2 bdgpeakcall -i 6hr_FRiPnorm_Mock.bdg -c 5 -l 90 -g 40 --o-prefix 6hr_FRiPnorm_Mock
+A
+B
+C
+D
+E
+F
+G
+1
+file	FRiP	Scale factor	# of peaks (p = 1e-5)	# of peaks (p = 1e-3)	FRiP pooled	-d factor for bdgdiff
+2
+6hrDexA.final.bam	31.16	0.9627727856	122198	175947	0.3079692354	32470775.8130830489
+3
+6hrDexB.final.bam	30.24	0.9920634921	62508	138828	
+4
+6hrMockA.final.bam	47.33	0.633847454	61021	107274	0.4371660159	22874605.1529482566
+5
+6hrMockB.final.bam	35.14	0.8537279454	26889	77926	
+6
+6hrDex	n/a	94358	166269		
+7
+6hrMock	40801	86568		
+Table21
+
+
+
+●
+Doing bdgdiff with a scale factor:
+○
+All treat & lambda files are generated before when using the macs2 call peak function 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+1
+-l 100 -g 50	-l 90 -g 40 	-g 75 -l 150		
+2
+c1	c2	common	c1	c2	common			
+3
+6hrDvM_FriPnorm	831	797	11175	895	893	11998			
+4
+ATAC6hrDvM_FRiPnorm	1667	5	6032						
+5
+ATAC24hrDvM_FRiPnorm	38	376	2040						
+6
+ATAC24hrDvM_spikein_FRiPnorm	1500	2	2187						
+Table23
+
+
+
+
+image.png
+thumbnail
+
+●
+Start calling differential regions with macs2 files:
+macs2 bdgdiff --t1 6hr_Dex_treat_pileup.bdg --c1 6hr_Dex_control_lambda.bdg --t2 6hr_Mock_treat_pileup.bdg --c2 6hr_Mock_control_lambda.bdg --d1 3079692354 --d2 4371660159 -g 50 -l 100 --o-prefix diff_6hrDvM_FRiPnorm
+
+nohup macs2 bdgdiff --t1 ATAC-6hr_Dex_treat_pileup.bdg --c1 ATAC-6hr_Dex_control_lambda.bdg --t2 ATAC-6hr_Mock_treat_pileup.bdg --c2 ATAC-6hr_Mock_control_lambda.bdg --d1 1438601959 --d2 1607601247 -g 75 -l 150 --o-prefix diff_ATAC6hrDvM_FRiPnorm &
+
+nohup macs2 bdgdiff --t1 ATAC-24hr_Dex_treat_pileup.bdg --c1 ATAC-24hr_Dex_control_lambda.bdg --t2 ATAC-24hr_Mock_treat_pileup.bdg --c2 ATAC-24hr_Mock_control_lambda.bdg --d1 1292562048 --d2 1037377584 -g 50 -l 100 --o-prefix diff_ATAC24hrDvM_FRiPnorm &
+
+nohup macs2 bdgdiff --t1 ATAC-24hr-Spikein_Dex_treat_pileup.bdg --c1 ATAC-24hr-Spikein_Dex_control_lambda.bdg --t2 ATAC-24hr-Spikein_Mock_treat_pileup.bdg --c2 ATAC-24hr-Spikein_Mock_control_lambda.bdg --d1 1065572265 --d2 917654867 -g 50 -l 100 --o-prefix diff_ATAC24hrSpikein_DvM_FRiPnorm &
+For ALL visualization -- it's better to scale them down to the same scale: 
+A
+B
+C
+1
+file	FRiP score	Scale factor 
+2
+6hrDexA.final.bam	31.16	0.2888318357
+3
+6hrDexB.final.bam	30.24	0.2976190476
+4
+6hrMockA.final.bam	47.33	0.1901542362
+5
+6hrMockB.final.bam	35.14	0.2561183836
+6
+ATAC-6hrMockA.final.bam	15.89	0.5663939585
+7
+ATAC-6hrMockB.final.bam	16.26	0.5535055351
+8
+ATAC-6hrDexA.final.bam	14.62	0.6155950752
+9
+ATAC-6hrDexB.final.bam	14.14	0.6364922207
+10
+ATAC-24hrDexA.final.bam	13.27	0.6782215524
+11
+ATAC-24hrDexB.final.bam	12.64	0.7120253165
+12
+ATAC-24hrDexA-Spikein.final.bam	10.56	0.8522727273
+13
+ATAC-24hrDexB-Spikein.final.bam	10.77	0.8356545961
+14
+ATAC-24hrMockA.final.bam	10.36	0.8687258687
+15
+ATAC-24hrMockB.final.bam	10.39	0.8662175168
+16
+ATAC-24hrMockA-Spikein.final.bam	9.14	0.9846827133
+17
+ATAC-24hrMockB-Spikein.final.bam	9.21	0.9771986971
+Table22
+
+
+
+nohup bedtools genomecov -ibam 6hrDexA.final.bam -bg -pc -scale 0.2888318357 > ~/LFY/visualization/ATAC_FRiPnorm/6hrDexA.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam 6hrDexB.final.bam -bg -pc -scale 0.2976190476 > ~/LFY/visualization/ATAC_FRiPnorm/6hrDexB.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam 6hrMockA.final.bam -bg -pc -scale 0.1901542362 > ~/LFY/visualization/ATAC_FRiPnorm/6hrMockA.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam 6hrMockB.final.bam -bg -pc -scale 0.2561183836 > ~/LFY/visualization/ATAC_FRiPnorm/6hrMockB.FRiPnorm.bdg &
+
+nohup bedtools genomecov -ibam ATAC-6hrDexA.final.bam -bg -pc -scale 0.6155950752 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-6hrDexA.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-6hrDexB.final.bam -bg -pc -scale 0.6364922207 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-6hrDexB.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-6hrMockA.final.bam -bg -pc -scale 0.5663939585 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-6hrMockA.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-6hrMockB.final.bam -bg -pc -scale 0.5535055351 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-6hrMockB.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrDexA.final.bam -bg -pc -scale 0.6782215524 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrDexA.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrDexB.final.bam -bg -pc -scale 0.7120253165 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrDexB.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrMockA.final.bam -bg -pc -scale 0.8687258687 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrMockA.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrMockB.final.bam -bg -pc -scale 0.8662175168 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrMockB.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrDexA-Spikein.final.bam -bg -pc -scale 0.8522727273 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrDexA-Spikein.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrDexB-Spikein.final.bam -bg -pc -scale 0.8356545961 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrDexB-Spikein.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrMockA-Spikein.final.bam -bg -pc -scale 0.9846827133 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrMockA-Spikein.FRiPnorm.bdg &
+nohup bedtools genomecov -ibam ATAC-24hrMockB-Spikein.final.bam -bg -pc -scale 0.9771986971 > ~/LFY/visualization/ATAC_FRiPnorm/ATAC-24hrMockB-Spikein.FRiPnorm.bdg &
+
+macs2 bdgcmp -t 6hr_FRiPnorm_Dex.bdg -c 6hr_FRiPnorm_Mock.bdg -m logLR -p 0.1 --outdir macs2_bdgcmp --o-prefix 6hrFRiP
+macs2 bdgcmp -t 6hr_FRiPnorm_Dex.bdg -c 6hr_FRiPnorm_Mock.bdg -m FE --outdir ATAC_downstream --o-prefix ATAC-6hr
+●
+move all the files from visualization into the downstream:
+mv ~/LFY/ATAC_downstream/normalized_FRiP
+
+macs2 bdgcmp -t 6hr_FRiPnorm_Dex.bdg -c 6hr_FRiPnorm_Mock.bdg -m logLR -p 0.1 --outdir macs2_bdgcmp --o-prefix 6hrFRiP
+macs2 bdgcmp -t 6hr_FRiPnorm_Dex.bdg -c 6hr_FRiPnorm_Mock.bdg -m FE --outdir macs2_bdgcmp --o-prefix 6hrFRiP
+
+#combine reps using the 'mean' method:
+macs2 cmbreps -i ATAC-24hrMockA-Spikein.FRiPnorm.bdg ATAC-24hrMockB-Spikein.FRiPnorm.bdg -m mean -o ATAC24hr-Spikein_FRiPnorm_Mock.bdg
+●
+Make batch script for doing the bedgraph to bigwig convertion:
+cd ~LFY
+awk '{print "bedGraphToBigWig "$0".FRiPnorm.bdg ~/Araport11/TAIR10_chr_count.txt "$0".FRiPnorm.bigwig"}' meta/SRX.list > scripts/FRiP_bw.sh
+
+chmod 755 scripts/FRiP_bw.sh
+
+cd ~/LFY/visualization/ATAC_FRiPnorm/
+
+nohup ../../scripts/FRiP_bw.sh & 
+
+nohup computeMatrix scale-regions -S ATAC-6hrDexA.FRiPnorm.bigwig ATAC-6hrDexB.FRiPnorm.bigwig ATAC-6hrMockA.FRiPnorm.bigwig ATAC-6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA.FRiPnorm.bigwig ATAC-24hrDexB.FRiPnorm.bigwig ATAC-24hrMockA.FRiPnorm.bigwig ATAC-24hrMockB.FRiPnorm.bigwig 6hrDexA.FRiPnorm.bigwig 6hrDexB.FRiPnorm.bigwig 6hrMockA.FRiPnorm.bigwig 6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA-Spikein.FRiPnorm.bigwig ATAC-24hrDexB-Spikein.FRiPnorm.bigwig ATAC-24hrMockA-Spikein.FRiPnorm.bigwig ATAC-24hrMockB-Spikein.FRiPnorm.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_FRiP_all.mat.gz &
+
+plotProfile --matrixFile ATAC_FRiP_all.mat.gz --outFileName ../../graphs/ATAC_FRiP_all.png --perGroup &
+
+nohup multiBigwigSummary bins -b ATAC-6hrDexA.FRiPnorm.bigwig ATAC-6hrDexB.FRiPnorm.bigwig ATAC-6hrMockA.FRiPnorm.bigwig ATAC-6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA.FRiPnorm.bigwig ATAC-24hrDexB.FRiPnorm.bigwig ATAC-24hrMockA.FRiPnorm.bigwig ATAC-24hrMockB.FRiPnorm.bigwig 6hrDexA.FRiPnorm.bigwig 6hrDexB.FRiPnorm.bigwig 6hrMockA.FRiPnorm.bigwig 6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA-Spikein.FRiPnorm.bigwig ATAC-24hrDexB-Spikein.FRiPnorm.bigwig ATAC-24hrMockA-Spikein.FRiPnorm.bigwig ATAC-24hrMockB-Spikein.FRiPnorm.bigwig -bs 10 -o ATAC_FRiPbw_all.npz &
+
+multiBigwigSummary BED-file -b ATAC-6hrDexA.FRiPnorm.bigwig ATAC-6hrDexB.FRiPnorm.bigwig ATAC-6hrMockA.FRiPnorm.bigwig ATAC-6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA.FRiPnorm.bigwig ATAC-24hrDexB.FRiPnorm.bigwig ATAC-24hrMockA.FRiPnorm.bigwig ATAC-24hrMockB.FRiPnorm.bigwig 6hrDexA.FRiPnorm.bigwig 6hrDexB.FRiPnorm.bigwig 6hrMockA.FRiPnorm.bigwig 6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA-Spikein.FRiPnorm.bigwig ATAC-24hrDexB-Spikein.FRiPnorm.bigwig ATAC-24hrMockA-Spikein.FRiPnorm.bigwig ATAC-24hrMockB-Spikein.FRiPnorm.bigwig -o ATAC_FRiPvsLFY_all.npz --BED ~/LFY/visualization/ChIP_all/chipSampleRepAll_postFilter_chr.bed & 
+
+plotCorrelation --corData ATAC_FRiPvsLFY_all.npz --corMethod pearson --whatToPlot heatmap --plotFile ATAC_FRiPvsLFY_all.pearson --plotTitle ATAC_FRiPvsLFY_all.pearson --plotFileFormat png --removeOutliers 
+
+plotCorrelation --corData ATAC_FRiPbw_all.npz --corMethod pearson --whatToPlot heatmap --plotFile ATAC_FRiPvsLFY_all.pearson --plotTitle ATAC_FRiPbw_all.pearson --plotFileFormat png --removeOutliers 
+
+ATAC-6hrDexA.FRiPnorm.bigwig ATAC-6hrDexB.FRiPnorm.bigwig ATAC-6hrMockA.FRiPnorm.bigwig ATAC-6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA.FRiPnorm.bigwig ATAC-24hrDexB.FRiPnorm.bigwig ATAC-24hrMockA.FRiPnorm.bigwig ATAC-24hrMockB.FRiPnorm.bigwig 6hrDexA.FRiPnorm.bigwig 6hrDexB.FRiPnorm.bigwig 6hrMockA.FRiPnorm.bigwig 6hrMockB.FRiPnorm.bigwig ATAC-24hrDexA-Spikein.FRiPnorm.bigwig ATAC-24hrDexB-Spikein.FRiPnorm.bigwig ATAC-24hrMockA-Spikein.FRiPnorm.bigwig ATAC-24hrMockB-Spikein.FRiPnorm.bigwig
+FRIDAY, 1/18/2019×
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 ~/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-6hrDexA_R1.paired.fastq -2 trimmed_fastq/ATAC-6hrDexA_R2.paired.fastq > mapping_SK/ATAC_6hrDexA.sam &
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 ~/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-6hrDexB_R1.paired.fastq -2 trimmed_fastq/ATAC-6hrDexB_R2.paired.fastq > mapping_SK/ATAC_6hrDexB.sam &
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 ~/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/6hrDexA_P1.paired.fastq -2 trimmed_fastq/6hrDexA_P2.paired.fastq > mapping_SK/6hrDexA.sam &
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 ~/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/6hrDexB_P1.paired.fastq -2 trimmed_fastq/6hrDexB_P2.paired.fastq > mapping_SK/6hrDexB.sam &
+SATURDAY, 1/19/2019×
+●
+Try new mapping method:
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_fastq/"$1"_P1.paired.fastq \
+    -2 trimmed_fastq/"$1"_P2.paired.fastq > mapping_SK/"$1".sam \
+    2> log_files/mapping/browtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/2 WAIT\42"}END{print "wait\necho \42YAY YOU FINALLY DONE!\42"}' \
+    meta/SRX.list > scripts/mapping.sh
+
+chmod 755 scripts/mapping.sh
+mkdir log_files/mapping
+
+nohup ./scripts/mapping.sh > ./log_files/mapping.log &
+
+A
+B
+C
+D
+E
+1
+Reads processed	Reads mapped	Reads failed to map	Reads suppressed for unique mappning
+2
+6hrDexA	37174635	8881648 (23.89%)	21616927 (58.15%)	6676060 (17.96%)
+3
+6hrDexB	39498391	5821218 (14.74%)	28496827 (72.15%)	5180346 (13.12%)
+4
+6hrMockA	32770273	9307234 (28.40%)	18988244 (57.94%)	4474795 (13.66%)
+5
+6hrMockB	47175587	3971264 (8.42%)	39881901 (84.54%)	3322422 (7.04%)
+Table25
+
+
+
+●
+Use custom scripts from Kaufmann for filtering and removing ChrFromSam: 
+create_ATAC_filtering.sh
+
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LFY/mapping_SK
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=170
+minFragLen=130
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $HOME/runjin/LFY/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30 
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.sam | samtools sort - -o ${SRX}.filter.bam """
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+        done
+ 
+ATAC_6hrDexA
+ATAC_6hrDexB
+6hrDexA
+6hrDexB
+cd /home/runjin/LFY/mapping_SK
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+source ../scripts/create_filtering.sh > ../scripts/ATAC_filtering.sh
+
+chmod 755 ../scripts/ATAC_filtering.sh
+
+nohup ../scripts/ATAC_filtering.sh > ../log_files/ATAC_filtering.log 2>&1 &
+A
+B
+C
+D
+E
+F
+1
+SAM	Number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30	Number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates	Average fragment size	
+2
+6HrDexA	31115425	17763296	13886902	86.2125	
+3
+6HrDexB	22003137	11642436	9156444	85.7141	
+4
+ATAC_6hrDexA	26136317	19487050	16924276	114.614	
+5
+ATAC_6hrDexB	26061261	19550756	16703544	113.427	
+6
+6hrDexA_bowtie2	113918439	19710778	15470004	94.7204	
+7
+6hrDexB_bowtie2	109404561	12952260	10224166	94.4455	
+8
+6hrMockA	27564067	18614468	15426470	93.372	
+9
+6hrMockB	14587381	7942528	6494310	83.9193	
+Table24
+
+
+
+●
+get number of mapped reads in the sam file
+wc -l 6hrMockA.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c 6hrMockB.filter.bam 
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 -f 3 6hrMockA.final.bam
+●
+Get average fragment size
+samtools view -f 3 -F 4 6hrMockA.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+●
+Get mad for not sorting 
+○
+So sort the sam files into bam files and index it 
+samtools sort -@ 2 6hrMockB.sam -o 6hrMockB.bam
+samtools index 6hrMockB.bam
+●
+Get the visualization file:
+nohup bamCoverage --bam 6hrDexA.final.bam -o 6hrDexA.CPM.bigwig --binSize 10 --normalizeUsing CPM --centerReads -of bigwig &
+nohup bamCoverage --bam 6hrDexB.final.bam -o 6hrDexB.CPM.bigwig --binSize 10 --normalizeUsing CPM --centerReads -of bigwig &
+
+nohup bedtools unionbedg -header -i 6hrDexA.CPM.bg 6hrDexB.CPM.bg > 6hrDex.unionbedg &
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5+$6)/3; print $1,$2,$3,avg}' 6hrDex.unionbedg > 6hrDex.pooled.bg
+sort -k1,1 -k2,2n 6hrDex.pooled.bg > 6hrDex.pooled.sorted.bg
+bedGraphToBigWig 6hrDex.pooled.sorted.bg ~/Araport11/TAIR10_chr_count.txt 6hrDex.pooled.bigwig
+bowtie2-build -f ~/Araport11/TAIR10_Chr.all.fasta ~/Araport11/TAIR10_bowtie2
+●
+Try mapping with bowtie2
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie2  --very-sensitive  -k 10 -x ~/Araport11/TAIR10_bowtie2 \
+    -1 trimmed_fastq/"$1"_P1.paired.fastq \
+    -2 trimmed_fastq/"$1"_P2.paired.fastq > mapping_bowtie2/"$1".sam | samtools view  -u  - | samtools sort  -n  -o "$1".bam - \
+    2> log_files/mapping_bowtie2/bowtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/2 WAIT\42"}END{print "wait\necho \42YAY YOU FINALLY DONE!\42"}' \
+    meta/SRX.list > scripts/mapping_bowtie2.sh
+
+chmod 755 scripts/mapping_bowtie2.sh
+mkdir log_files/mapping_bowtie2
+
+nohup ./scripts/mapping_bowtie2.sh > ./log_files/mapping_bowtie2.log &
+
+
+bowtie2  --very-sensitive  -k 10  -x <genomeIndexName>  -1 <name>_1.fastq.gz  -2 <name>_2.fastq.gz  \
+
+samtools view 6hrDexA.sam -u | samtools sort -@ 2 -n -o 6hrDexA.bam 
+samtools view 6hrDexA.sam -u | samtools sort -@ 2 -n -o 6hrDexB.bam 
+SUNDAY, 1/20/2019×
+Steps to visualize in IGV
+get bigwig files
+get bigwig files for each replicate
+example command
+source ~/sammy_custom_scripts/bam2big_pairedEnd.sh 6hrDexA.final.bam ~/Araport11/TAIR10_chr_count.txt .
+batch script
+awk 'BEGIN{print "echo \42START\42"}{print "nohup ~/sammy_custom_scripts/bam2big_pairedEnd.sh "$0".final.bam ~/Araport11/TAIR10_chr_count.txt . &"}NR%3==0{x++;print "wait\necho \42WAIT "x"/4 COMPLETE\42"}' ../meta/SRX.list > ../scripts/visualize.sh
+
+chmod 755 ../scripts/visualize.sh
+
+nohup ../scripts/visualize.sh > ../log_files/visualize.log 2>&1 &
+
+nohup bamCoverage --bam 6hrDexA.final.bam -o 6hrDexA.bowtie2.bigwig --binSize 10 --normalizeUsing CPM --centerReads -of bigwig &
+nohup bamCoverage --bam 6hrDexB.final.bam -o 6hrDexB.bowtie2.bigwig --binSize 10 --normalizeUsing CPM --centerReads -of bigwig &
+
+nohup bamCoverage --bam 6hrDexA.final.bam -o 6hrDexA.bowtie2.bg --binSize 10 --normalizeUsing CPM --centerReads -of bedgraph &
+nohup bamCoverage --bam 6hrDexB.final.bam -o 6hrDexB.bowtie2.bg --binSize 10 --normalizeUsing CPM --centerReads -of bedgraph &
+
+nohup bedtools unionbedg -header -i 6hrDexA.bowtie2.bg 6hrDexB.bowtie2.bg > 6hrDex.bowtie2.unionbedg &
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5+$6)/3; print $1,$2,$3,avg}' 6hrDex.bowtie2.unionbedg > 6hrDex.bowtie2.pooled.bg
+sort -k1,1 -k2,2n 6hrDex.bowtie2.pooled.bg > 6hrDex.bowtie2.sorted.pooled.bg
+bedGraphToBigWig 6hrDex.bowtie2.sorted.pooled.bg ~/Araport11/TAIR10_chr_count.txt 6hrDex.bowtie2.bigwig
+
+TUESDAY, 1/22/2019×
+●
+Mapping ATAC-6hrMock first -- and then map 24hr after removing all the trimmed fastq files from the server:
+awk 'BEGIN{print "#!/bin/bash\necho \42START\42"} \
+    {print "nohup bowtie --no-unal -S  --chunkmbs 200 \
+    --best -m 1 /home/runjin/Araport11/TAIR10_bowtie1 \
+    -1 trimmed_fastq/"$1"_R1.paired.fastq \
+    -2 trimmed_fastq/"$1"_R2.paired.fastq > mapping_SK/"$1".sam \
+    2> log_files/mapping/browtie_"$1".log &"} NR%2==0{print "wait\necho \42FINISHED: "NR/2"/2 WAIT\42"}END{print "wait\necho \42YAY YOU FINALLY DONE!\42"}' \
+    meta/SRX.list > scripts/mapping.sh
+
+ATAC-24hrDexA-Spikein
+ATAC-24hrDexB-Spikein
+
+chmod 755 scripts/mapping.sh
+mkdir log_files/mapping
+nohup ./scripts/mapping.sh > ./log_files/mapping.log &
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 ~/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-6hrMockA_R1.paired.fastq -2 trimmed_fastq/ATAC-6hrMockA_R2.paired.fastq > mapping_SK/ATAC-6hrMockA.sam &
+
+nohup bowtie --no-unal -S --chunkmbs 200 --best -m 1 ~/Araport11/TAIR10_bowtie1 -1 trimmed_fastq/ATAC-6hrMockB_R1.paired.fastq -2 trimmed_fastq/ATAC-6hrMockB_R2.paired.fastq > mapping_SK/ATAC-6hrMockB.sam &
+
+A
+B
+C
+D
+E
+1
+Start	Mapped	Unapped	Suppressed due to -m
+2
+ATAC-6hrMockA	24546624	7854967 (32.00%)	13965293 (56.89%)	2726364 (11.11%)
+3
+ATAC-6hrMockB	24646722	7891855 (32.02%)	13949019 (56.60%)	2805848 (11.38%)
+4
+ATAC-24hrMockA	28757472	5972592 (20.77%)	20782325 (72.27%)	2002555 (6.96%)
+5
+ATAC-24hrMockB	32607430	7073689 (21.69%)	23070323 (70.75%)	2463418 (7.55%)
+6
+ATAC-24hrDexA	47673812	8239949 (17.28%)	35859091 (75.22%)	3574772 (7.50%)
+7
+ATAC-24hrDexB	37649925	6804466 (18.07%)	27919737 (74.16%)	2925722 (7.77%)
+Table27
+
+
+
+●
+Use custom scripts from Kaufmann for filtering and removing ChrFromSam: 
+create_ATAC_filtering.sh
+
+#!/bin/bash
+
+# **************** 9. Filtering **************** 
+#===================================
+# 1. Remove unmapped, mate unmapped not primary alignment, 
+#    reads failing platform
+# 2. Remove low MAPQ reads
+# 4. Remove duplicate reads
+#===================================
+
+
+myWorkDIR=/home/runjin/LFY/
+NTHREADS=2 ## number of threads
+miniQ=30
+PICARD=$HOME/Downloads/picard/build/libs
+maxFragLen=170
+minFragLen=130
+#PICARD=$HOME/Downloads/picard/src/main/java/picard ## path for Picard tools
+echo "#!/bin/bash"
+cat $myWorkDIR/meta/SRX.list | while read SRX; do 
+        # Filter bam file, based on FLAG 1804: segment unmapped (4) + next segment in the template unmapped (8) + secondary alignments (256) + not passing filters, such as platform/vendor quality controls (512) + PCR or optical duplicates (1024); -q 30 exclude MAPQ < 30 
+        [[ ! -f $SRX.filter.bam ]] && echo """samtools view -@ ${NTHREADS} -h -f3 -F 1804 -q $miniQ ${SRX}.sam | samtools sort - -o ${SRX}.filter.bam """
+	[[ ! -f $SRX.filter.bam.bai ]] && echo "samtools index ${SRX}.filter.bam"
+	[[ ! -f $SRX.dupmark.bam ]] && echo "java -jar $HOME/Downloads/picard/build/libs/picard.jar MarkDuplicates I=${SRX}.filter.bam O=${SRX}.dupmark.bam M=${SRX}.dup.qc VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false ASSUME_SORTED=true"
+	[[ ! -f $SRX.dupmark.sorted.bam ]] && echo "samtools sort ${SRX}.dupmark.bam > ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.dupmark.sorted.bai ]] && echo "samtools index ${SRX}.dupmark.sorted.bam"
+	[[ ! -f $SRX.final.bam ]] && echo "samtools view -@ ${NTHREADS} -F 1804 -b ${SRX}.dupmark.bam > ${SRX}.final.bam"
+        [[ ! -f $SRX.final.bam.bai ]] && echo "samtools index ${SRX}.final.bam && rm ${SRX}.dupmark.bam"
+        done
+ 
+ATAC-6hrMockA
+ATAC-6hrMockB
+ATAC-24hrDexA
+ATAC-24hrDexB
+ATAC-24hrMockA
+ATAC-24hrMockB
+
+cd /home/runjin/LFY/mapping_SK
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+source ../scripts/create_filtering.sh > ../scripts/ATAC_filtering.sh
+
+chmod 755 ../scripts/ATAC_filtering.sh
+
+nohup ../scripts/ATAC_filtering.sh > ../log_files/ATAC_filtering.log 2>&1 &
+A
+B
+C
+D
+E
+1
+SAM	Number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30	Number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates	Average fragment size
+2
+ATAC-6hrMockA	21162671	15709934	14510244	114.005
+3
+ATAC-6hrMockB	21395415	15783710	14433268	113.884
+4
+ATAC-24hrMockA				
+5
+ATAC-24hrMockB				
+6
+ATAC-24hrDexA				
+7
+ATAC-24hrDexB				
+Table26
+
+
+
+●
+get number of mapped reads in the sam file
+wc -l ATAC-6hrMockA.sam
+●
+get number of reads (singletons, proper paired & NOT in ChM or ChC) has MAPQ>=30
+samtools view -c ATAC-6hrMockA.filter.bam 
+●
+get number of PROPER PAIRED reads that mapped, has MAPQ>=30, and no duplicates
+samtools view -c -F 4 -f 3 ATAC-6hrMockB.final.bam
+●
+Get average fragment size
+samtools view -f 3 -F 4 ATAC-6hrMockB.final.bam| cut -f9| awk '$0>0{x=$0+x;n++}END{print x/n}'
+●
+Get mad for not sorting 
+○
+So sort the sam files into bam files and index it 
+samtools sort -@ 2 ATAC-6hrMockA.final.bam -o ATAC-6hrMockA.final.sorted.bam
+samtools index ATAC-6hrMockA.final.sorted.bam
+
+samtools sort -@ 2 6hrMockA.final.bam -o 6hrMockA.final.sorted.bam
+samtools index 6hrMockA.final.sorted.bam
+
+samtools sort -@ 2 6hrMockB.final.bam -o 6hrMockB.final.sorted.bam
+samtools index 6hrMockB.final.sorted.bam
+●
+Get the visualization file:
+nohup bamCoverage --bam 6hrMockA.final.sorted.bam -o 6hrMockA.CPM.bigwig --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bigwig &
+nohup bamCoverage --bam 6hrMockB.final.sorted.bam -o 6hrMockB.CPM.bigwig --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bigwig &
+
+nohup bamCoverage --bam 6hrMockA.final.sorted.bam -o 6hrMockA.CPM.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bedgraph &
+nohup bamCoverage --bam 6hrMockB.final.sorted.bam -o 6hrMockB.CPM.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bedgraph &
+
+nohup bedtools unionbedg -header -i 6hrMockA.CPM.bg 6hrMockB.CPM.bg > 6hrMock.unionbedg &
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5+$6)/3; print $1,$2,$3,avg}' 6hrMock.unionbedg > 6hrMock.pooled.bg
+sort -k1,1 -k2,2n 6hrMock.pooled.bg > 6hrMock.pooled.sorted.bg
+bedGraphToBigWig 6hrMock.pooled.sorted.bg ~/Araport11/TAIR10_chr_count.txt 6hrMock.pooled.bigwig
+bowtie2-build -f ~/Araport11/TAIR10_Chr.all.fasta ~/Araport11/TAIR10_bowtie2
+WEDNESDAY, 1/23/2019×
+●
+Start filtering for the ATAC-6hrMock
+
+image.png
+thumbnail
+
+awk '{print "samtools view -h -o "$0".final.sam "$0".final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtosam.sh
+chmod 775 ~/LFY/scripts/bamtosam.sh
+nohup ~/LFY/scripts/bamtosam.sh > ~/LFY/log_files/bamtosam.log 2>&1 &
+
+export PATH="/home/runjin/Downloads/samtools-1.9/:$PATH"
+
+ATAC-6hrMockA
+ATAC-6hrMockB
+
+#batch script here:
+awk '{print "awk \47$9<=110\47 "$0".final.sam > "$0".open110.final.sam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/filterATAC.sh
+chmod 775 ~/LFY/scripts/filterATAC.sh
+nohup ~/LFY/scripts/filterATAC.sh > ~/LFY/log_files/filterATAC.log 2>&1 &
+
+awk '{print "samtools view -b -S "$0".open110.final.sam > "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/samtobam_ATAC.sh
+chmod 775 ~/LFY/scripts/samtobam_ATAC.sh
+nohup ~/LFY/scripts/samtobam_ATAC.sh > ~/LFY/log_files/samtobam_ATAC.log 2>&1 &
+
+awk '{print "samtools index "$0".open110.final.bam"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/index_open.sh
+chmod 775 ~/LFY/scripts/index_open.sh
+nohup ~/LFY/scripts/index_open.sh > ~/LFY/log_files/index_open.log 2>&1 &
+
+Make normalized bigwig files for profile plotting to see whether it makes better results: 
+# get bedgraphs for averaging replicates later
+awk '{print "bamCoverage -b "$0".open110.final.bam -o "$0".open110.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing RPKM --ignoreForNormalization Mt Pt -of bedgraph --minMappingQuality 30"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/bamtobg_open.sh
+chmod 755 ~/LFY/scripts/bamtobg_open.sh
+nohup ~/LFY/scripts/bamtobg_open.sh > ~/LFY/log_files/bamtobg_open.log 2>&1 &
+
+#merge the 2 replicates of the open region sizes:
+nohup bedtools unionbedg -header -i ATAC-24hrMockA.open110.bg ATAC-24hrMockB.open110.bg > ATAC-24hrMock.pooled.unionbedg &
+
+#get average of each row in the unionbedg:
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5)/2; print $1,$2,$3,avg}' ATAC-24hrMock.pooled.unionbedg > ATAC-24hrMock.open110.bg
+sort -k1,1 -k2,2n ATAC-24hrMock.open110.bg > ATAC-24hrMock.open110.sorted.bg
+bedGraphToBigWig ATAC-24hrMock.open110.sorted.bg ~/Araport11/TAIR10_chr_count.txt ATAC-24hrMock.open110.bigwig
+●
+Get visualization for the one before filtering:
+samtools sort -@ 2 ATAC-24hrDexB-Spikein.final.bam -o ATAC-24hrDexB-Spikein.final.sorted.bam
+samtools index ATAC-24hrDexB-Spikein.final.sorted.bam
+●
+Get the visualization file:
+nohup bamCoverage --bam ATAC-24hrMockA-Spikein.final.sorted.bam -o ATAC-24hrMockA-SK.CPM.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bedgraph &
+nohup bamCoverage --bam ATAC-24hrMockB-Spikein.final.sorted.bam -o ATAC-24hrMockB-SK.CPM.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bedgraph &
+
+nohup bamCoverage --bam ATAC-24hrDexA-Spikein.final.sorted.bam -o ATAC-24hrDexA-SK.CPM.bigwig --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bigwig &
+nohup bamCoverage --bam ATAC-24hrDexB-Spikein.final.sorted.bam -o ATAC-24hrDexB-SK.CPM.bigwig --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bigwig &
+
+nohup bamCoverage --bam ATAC-24hrDexB-Spikein.final.sorted.bam -o ATAC-24hrDexB-SK.CPM.bg --binSize 10 --effectiveGenomeSize 101274395 --normalizeUsing CPM --centerReads -of bedgraph &
+
+nohup bedtools unionbedg -header -i ATAC-24hrDexA-SK.CPM.bg ATAC-24hrDexB-SK.CPM.bg > ATAC-24hrDex-SK.CPM.unionbedg &
+awk 'BEGIN{OFS="\t"} (NR>1 && $1!="Mt" && $1!="Pt"){avg=($4+$5+$6)/3; print $1,$2,$3,avg}' ATAC-24hrDex-SK.CPM.unionbedg > ATAC-24hrDex-SK.pooled.bg
+sort -k1,1 -k2,2n ATAC-24hrDex-SK.pooled.bg > ATAC-24hrDex-SK.pooled.sorted.bg
+bedGraphToBigWig ATAC-24hrDex-SK.pooled.sorted.bg ~/Araport11/TAIR10_chr_count.txt ATAC-24hrDex-SK.bigwig
+TUESDAY, 1/29/2019×
+●
+Use the final bigwig files for making the profile plot
+ATAC-24hrDexA-SK.CPM.bigwig
+ATAC-24hrDexB-SK.CPM.bigwig
+ATAC-24hrDex.open110.bigwig 
+ATAC-24hrDex-SK.bigwig
+
+ATAC-24hrMockA-SK.CPM.bigwig
+ATAC-24hrMockB-SK.CPM.bigwig
+ATAC-24hrMock.open110.bigwig
+ATAC-24hrMock-SK.bigwig
+
+ATAC-6hrMockA.CPM.bigwig
+ATAC-6hrMockB.CPM.bigwig
+ATAC-6hrMock.pooled.bigwig
+ATAC-6hrMock.open110.bigwig
+
+nohup computeMatrix scale-regions -S ATAC-24hrDexA-SK.CPM.bigwig ATAC-24hrDexB-SK.CPM.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_24hrDex_SK_final.mat.gz &
+
+nohup computeMatrix scale-regions -S ATAC-24hrMockA-SK.CPM.bigwig ATAC-24hrMockB-SK.CPM.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ./matrix/ATAC_24hrDex_SK_final.mat.gz &
+
+nohup computeMatrix scale-regions -S ATAC-24hrDex.open110.bigwig ATAC-24hrDex-SK.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_24hrDexPooled_SK_final.mat.gz &
+
+nohup computeMatrix scale-regions -S ATAC-24hrMockA-SK.CPM.bigwig ATAC-24hrMockB-SK.CPM.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_24hrMock_SK_final.mat.gz &
+
+nohup computeMatrix scale-regions -S ATAC-24hrMock.open110.bigwig ATAC-24hrMock-SK.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_24hrMockPooled_SK_final.mat.gz &
+
+nohup computeMatrix scale-regions -S ATAC-6hrMock.pooled.bigwig ATAC-6hrMock.open110.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_6hrMockPooled_SK_final.mat.gz &
+
+nohup computeMatrix scale-regions -S ATAC-6hrDexA.CPM.bigwig ATAC-6hrDexB.CPM.bigwig -R ~/Araport11/TAIR10_GFF3_protein_coding_genes.bed -b 3000 -a 3000 -m 5000 -bs 10 -o ATAC_6hrDex_SK_final.mat.gz &
+
+nohup plotProfile --matrixFile ATAC_24hrDex_SK_final.mat.gz --outFileName ./ATAC_24hrDex_SK_final.png --perGroup &
+nohup plotProfile --matrixFile ATAC_24hrDexPooled_SK_final.mat.gz --outFileName ./ATAC_24hrDexPooled_SK_final.png --perGroup &
+nohup plotProfile --matrixFile ATAC_24hrMock_SK_final.mat.gz --outFileName ./ATAC_24hrMock_SK_final.png --perGroup &
+nohup plotProfile --matrixFile ATAC_24hrMockPooled_SK_final.mat.gz --outFileName ./ATAC_24hrMockPooled_SK_final.png --perGroup &
+nohup plotProfile --matrixFile ATAC_6hrMock_SK_final.mat.gz --outFileName ./ATAC_6hrMock_SK_final.png --perGroup &
+nohup plotProfile --matrixFile ATAC_6hrMockPooled_SK_final.mat.gz --outFileName ./ATAC_6hrMockPooled_SK_final.png --perGroup &
+nohup plotProfile --matrixFile ATAC_6hrDex_SK_final.mat.gz --outFileName ./ATAC_6hrDex_SK_final.png --perGroup &
+
+ATAC_6hrMock_SK_final.png
+thumbnail
+
+
+ATAC_24hrDex_SK_final.png
+thumbnail
+
+
+ATAC_24hrMock_SK_final.png
+thumbnail
+
+
+ATAC_6hrDex_SK_final.png
+thumbnail
+
+●
+Use MACS2 for peak calling
+nohup macs2 callpeak -B -t ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -c ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC_24hrDvM_SK_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t ATAC-24hrDexA-Spikein.final.bam ATAC-24hrDexB-Spikein.final.bam -c ATAC-24hrMockA-Spikein.final.bam ATAC-24hrMockB-Spikein.final.bam -n ATAC_24hrDvM_SK_90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open110.final.bam ATAC-24hrDexB-Spikein.open110.final.bam -c ATAC-24hrMockA-Spikein.open110.final.bam ATAC-24hrMockB-Spikein.open110.final.bam -n ATAC_24hrDvM_SK_11070 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t ATAC-24hrDexA-Spikein.open110.final.bam ATAC-24hrDexB-Spikein.open110.final.bam -c ATAC-24hrMockA-Spikein.open110.final.bam ATAC-24hrMockB-Spikein.open110.final.bam -n ATAC_24hrDvM_SK_11090 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -c ATAC-6hrMockA.final.sorted.bam ATAC-6hrMockB.final.sorted.bam -n ATAC_6hrDvM_SK_90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -c ATAC-6hrMockA.final.sorted.bam ATAC-6hrMockB.final.sorted.bam -n ATAC_6hrDvM_SK_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t ATAC-6hrDexA-SK.open110.final.bam ATAC-6hrDexB-SK.open110.final.bam -c ATAC-6hrMockB.open110.final.bam ATAC-6hrMockA.open110.final.bam -n ATAC_6hrDvM_SK_11070 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t ATAC-6hrDexA-SK.open110.final.bam ATAC-6hrDexB-SK.open110.final.bam -c ATAC-6hrMockB.open110.final.bam ATAC-6hrMockA.open110.final.bam -n ATAC_6hrDvM_SK_11090 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+awk '$9>=10' ATAC_6hrMvD_SK_70_peaks.narrowPeak | wc -l 
+A
+B
+C
+D
+E
+F
+G
+H
+I
+1
+# of peaks	# of qval10		# of peaks	# of qval10		# of peaks	# of qval10
+2
+24hrDvM_11070	2921	272	24hrMvD_11070	24212	202			
+3
+24hrDvM_11090	1885	218	24hrMvD_11090	16696	153			
+4
+24hrDvM_70	4097	439	24hrMvD_70	35138	475	6hrMvD_85	39857	13953
+5
+24hrDvM_90	2789	392	24hrMvD_90	26381	419	6hrMvD_70	44581	14848
+6
+6rhDvM_11070	4621	83	6rhMvD_11070	18743	456	6hrMvD_90	38453	13783
+7
+6hrDvM_11090	2519	49	6hrMvD_11090	12968	359	6hrDvM_85	2332	969
+8
+6hrDvM_70	7163	177	6hrMvD_70	23790	1001	6hrDvM_70	2952	1066
+9
+6hrDvM_90	4327	138	6hrMvD_90	17619	895	6hrDvM_90	2184	945
+Table28
+
+
+
+●
+See the number of peaks with MvD:
+nohup macs2 callpeak -B -c ATAC-24hrDexA-Spikein.final.sorted.bam ATAC-24hrDexB-Spikein.final.sorted.bam -t ATAC-24hrMockA-Spikein.final.sorted.bam ATAC-24hrMockB-Spikein.final.sorted.bam -n ATAC_24hrMvD_SK_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c ATAC-24hrDexA-Spikein.final.sorted.bam ATAC-24hrDexB-Spikein.final.sorted.bam -t ATAC-24hrMockA-Spikein.final.sorted.bam ATAC-24hrMockB-Spikein.final.sorted.bam -n ATAC_24hrMvD_SK_90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c ATAC-24hrDexA-Spikein.open110.final.bam ATAC-24hrDexB-Spikein.open110.final.bam -t ATAC-24hrMockA-Spikein.open110.final.bam ATAC-24hrMockB-Spikein.open110.final.bam -n ATAC_24hrMvD_SK_11070 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c ATAC-24hrDexA-Spikein.open110.final.bam ATAC-24hrDexB-Spikein.open110.final.bam -t ATAC-24hrMockA-Spikein.open110.final.bam ATAC-24hrMockB-Spikein.open110.final.bam -n ATAC_24hrMvD_SK_11090 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -t ATAC-6hrMockA.final.sorted.bam ATAC-6hrMockB.final.sorted.bam -n ATAC_6hrMvD_SK_90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam -t ATAC-6hrMockA.final.sorted.bam ATAC-6hrMockB.final.sorted.bam -n ATAC_6hrMvD_SK_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c ATAC-6hrDexA-SK.open110.final.bam ATAC-6hrDexB-SK.open110.final.bam -t ATAC-6hrMockB.open110.final.bam ATAC-6hrMockA.open110.final.bam -n ATAC_6hrMvD_SK_11070 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c ATAC-6hrDexA-SK.open110.final.bam ATAC-6hrDexB-SK.open110.final.bam -t ATAC-6hrMockB.open110.final.bam ATAC-6hrMockA.open110.final.bam -n ATAC_6hrMvD_SK_11090 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+awk '{print "awk \47BEGIN{OFS=\42\t\42}$9>=10{print $1,$2,$3,$4,$7,$6}\47 "$0".narrowPeak > "$0".qval10.bed"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/qval10bed.sh
+chmod 755 ~/LFY/scripts/qval10bed.sh
+nohup ~/LFY/scripts/qval10bed.sh > ~/LFY/log_files/qval10bed.log 2>&1 &
+
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' InputLMI2_qval20_fc2.narrowPeak > InputLMI2_qval20_fc2.bed
+
+ATAC_24hrDvM_SK_11070_peaks 
+ATAC_24hrMvD_SK_70_peaks    
+ATAC_6hrMvD_SK_11070_peaks
+ATAC_24hrDvM_SK_11090_peaks  
+ATAC_24hrMvD_SK_90_peaks    
+ATAC_6hrMvD_SK_11090_peaks
+ATAC_24hrDvM_SK_70_peaks     
+ATAC_6hrDvM_SK_11070_peaks  
+ATAC_6hrMvD_SK_70_peaks
+ATAC_24hrDvM_SK_90_peaks     
+ATAC_6hrDvM_SK_11090_peaks 
+ATAC_6hrMvD_SK_90_peaks
+ATAC_24hrMvD_SK_11070_peaks  
+ATAC_6hrDvM_SK_70_peaks
+ATAC_24hrMvD_SK_11090_peaks  
+ATAC_6hrDvM_SK_90_peaks
+WEDNESDAY, 1/30/2019×
+●
+Call peaks using the old 6hr: 
+nohup macs2 callpeak -B -t 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam -c 6hrDexA.final.bam 6hrDexB.final.bam -n 6hrMvD_SK_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam -c 6hrDexA.final.bam 6hrDexB.final.bam -n 6hrMvD_SK_90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam -c 6hrDexA.final.bam 6hrDexB.final.bam -n 6hrMvD_SK_85 -f BAMPE --nomodel --shift -42 --extsize 85 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 85 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -c 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam -t 6hrDexA.final.bam 6hrDexB.final.bam -n 6hrDvM_SK_85 -f BAMPE --nomodel --shift -42 --extsize 85 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 85 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+
+awk '{print "awk \47BEGIN{OFS=\42\t\42}$9>=10{print $1,$2,$3,$4,$7,$6}\47 "$0".narrowPeak > "$0".qval10.bed"}' ~/LFY/meta/SRX.list > ~/LFY/scripts/qval10bed.sh
+chmod 755 ~/LFY/scripts/qval10bed.sh
+nohup ~/LFY/scripts/qval10bed.sh > ~/LFY/log_files/qval10bed.log 2>&1 &
+
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' InputLMI2_qval20_fc2.narrowPeak > InputLMI2_qval20_fc2.bed
+
+SATURDAY, 2/9/2019×
+nohup multiBigwigSummary bins -b 6hrDexA.CPM.bigwig 6hrDexB.CPM.bigwig 6hrMockA.CPM.bigwig 6hrMockB.CPM.bigwig ATAC-6hrDexA.CPM.bigwig ATAC-6hrDexB.CPM.bigwig ATAC-6hrMockA.CPM.bigwig ATAC-6hrMockB.CPM.bigwig ATAC-24hrDexA-SK.CPM.bigwig ATAC-24hrDexB-SK.CPM.bigwig ATAC-24hrMockA-SK.CPM.bigwig ATAC-24hrMockB-SK.CPM.bigwig --binSize 10 -l 6hrDexA 6hrDexB 6hrMockA 6hrMockB 6hrDexA_2nd 6hrDexB_2nd 6hrMockA_2nd 6hrMockB_2nd 24hrDexA 24hrDexB 24hrMockA 24hrMockB -o ATAC_bw_PCA.npz &
+
+nohup multiBamSummary bins --bamfiles 6hrDexA.final.bam 6hrDexB.final.bam 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam ATAC-6hrDexA-SK.open110.final.bam ATAC-6hrDexB-SK.open110.final.bam ATAC-6hrMockA.open110.final.bam ATAC-6hrMockB.open110.final.bam ATAC-24hrDexA-Spikein.open110.final.bam ATAC-24hrDexB-Spikein.open110.final.bam ATAC-24hrMockA-Spikein.open110.final.bam ATAC-24hrMockB-Spikein.open110.final.bam --binSize 10 -l 6hrDexA 6hrDexB 6hrMockA 6hrMockB 6hrDexA_2nd 6hrDexB_2nd 6hrMockA_2nd 6hrMockB_2nd 24hrDexA 24hrDexB 24hrMockA 24hrMockB -o ATAC_bam_open110_PCA.npz &
+
+nohup plotPCA --corData ATAC_bam_open110_PCA.npz --plotTitle ATAC_bam_open110_PCA --plotFileFormat png -o ~/LFY/graphs/ATAC_bam_PCA.png &
+
+nohup plotPCA --corData ATAC_bw_PCA.npz --plotTitle ATAC_bw_PCA --plotFileFormat png -o ~/LFY/graphs/ATAC_bw_PCA.png &
+
+ATAC_bam_open110_PCA.png
+thumbnail
+
+ATAC_24hrDvM_SK_11070_peaks.qval10.bed ATAC_6hrDvM_SK_11070_peaks.qval10.bed ATAC_24hrDvM_SK_11090_peaks.qval10.bed ATAC_6hrDvM_SK_11090_peaks.qval10.bed ATAC_24hrDvM_SK_70_peaks.qval10.bed ATAC_6hrDvM_SK_70_peaks.qval10.bed ATAC_24hrDvM_SK_90_peaks.qval10.bed ATAC_6hrDvM_SK_90_peaks.qval10.bed 
+
+ATAC_24hrMvD_SK_11070_peaks.qval10.bed ATAC_6hrMvD_SK_11070_peaks.qval10.bed ATAC_24hrMvD_SK_11090_peaks.qval10.bed ATAC_6hrMvD_SK_11090_peaks.qval10.bed ATAC_24hrMvD_SK_70_peaks.qval10.bed ATAC_6hrMvD_SK_70_peaks.qval10.bed ATAC_24hrMvD_SK_90_peaks.qval10.bed ATAC_6hrMvD_SK_90_peaks.qval10.bed
+
+nohup computeMatrix scale-regions -S ATAC-24hrDex.greenscreen3.bigwig ATAC-24hrMock.greenscreen3.bigwig ATAC-6hrDex.greenscreen3.bigwig ATAC-6hrMock.greenscreen3.bigwig -R ~/Araport11/Araport11_protein_coding.201606.bed -b 3000 -a 1000 -m 5000 -bs 10 -o ATAC-GS-100618.mat.gz &
+
+nohup computeMatrix reference-point -S MNase-HM1.final.bw MNase-HM2.final.bw MNase-LM1.final.bw MNase-LM2.final.bw -R ~/Araport11/Araport11_protein_coding.201606.bed --referencePoint TSS -b 1000 -a 1000 -bs 10 --sortRegions descend -o MNase-100618-Deeptools.mat.gz &
+
+nohup computeMatrix reference-point -S LFY1HrDex_pooled_greenscreen1.bigwig LFY1HrMock_pooled_greenscreen1.bigwig -R ../ATAC/macs2_peaks/qval10_bed/ATAC_24hrDvM_SK_11070_peaks.qval10.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o 24hrDvM_SK_11070vsLFYChIP.mat.gz &
+
+nohup computeMatrix reference-point -S ~/LFY/mapping_SK/LFYChIP/LFY1HrDex_pooled_greenscreen1.bigwig ~/LFY/mapping_SK/LFYChIP/LFY1HrMock_pooled_greenscreen1.bigwig -R ATAC_24hrDvM_SK_11090.qval10.nochr.bed --referencePoint center -b 1000 -a 1000 -bs 20 --sortRegions descend -o 24hrDvM_SK_11090vsLFYChIP.mat.gz &
+
+plotHeatmap --matrixFile 6hrDvMvsLFYChIP_70.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/6hrDvMvsLFYChIP_70.png 
+plotHeatmap --matrixFile 6hrDvMvsLFYChIP_90.mat.gz --colorMap YlGnBu --heatmapHeight 15 --heatmapWidth 8 --outFileName ~/LFY/graphs/6hrDvMvsLFYChIP_90.png 
+
+LFY1HrDex_pooled_greenscreen1.bigwig LFY1HrMock_pooled_greenscreen1.bigwig 
+
+nohup macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam -c 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam -n 6hrDvM_SK_90 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 90 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+nohup macs2 callpeak -B -t 6hrDexA.final.bam 6hrDexB.final.bam -c 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam -n 6hrDvM_SK_70 -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --call-summits --scale-to large --keep-dup all -B --min-length 70 --outdir ~/LFY/mapping_SK/ATAC/macs2_peaks &
+
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' 6hrDvM_SK_70_peaks.narrowPeak > ./qval10_bed/6hrDvM_SK_70_qval10.bed
+awk 'BEGIN{OFS="\t"}$9>=10{print $1,$2,$3,$4,$7,$6}' 6hrDvM_SK_90_peaks.narrowPeak > ./qval10_bed/6hrDvM_SK_90_qval10.bed
+
+awk -F"\t" 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print }' 6hrDvM_SK_70_qval10.bed > 6hrDvM_SK_70_qval10.nochr.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print }' 6hrDvM_SK_70_qval10.bed > 6hrDvM_SK_90_qval10.nochr.bed
+awk -F"\t" 'BEGIN{OFS="\t"}{sub(/Chr/, ""); print }' ATAC_24hrDvM_SK_11090_peaks.qval10.bed > ATAC_24hrDvM_SK_11090.qval10.nochr.bed
+
+
+ATAC_bw_PCA.png
+thumbnail
+
+MONDAY, 2/11/2019×
+nohup multiBamSummary bins --bamfiles 6hrDexA.final.bam 6hrDexB.final.bam 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam ATAC-6hrDexA.final.bam ATAC-6hrDexB.final.bam ATAC-6hrMockA.final.sorted.bam ATAC-6hrMockB.final.sorted.bam ATAC-24hrDexA-Spikein.final.sorted.bam ATAC-24hrDexB-Spikein.final.sorted.bam ATAC-24hrMockA-Spikein.final.sorted.bam ATAC-24hrMockB-Spikein.final.sorted.bam --binSize 10 -l 6hrDexA 6hrDexB 6hrMockA 6hrMockB 6hrDexA_2nd 6hrDexB_2nd 6hrMockA_2nd 6hrMockB_2nd 24hrDexA 24hrDexB 24hrMockA 24hrMockB -o ATAC_bam_final_PCA.npz &
+
+nohup plotPCA --corData ATAC_bam_final_PCA.npz --plotTitle ATAC_bam_final_PCA --plotFileFormat png -o ~/LFY/graphs/ATAC_bam_final_PCA.png &
+
+
+
+ATAC_bam_final_PCA.png
+thumbnail
+
+TUESDAY, 2/12/2019×
+macs2 callpeak -t 6hrMockA.final.sorted.bam 6hrMockB.final.sorted.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --outdir ATAC_DEseq2 -n 6hrMock_pooled
+
+macs2 callpeak -t 6hrDexA.final.sorted.bam 6hrDexB.final.sorted.bam -f BAMPE --nomodel --shift -75 --extsize 150 -g 101274395 --outdir ATAC_DEseq2 -n 6hrDex_pooled
+
+mv 6hrDexA.final.bam 6hrDexA.final.sorted.bam
+mv 6hrDexB.final.bam 6hrDexB.final.sorted.bam
+mv 6hrDexA.final.bam.bai 6hrDexA.final.sorted.bam.bai
+mv 6hrDexB.final.bam.bai 6hrDexB.final.sorted.bam.bai
+MONDAY, 2/18/2019×
+nohup computeMatrix reference-point -S ../ATAC-24hrMock-SK.bigwig ../ATAC-24hrDex-SK.bigwig -R ATAC_24hrDvM_SK_11090_peaks.qval10.bed --referencePoint center -b 1000 -a 1000 --binSize 5 --sortRegions keep -o ATAC24hr_11090_peaks.tab.gz &
+
+nohup computeMatrix reference-point -S ../ATAC-24hrMock-SK.bigwig ../ATAC-24hrDex-SK.bigwig -R ATAC_24hrDvM_SK_11070_peaks.qval10.bed --referencePoint center -b 1000 -a 1000 --binSize 5 --sortRegions keep -o ATAC24hr_11070_peaks.tab.gz &
+
+nohup computeMatrix reference-point -S ../ATAC-24hrMock-SK.bigwig ../ATAC-24hrDex-SK.bigwig -R ATAC_24hrDvM_SK_70_peaks.qval10.bed --referencePoint center -b 1000 -a 1000 --binSize 5 --sortRegions keep -o ATAC24hr_70_peaks.tab.gz &
+
+nohup computeMatrix reference-point -S ../ATAC-24hrMock-SK.bigwig ../ATAC-24hrDex-SK.bigwig -R ATAC_24hrDvM_SK_90_peaks.qval10.bed --referencePoint center -b 200 -a 200 --binSize 5 --sortRegions keep -o ATAC24hr_90_peaks.tab.gz &
+
+plotHeatmap -m ATAC24hr_70_peaks.tab.gz --colorMap gray --missingDataColor white -o ~/LFY/graphs/ATAC24hr_70_peaks_heatmap.png
+
+SPLIT WORKSPACE
